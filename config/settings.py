@@ -22,12 +22,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!6195=+z#=!sdqa5=9ec$hab=$tj0g69y0mba+j#c9vl51hqjw'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-!6195=+z#=!sdqa5=9ec$hab=$tj0g69y0mba+j#c9vl51hqjw')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = []
+# 허용 호스트 (프로덕션에서는 환경 변수로 설정)
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -39,8 +40,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'corsheaders',# CORS 처리 라이브러리 추가
-    'diary', # (TODO: 추후 만들 앱 이름도 추가)
+    # Third-party apps
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'corsheaders',
+    # Local apps
+    'diary',
 ]
 
 MIDDLEWARE = [
@@ -127,6 +132,11 @@ load_dotenv()
 # OpenAI API Key
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 
+# 일기 내용 암호화 키 (32바이트 Base64 인코딩)
+# 프로덕션에서는 반드시 환경 변수로 설정할 것!
+# 생성 방법: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+DIARY_ENCRYPTION_KEY = os.environ.get('DIARY_ENCRYPTION_KEY', '')
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -146,3 +156,78 @@ LOGGING = {
         },
     },
 }
+
+# Django REST Framework 설정
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.MultiPartParser',  # 파일 업로드 지원
+        'rest_framework.parsers.FormParser',
+    ],
+}
+
+# Simple JWT 설정
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+}
+
+# CORS 설정 (Cross-Origin Resource Sharing)
+# 프론트엔드에서 백엔드 API 호출을 허용하기 위한 설정
+
+# 개발 환경에서는 모든 도메인 허용 (배포 시 False로 변경)
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+
+# 배포 환경에서 허용할 도메인 목록
+CORS_ALLOWED_ORIGINS = [
+    # 로컬 개발 환경
+    "http://localhost:3000",      # React 웹 개발 서버
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",      # Django 개발 서버
+    "http://127.0.0.1:8000",
+    "http://localhost:19006",     # Expo 웹 개발 서버
+    "http://127.0.0.1:19006",
+    # 모바일 앱 (Expo)
+    "exp://localhost:8081",
+    # TODO: 배포 환경 도메인 추가
+    # "https://your-production-domain.com",
+]
+
+# 허용할 HTTP 메서드
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+# 허용할 HTTP 헤더
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+# 자격 증명(쿠키, Authorization 헤더 등) 허용
+CORS_ALLOW_CREDENTIALS = True
+
+# Preflight 요청 캐시 시간 (초)
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24시간
