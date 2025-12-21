@@ -317,3 +317,37 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Preflight 요청 캐시 시간 (초)
 CORS_PREFLIGHT_MAX_AGE = 86400  # 24시간
+
+
+# =============================================================================
+# Celery 설정 (비동기 태스크 처리)
+# =============================================================================
+# Redis 브로커 URL
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+# 결과 백엔드 (선택사항)
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+# 태스크 직렬화 방식
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+# 시간대 설정
+CELERY_TIMEZONE = TIME_ZONE
+
+# 태스크 결과 만료 시간 (1시간)
+CELERY_RESULT_EXPIRES = 3600
+
+# 태스크 실패 시 재시도 설정
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+
+# 태스크별 라우팅 (선택사항)
+CELERY_TASK_ROUTES = {
+    'diary.tasks.send_email_async': {'queue': 'email'},
+    'diary.tasks.generate_pdf_async': {'queue': 'pdf'},
+}
+
+# 동시 실행 워커 수 제한
+CELERY_WORKER_CONCURRENCY = 4

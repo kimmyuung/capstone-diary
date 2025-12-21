@@ -1,12 +1,27 @@
 """
 이메일 전송 서비스
 비밀번호 재설정, 아이디 찾기, 회원가입 이메일 인증
+
+NOTE: Redis/Celery가 실행 중이면 비동기로, 아니면 동기로 처리됩니다.
 """
 from django.core.mail import send_mail
 from django.conf import settings
 import logging
 
 logger = logging.getLogger('diary')
+
+
+def _is_celery_available():
+    """Celery/Redis 연결 가능 여부 확인"""
+    try:
+        from config.celery import app
+        # Redis 연결 테스트 (간단히 ping)
+        conn = app.connection()
+        conn.ensure_connection(max_retries=1)
+        conn.release()
+        return True
+    except Exception:
+        return False
 
 
 def send_email_verification(user, token):
@@ -17,6 +32,17 @@ def send_email_verification(user, token):
         user: User 객체
         token: EmailVerificationToken 객체
     """
+    # Celery 사용 가능하면 비동기
+    if _is_celery_available():
+        try:
+            from .tasks import send_verification_email_async
+            send_verification_email_async.delay(user.username, user.email, token.token)
+            logger.info(f"Email verification queued for {user.email}")
+            return True
+        except Exception as e:
+            logger.warning(f"Celery unavailable, falling back to sync: {e}")
+    
+    # 동기 처리 (폴백)
     subject = '[감성 일기] 이메일 인증 코드'
     
     message = f"""
@@ -60,6 +86,17 @@ def send_password_reset_email(user, token):
         user: User 객체
         token: PasswordResetToken 객체
     """
+    # Celery 사용 가능하면 비동기
+    if _is_celery_available():
+        try:
+            from .tasks import send_password_reset_email_async
+            send_password_reset_email_async.delay(user.username, user.email, token.token)
+            logger.info(f"Password reset email queued for {user.email}")
+            return True
+        except Exception as e:
+            logger.warning(f"Celery unavailable, falling back to sync: {e}")
+    
+    # 동기 처리 (폴백)
     subject = '[감성 일기] 비밀번호 재설정 인증 코드'
     
     message = f"""
@@ -103,14 +140,25 @@ def send_username_email(user):
     Args:
         user: User 객체
     """
-    subject = '[감성 일기] 아이디 찾기 결과'
+    # Celery 사용 가능하면 비동기
+    if _is_celery_available():
+        try:
+            from .tasks import send_username_email_async
+            send_username_email_async.delay(user.username, user.email)
+            logger.info(f"Username email queued for {user.email}")
+            return True
+        except Exception as e:
+            logger.warning(f"Celery unavailable, falling back to sync: {e}")
     
+    # 동기 처리 (폴백)
     # 아이디 일부 마스킹 (예: tester123 -> te****23)
     username = user.username
     if len(username) > 4:
         masked = username[:2] + '*' * (len(username) - 4) + username[-2:]
     else:
         masked = username[0] + '*' * (len(username) - 1)
+    
+    subject = '[감성 일기] 아이디 찾기 결과'
     
     message = f"""
 안녕하세요!
