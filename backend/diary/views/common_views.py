@@ -6,6 +6,8 @@
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ..messages import SUCCESS_API_CONNECTED
+
 
 class TestConnectionView(APIView):
     """
@@ -14,5 +16,6 @@ class TestConnectionView(APIView):
     def get(self, request):
         return Response({
             "status": "success",
-            "message": "Django 백엔드 연결 성공! React Native 앱이 API를 잘 호출했습니다.",
+            "message": str(SUCCESS_API_CONNECTED),
         })
+

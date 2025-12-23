@@ -1,10 +1,13 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
 import 'react-native-reanimated';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { OfflineQueueProvider } from '@/contexts/OfflineQueueContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { OfflineBanner } from '@/components/OfflineBanner';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -16,34 +19,37 @@ function RootLayoutContent() {
 
   return (
     <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="register" options={{ headerShown: false }} />
-        <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="diary/create"
-          options={{
-            title: '새 일기 작성',
-            headerBackTitle: '뒤로',
-          }}
-        />
-        <Stack.Screen
-          name="diary/[id]"
-          options={{
-            title: '일기 상세',
-            headerBackTitle: '뒤로',
-          }}
-        />
-        <Stack.Screen
-          name="diary/edit/[id]"
-          options={{
-            title: '일기 수정',
-            headerBackTitle: '뒤로',
-          }}
-        />
-      </Stack>
+      <View style={{ flex: 1 }}>
+        <OfflineBanner />
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="register" options={{ headerShown: false }} />
+          <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="diary/create"
+            options={{
+              title: '새 일기 작성',
+              headerBackTitle: '뒤로',
+            }}
+          />
+          <Stack.Screen
+            name="diary/[id]"
+            options={{
+              title: '일기 상세',
+              headerBackTitle: '뒤로',
+            }}
+          />
+          <Stack.Screen
+            name="diary/edit/[id]"
+            options={{
+              title: '일기 수정',
+              headerBackTitle: '뒤로',
+            }}
+          />
+        </Stack>
+      </View>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </NavigationThemeProvider>
   );
@@ -54,9 +60,12 @@ export default function RootLayout() {
     <ErrorBoundary>
       <ThemeProvider>
         <AuthProvider>
-          <RootLayoutContent />
+          <OfflineQueueProvider>
+            <RootLayoutContent />
+          </OfflineQueueProvider>
         </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
 }
+

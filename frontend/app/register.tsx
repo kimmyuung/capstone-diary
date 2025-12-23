@@ -15,6 +15,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Stack } from 'expo-router';
 import axios from 'axios';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { useFormErrors } from '@/hooks/useFormErrors';
+import { FormFieldError, FormErrorSummary } from '@/components/FormFieldError';
+import { useOfflineQueue } from '@/contexts/OfflineQueueContext';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -22,6 +25,7 @@ type Step = 'form' | 'verify';
 
 export default function RegisterScreen() {
     const router = useRouter();
+    const { isOffline } = useOfflineQueue();
     const [step, setStep] = useState<Step>('form');
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -29,45 +33,68 @@ export default function RegisterScreen() {
     const [passwordConfirm, setPasswordConfirm] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    // 새로운 폼 에러 핸들링 훅 사용
+    const {
+        errors,
+        setErrorsFromResponse,
+        clearAllErrors,
+        setFieldError,
+        generalError,
+        isNetworkErr,
+    } = useFormErrors();
 
     const validateForm = () => {
-        const newErrors: Record<string, string> = {};
+        clearAllErrors();
+        let isValid = true;
 
         if (!username.trim()) {
-            newErrors.username = '아이디를 입력해주세요';
+            setFieldError('username', '아이디를 입력해주세요');
+            isValid = false;
         } else if (username.length < 3) {
-            newErrors.username = '아이디는 3자 이상이어야 합니다';
+            setFieldError('username', '아이디는 3자 이상이어야 합니다');
+            isValid = false;
         }
 
         if (!email.trim()) {
-            newErrors.email = '이메일을 입력해주세요 (필수)';
+            setFieldError('email', '이메일을 입력해주세요 (필수)');
+            isValid = false;
         } else if (!/\S+@\S+\.\S+/.test(email)) {
-            newErrors.email = '올바른 이메일 형식이 아닙니다';
+            setFieldError('email', '올바른 이메일 형식이 아닙니다');
+            isValid = false;
         }
 
         if (!password) {
-            newErrors.password = '비밀번호를 입력해주세요';
+            setFieldError('password', '비밀번호를 입력해주세요');
+            isValid = false;
         } else if (password.length < 8) {
-            newErrors.password = '비밀번호는 8자 이상이어야 합니다';
+            setFieldError('password', '비밀번호는 8자 이상이어야 합니다');
+            isValid = false;
         }
 
         if (!passwordConfirm) {
-            newErrors.passwordConfirm = '비밀번호 확인을 입력해주세요';
+            setFieldError('passwordConfirm', '비밀번호 확인을 입력해주세요');
+            isValid = false;
         } else if (password !== passwordConfirm) {
-            newErrors.passwordConfirm = '비밀번호가 일치하지 않습니다';
+            setFieldError('passwordConfirm', '비밀번호가 일치하지 않습니다');
+            isValid = false;
         }
 
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+        return isValid;
     };
 
     // Step 1: 회원가입 요청 (이메일 인증코드 전송)
     const handleRegister = async () => {
         if (!validateForm()) return;
 
+        // 오프라인 상태에서는 회원가입 불가
+        if (isOffline) {
+            Alert.alert('오프라인', '회원가입은 네트워크 연결이 필요합니다');
+            return;
+        }
+
         setIsLoading(true);
-        setErrors({});
+        clearAllErrors();
         try {
             await axios.post(`${API_BASE_URL}/api/register/`, {
                 username: username.trim(),
@@ -80,19 +107,11 @@ export default function RegisterScreen() {
             setStep('verify');
             Alert.alert('인증 코드 전송', '이메일로 6자리 인증 코드가 전송되었습니다.');
         } catch (err: any) {
-            const errorData = err.response?.data;
-            if (errorData) {
-                const newErrors: Record<string, string> = {};
-                Object.entries(errorData).forEach(([key, value]) => {
-                    if (Array.isArray(value)) {
-                        newErrors[key] = value[0];
-                    } else if (typeof value === 'string') {
-                        newErrors[key] = value;
-                    }
-                });
-                setErrors(newErrors);
-            } else {
-                Alert.alert('오류', '회원가입 중 문제가 발생했습니다');
+            // 새로운 에러 핸들러 사용
+            setErrorsFromResponse(err);
+
+            if (isNetworkErr) {
+                Alert.alert('네트워크 오류', '네트워크 연결을 확인해주세요');
             }
         } finally {
             setIsLoading(false);
@@ -102,12 +121,12 @@ export default function RegisterScreen() {
     // Step 2: 이메일 인증 코드 확인
     const handleVerify = async () => {
         if (!verificationCode.trim()) {
-            setErrors({ code: '인증 코드를 입력해주세요' });
+            setFieldError('code', '인증 코드를 입력해주세요');
             return;
         }
 
         setIsLoading(true);
-        setErrors({});
+        clearAllErrors();
         try {
             await axios.post(`${API_BASE_URL}/api/email/verify/`, {
                 email: email.trim(),
@@ -120,8 +139,7 @@ export default function RegisterScreen() {
                 [{ text: '확인', onPress: () => router.replace('/login' as any) }]
             );
         } catch (err: any) {
-            const errorMsg = err.response?.data?.error || '인증에 실패했습니다';
-            setErrors({ code: errorMsg });
+            setErrorsFromResponse(err);
         } finally {
             setIsLoading(false);
         }
@@ -190,7 +208,7 @@ export default function RegisterScreen() {
                                             autoCorrect={false}
                                             editable={!isLoading}
                                         />
-                                        {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
+                                        <FormFieldError error={errors.username} />
                                     </View>
 
                                     <View style={styles.inputGroup}>
@@ -206,7 +224,7 @@ export default function RegisterScreen() {
                                             autoCorrect={false}
                                             editable={!isLoading}
                                         />
-                                        {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+                                        <FormFieldError error={errors.email} />
                                     </View>
 
                                     <View style={styles.inputGroup}>
@@ -220,7 +238,7 @@ export default function RegisterScreen() {
                                             secureTextEntry
                                             editable={!isLoading}
                                         />
-                                        {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+                                        <FormFieldError error={errors.password} />
                                     </View>
 
                                     <View style={styles.inputGroup}>
@@ -234,7 +252,7 @@ export default function RegisterScreen() {
                                             secureTextEntry
                                             editable={!isLoading}
                                         />
-                                        {errors.passwordConfirm && <Text style={styles.errorText}>{errors.passwordConfirm}</Text>}
+                                        <FormFieldError error={errors.passwordConfirm} />
                                     </View>
 
                                     <TouchableOpacity
@@ -268,7 +286,7 @@ export default function RegisterScreen() {
                                             maxLength={6}
                                             editable={!isLoading}
                                         />
-                                        {errors.code && <Text style={styles.errorText}>{errors.code}</Text>}
+                                        <FormFieldError error={errors.code} />
                                     </View>
 
                                     <TouchableOpacity

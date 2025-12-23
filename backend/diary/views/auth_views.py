@@ -12,6 +12,24 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
 from ..serializers import UserRegisterSerializer
+from ..messages import (
+    ERROR_EMAIL_REQUIRED,
+    ERROR_EMAIL_CODE_REQUIRED,
+    ERROR_ALL_FIELDS_REQUIRED,
+    ERROR_INVALID_REQUEST,
+    ERROR_INVALID_CODE,
+    ERROR_CODE_EXPIRED,
+    ERROR_ALREADY_VERIFIED,
+    ERROR_EMAIL_SEND_FAILED,
+    SUCCESS_CODE_SENT,
+    SUCCESS_CODE_SENT_10MIN,
+    SUCCESS_CODE_SENT_30MIN,
+    SUCCESS_EMAIL_VERIFIED,
+    SUCCESS_PASSWORD_CHANGED_LOGIN,
+    SUCCESS_USERNAME_SENT,
+    SUCCESS_CODE_SENT_IF_EXISTS,
+    SUCCESS_USERNAME_SENT_IF_EXISTS,
+)
 from config.throttling import (
     LoginRateThrottle,
     RegisterRateThrottle,
@@ -65,7 +83,7 @@ class RegisterView(generics.CreateAPIView):
         send_email_verification(user, token)
 
         return Response({
-            "message": "인증 코드가 이메일로 전송되었습니다. 10분 내에 인증을 완료해주세요.",
+            "message": str(SUCCESS_CODE_SENT_10MIN),
             "email": user.email,
             "requires_verification": True
         }, status=status.HTTP_201_CREATED)
@@ -100,7 +118,7 @@ class EmailVerifyView(APIView):
 
         if not email or not code:
             return Response(
-                {"error": "이메일과 인증 코드를 입력해주세요."},
+                {"error": str(ERROR_EMAIL_CODE_REQUIRED)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -108,14 +126,14 @@ class EmailVerifyView(APIView):
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response(
-                {"error": "유효하지 않은 요청입니다."},
+                {"error": str(ERROR_INVALID_REQUEST)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         # 이미 활성화된 계정
         if user.is_active:
             return Response(
-                {"error": "이미 인증된 계정입니다."},
+                {"error": str(ERROR_ALREADY_VERIFIED)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -128,13 +146,13 @@ class EmailVerifyView(APIView):
             )
         except EmailVerificationToken.DoesNotExist:
             return Response(
-                {"error": "유효하지 않은 인증 코드입니다."},
+                {"error": str(ERROR_INVALID_CODE)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         if token.is_expired:
             return Response(
-                {"error": "인증 코드가 만료되었습니다. 다시 요청해주세요."},
+                {"error": str(ERROR_CODE_EXPIRED)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -147,7 +165,7 @@ class EmailVerifyView(APIView):
         user.save()
 
         return Response({
-            "message": "이메일 인증이 완료되었습니다. 로그인해주세요."
+            "message": str(SUCCESS_EMAIL_VERIFIED)
         })
 
 
@@ -174,7 +192,7 @@ class ResendVerificationView(APIView):
 
         if not email:
             return Response(
-                {"error": "이메일을 입력해주세요."},
+                {"error": str(ERROR_EMAIL_REQUIRED)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -182,13 +200,13 @@ class ResendVerificationView(APIView):
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({
-                "message": "해당 이메일로 가입된 계정이 있다면 인증 코드가 전송됩니다."
+                "message": str(SUCCESS_CODE_SENT_IF_EXISTS)
             })
 
         # 이미 활성화된 계정
         if user.is_active:
             return Response(
-                {"error": "이미 인증된 계정입니다."},
+                {"error": str(ERROR_ALREADY_VERIFIED)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -197,7 +215,7 @@ class ResendVerificationView(APIView):
         send_email_verification(user, token)
 
         return Response({
-            "message": "인증 코드가 이메일로 전송되었습니다."
+            "message": str(SUCCESS_CODE_SENT)
         })
 
 
@@ -230,7 +248,7 @@ class PasswordResetRequestView(APIView):
 
         if not email:
             return Response(
-                {"error": "이메일을 입력해주세요."},
+                {"error": str(ERROR_EMAIL_REQUIRED)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -239,7 +257,7 @@ class PasswordResetRequestView(APIView):
         except User.DoesNotExist:
             # 보안: 이메일 존재 여부를 노출하지 않음
             return Response({
-                "message": "해당 이메일로 가입된 계정이 있다면 인증 코드가 전송됩니다."
+                "message": str(SUCCESS_CODE_SENT_IF_EXISTS)
             })
 
         # 토큰 생성 및 이메일 전송
@@ -248,11 +266,11 @@ class PasswordResetRequestView(APIView):
 
         if email_sent:
             return Response({
-                "message": "인증 코드가 이메일로 전송되었습니다. 30분 내에 입력해주세요."
+                "message": str(SUCCESS_CODE_SENT_30MIN)
             })
         else:
             return Response(
-                {"error": "이메일 전송에 실패했습니다. 잠시 후 다시 시도해주세요."},
+                {"error": str(ERROR_EMAIL_SEND_FAILED)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -291,7 +309,7 @@ class PasswordResetConfirmView(APIView):
 
         if not all([email, code, new_password]):
             return Response(
-                {"error": "이메일, 인증 코드, 새 비밀번호를 모두 입력해주세요."},
+                {"error": str(ERROR_ALL_FIELDS_REQUIRED)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -299,7 +317,7 @@ class PasswordResetConfirmView(APIView):
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response(
-                {"error": "유효하지 않은 요청입니다."},
+                {"error": str(ERROR_INVALID_REQUEST)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -312,13 +330,13 @@ class PasswordResetConfirmView(APIView):
             )
         except PasswordResetToken.DoesNotExist:
             return Response(
-                {"error": "유효하지 않은 인증 코드입니다."},
+                {"error": str(ERROR_INVALID_CODE)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         if token.is_expired:
             return Response(
-                {"error": "인증 코드가 만료되었습니다. 다시 요청해주세요."},
+                {"error": str(ERROR_CODE_EXPIRED)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -340,7 +358,7 @@ class PasswordResetConfirmView(APIView):
         token.save()
 
         return Response({
-            "message": "비밀번호가 성공적으로 변경되었습니다. 새 비밀번호로 로그인해주세요."
+            "message": str(SUCCESS_PASSWORD_CHANGED_LOGIN)
         })
 
 
@@ -372,7 +390,7 @@ class FindUsernameView(APIView):
 
         if not email:
             return Response(
-                {"error": "이메일을 입력해주세요."},
+                {"error": str(ERROR_EMAIL_REQUIRED)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -381,17 +399,17 @@ class FindUsernameView(APIView):
         except User.DoesNotExist:
             # 보안: 이메일 존재 여부를 노출하지 않음
             return Response({
-                "message": "해당 이메일로 가입된 계정이 있다면 아이디 정보가 전송됩니다."
+                "message": str(SUCCESS_USERNAME_SENT_IF_EXISTS)
             })
 
         email_sent = send_username_email(user)
 
         if email_sent:
             return Response({
-                "message": "아이디 정보가 이메일로 전송되었습니다."
+                "message": str(SUCCESS_USERNAME_SENT)
             })
         else:
             return Response(
-                {"error": "이메일 전송에 실패했습니다. 잠시 후 다시 시도해주세요."},
+                {"error": str(ERROR_EMAIL_SEND_FAILED)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

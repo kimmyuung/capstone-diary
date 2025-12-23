@@ -17,8 +17,9 @@ class RegisterViewTestCase(TestCase):
         self.client = APIClient()
         self.register_url = '/api/register/'
     
-    @patch('diary.views.send_verification_email')
-    def test_register_success(self, mock_send_email):
+    @patch('diary.views.auth_views.RegisterRateThrottle.allow_request', return_value=True)
+    @patch('diary.email_service.send_email_verification')
+    def test_register_success(self, mock_send_email, mock_throttle):
         """회원가입 성공 테스트"""
         mock_send_email.return_value = True
         
@@ -39,7 +40,8 @@ class RegisterViewTestCase(TestCase):
         user = User.objects.get(username='testuser')
         self.assertFalse(user.is_active)
     
-    def test_register_password_mismatch(self):
+    @patch('diary.views.auth_views.RegisterRateThrottle.allow_request', return_value=True)
+    def test_register_password_mismatch(self, mock_throttle):
         """비밀번호 불일치 테스트"""
         data = {
             'username': 'testuser',
@@ -52,7 +54,8 @@ class RegisterViewTestCase(TestCase):
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     
-    def test_register_duplicate_username(self):
+    @patch('diary.views.auth_views.RegisterRateThrottle.allow_request', return_value=True)
+    def test_register_duplicate_username(self, mock_throttle):
         """중복 사용자명 테스트"""
         User.objects.create_user(username='existinguser', email='existing@example.com', password='pass123')
         
@@ -86,7 +89,8 @@ class EmailVerifyViewTestCase(TestCase):
         # 인증 토큰 생성
         self.token = EmailVerificationToken.generate_token(self.user)
     
-    def test_verify_success(self):
+    @patch('diary.views.auth_views.LoginRateThrottle.allow_request', return_value=True)
+    def test_verify_success(self, mock_throttle):
         """이메일 인증 성공 테스트"""
         data = {
             'email': 'test@example.com',
@@ -101,7 +105,8 @@ class EmailVerifyViewTestCase(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_active)
     
-    def test_verify_invalid_code(self):
+    @patch('diary.views.auth_views.LoginRateThrottle.allow_request', return_value=True)
+    def test_verify_invalid_code(self, mock_throttle):
         """잘못된 인증 코드 테스트"""
         data = {
             'email': 'test@example.com',
@@ -112,7 +117,8 @@ class EmailVerifyViewTestCase(TestCase):
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     
-    def test_verify_nonexistent_email(self):
+    @patch('diary.views.auth_views.LoginRateThrottle.allow_request', return_value=True)
+    def test_verify_nonexistent_email(self, mock_throttle):
         """존재하지 않는 이메일 테스트"""
         data = {
             'email': 'nonexistent@example.com',
@@ -121,7 +127,7 @@ class EmailVerifyViewTestCase(TestCase):
         
         response = self.client.post(self.verify_url, data, format='json')
         
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class PasswordResetTestCase(TestCase):
@@ -138,8 +144,9 @@ class PasswordResetTestCase(TestCase):
             password='OldPass123!'
         )
     
-    @patch('diary.views.send_password_reset_email')
-    def test_reset_request_success(self, mock_send_email):
+    @patch('diary.views.auth_views.PasswordResetRateThrottle.allow_request', return_value=True)
+    @patch('diary.email_service.send_password_reset_email')
+    def test_reset_request_success(self, mock_send_email, mock_throttle):
         """비밀번호 재설정 요청 성공 테스트"""
         mock_send_email.return_value = True
         
@@ -150,7 +157,8 @@ class PasswordResetTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('message', response.data)
     
-    def test_reset_request_nonexistent_email(self):
+    @patch('diary.views.auth_views.PasswordResetRateThrottle.allow_request', return_value=True)
+    def test_reset_request_nonexistent_email(self, mock_throttle):
         """존재하지 않는 이메일로 재설정 요청 테스트"""
         data = {'email': 'nonexistent@example.com'}
         
@@ -159,7 +167,8 @@ class PasswordResetTestCase(TestCase):
         # 보안상 존재하지 않는 이메일도 성공 응답
         self.assertEqual(response.status_code, status.HTTP_200_OK)
     
-    def test_reset_confirm_success(self):
+    @patch('diary.views.auth_views.PasswordResetRateThrottle.allow_request', return_value=True)
+    def test_reset_confirm_success(self, mock_throttle):
         """비밀번호 재설정 확인 성공 테스트"""
         # 토큰 생성
         token = PasswordResetToken.generate_token(self.user)
@@ -178,7 +187,8 @@ class PasswordResetTestCase(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password('NewPass456!'))
     
-    def test_reset_confirm_invalid_code(self):
+    @patch('diary.views.auth_views.PasswordResetRateThrottle.allow_request', return_value=True)
+    def test_reset_confirm_invalid_code(self, mock_throttle):
         """잘못된 코드로 비밀번호 재설정 테스트"""
         data = {
             'email': 'test@example.com',
@@ -204,8 +214,9 @@ class FindUsernameTestCase(TestCase):
             password='TestPass123!'
         )
     
-    @patch('diary.views.send_username_email')
-    def test_find_username_success(self, mock_send_email):
+    @patch('diary.views.auth_views.PasswordResetRateThrottle.allow_request', return_value=True)
+    @patch('diary.email_service.send_username_email')
+    def test_find_username_success(self, mock_send_email, mock_throttle):
         """아이디 찾기 성공 테스트"""
         mock_send_email.return_value = True
         
@@ -216,10 +227,13 @@ class FindUsernameTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('message', response.data)
     
-    def test_find_username_nonexistent(self):
+    @patch('diary.views.auth_views.PasswordResetRateThrottle.allow_request', return_value=True)
+    def test_find_username_nonexistent(self, mock_throttle):
         """존재하지 않는 이메일로 아이디 찾기 테스트"""
         data = {'email': 'nonexistent@example.com'}
         
         response = self.client.post(self.find_url, data, format='json')
         
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        # 보안상 존재하지 않는 이메일도 성공 응답 (계정 존재 여부 노출 방지)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+

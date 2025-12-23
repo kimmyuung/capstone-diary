@@ -180,9 +180,9 @@ class TestTemplateIsolation:
             content='접근 불가'
         )
         
-        # 수정 시도
+        # 수정 시도 - 쿼리셋 필터링으로 인해 404 반환 (보안상 템플릿 존재 여부도 숨김)
         response = authenticated_client.patch(
             f'/api/templates/{template.id}/',
             {'name': '해킹'}
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_404_NOT_FOUND

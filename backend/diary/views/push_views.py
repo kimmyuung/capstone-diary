@@ -9,6 +9,14 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from ..messages import (
+    ERROR_PUSH_TOKEN_REQUIRED,
+    ERROR_PUSH_TOKEN_NOT_FOUND,
+    SUCCESS_PUSH_TOKEN_REGISTERED,
+    SUCCESS_PUSH_TOKEN_UPDATED,
+    SUCCESS_PUSH_DISABLED,
+)
+
 
 class PushTokenView(APIView):
     """
@@ -44,7 +52,7 @@ class PushTokenView(APIView):
         
         if not token:
             return Response(
-                {'error': '푸시 토큰이 필요합니다.'},
+                {'error': str(ERROR_PUSH_TOKEN_REQUIRED)},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -59,9 +67,9 @@ class PushTokenView(APIView):
             }
         )
         
-        action = '등록' if created else '업데이트'
+        message = str(SUCCESS_PUSH_TOKEN_REGISTERED) if created else str(SUCCESS_PUSH_TOKEN_UPDATED)
         return Response({
-            'message': f'푸시 토큰이 {action}되었습니다.',
+            'message': message,
             'token_id': push_token.id,
         }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
     
@@ -85,7 +93,7 @@ class PushTokenView(APIView):
         
         if not token:
             return Response(
-                {'error': '푸시 토큰이 필요합니다.'},
+                {'error': str(ERROR_PUSH_TOKEN_REQUIRED)},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -97,10 +105,11 @@ class PushTokenView(APIView):
         
         if updated:
             return Response({
-                'message': '푸시 알림이 비활성화되었습니다.',
+                'message': str(SUCCESS_PUSH_DISABLED),
             }, status=status.HTTP_200_OK)
         else:
             return Response(
-                {'error': '해당 토큰을 찾을 수 없습니다.'},
+                {'error': str(ERROR_PUSH_TOKEN_NOT_FOUND)},
                 status=status.HTTP_404_NOT_FOUND
             )
+

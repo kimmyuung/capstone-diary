@@ -1,4 +1,4 @@
-name: Django CI
+name: CI Pipeline
 
 on:
   push:
@@ -7,8 +7,54 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  test:
+  # ============================================
+  # Backend - Python Lint & Type Check
+  # ============================================
+  backend-lint:
+    name: Backend Lint & Type Check
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install ruff mypy types-requests
+    
+    - name: Run Ruff (Lint)
+      run: |
+        ruff check . --output-format=github
+    
+    - name: Run Ruff (Format Check)
+      run: |
+        ruff format --check .
+    
+    - name: Run MyPy (Type Check)
+      run: |
+        mypy diary --ignore-missing-imports --no-error-summary || true
+
+  # ============================================
+  # Backend - Django Tests
+  # ============================================
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: backend-lint
+    defaults:
+      run:
+        working-directory: backend
 
     services:
       postgres:
@@ -26,12 +72,13 @@ jobs:
           - 5432:5432
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.12'
+        cache: 'pip'
     
     - name: Install dependencies
       run: |
@@ -43,14 +90,103 @@ jobs:
       run: python manage.py migrate
       env:
         DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
+        SECRET_KEY: test-secret-key-for-ci
+        DIARY_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
     
-    - name: Run tests
+    - name: Run tests with coverage
       run: |
-        coverage run --source='.' manage.py test
-        coverage report
-        coverage xml
+        pytest --cov=diary --cov-report=xml --cov-report=term-missing -v
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
+        SECRET_KEY: test-secret-key-for-ci
+        DIARY_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
     
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
-        file: ./coverage.xml
+        file: ./backend/coverage.xml
+        flags: backend
+        fail_ci_if_error: false
+
+  # ============================================
+  # Frontend - ESLint & TypeScript Check
+  # ============================================
+  frontend-lint:
+    name: Frontend Lint & Type Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run ESLint
+      run: npm run lint
+    
+    - name: Run TypeScript Compiler (Type Check)
+      run: npx tsc --noEmit --skipLibCheck
+
+  # ============================================
+  # Frontend - Jest Tests
+  # ============================================
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    needs: frontend-lint
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run Jest tests
+      run: npm run test:coverage
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./frontend/coverage/lcov.info
+        flags: frontend
+        fail_ci_if_error: false
+
+  # ============================================
+  # Summary Job (for branch protection)
+  # ============================================
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [backend-lint, backend-test, frontend-lint, frontend-test]
+    if: always()
+    steps:
+    - name: Check all jobs passed
+      run: |
+        if [ "${{ needs.backend-lint.result }}" != "success" ] || \
+           [ "${{ needs.backend-test.result }}" != "success" ] || \
+           [ "${{ needs.frontend-lint.result }}" != "success" ] || \
+           [ "${{ needs.frontend-test.result }}" != "success" ]; then
+          echo "One or more jobs failed"
+          exit 1
+        fi
+        echo "All CI checks passed! ✅"

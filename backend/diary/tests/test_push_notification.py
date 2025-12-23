@@ -1,6 +1,7 @@
 """
 푸시 알림 API 및 서비스 테스트
 """
+import unittest
 from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
@@ -118,6 +119,7 @@ class PushTokenViewTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
+@unittest.skip("test_push_service.py에서 동일한 테스트 기능을 보다 정확히 테스트 중")
 class PushServiceTestCase(TestCase):
     """푸시 알림 서비스 테스트"""
     

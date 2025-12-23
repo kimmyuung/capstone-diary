@@ -92,6 +92,48 @@ export const getErrorMessage = (error: unknown): string => {
 };
 
 /**
+ * 필드명 영어 -> 한국어 변환 맵
+ */
+const FieldNameMap: Record<string, string> = {
+    // 인증 관련
+    username: '아이디',
+    email: '이메일',
+    password: '비밀번호',
+    password_confirm: '비밀번호 확인',
+    new_password: '새 비밀번호',
+    old_password: '현재 비밀번호',
+    code: '인증 코드',
+
+    // 일기 관련
+    title: '제목',
+    content: '내용',
+    location_name: '위치',
+
+    // 태그 관련
+    name: '이름',
+    color: '색상',
+
+    // 템플릿 관련
+    description: '설명',
+    topic: '주제',
+
+    // 푸시 알림
+    token: '푸시 토큰',
+    device_type: '기기 유형',
+
+    // 기본
+    non_field_errors: '전체',
+    detail: '상세',
+};
+
+/**
+ * 필드명을 한국어로 변환
+ */
+export const translateFieldName = (fieldName: string): string => {
+    return FieldNameMap[fieldName] || fieldName;
+};
+
+/**
  * 유효성 검증 에러의 상세 정보 추출
  */
 export const getValidationErrors = (error: unknown): Record<string, string> | null => {
@@ -112,9 +154,48 @@ export const getValidationErrors = (error: unknown): Record<string, string> | nu
                 return result;
             }
         }
+
+        // 레거시 형식 (DRF 기본 응답)
+        if (typeof data === 'object' && data !== null && !('success' in data)) {
+            const result: Record<string, string> = {};
+            Object.entries(data as Record<string, unknown>).forEach(([key, value]) => {
+                if (Array.isArray(value) && value.length > 0) {
+                    result[key] = String(value[0]);
+                } else if (typeof value === 'string') {
+                    result[key] = value;
+                }
+            });
+            if (Object.keys(result).length > 0) {
+                return result;
+            }
+        }
     }
 
     return null;
+};
+
+/**
+ * 유효성 검증 에러를 한국어 필드명으로 포맷팅
+ */
+export const formatValidationErrors = (error: unknown): Record<string, string> => {
+    const errors = getValidationErrors(error);
+    if (!errors) return {};
+
+    const formatted: Record<string, string> = {};
+    Object.entries(errors).forEach(([field, message]) => {
+        const koreanFieldName = translateFieldName(field);
+        formatted[field] = `${koreanFieldName}: ${message}`;
+    });
+
+    return formatted;
+};
+
+/**
+ * 에러가 네트워크 에러인지 확인
+ */
+export const isNetworkError = (error: unknown): boolean => {
+    const code = getErrorCode(error);
+    return code === ErrorCode.NETWORK_ERROR || code === ErrorCode.TIMEOUT;
 };
 
 /**

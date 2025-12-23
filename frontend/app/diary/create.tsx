@@ -17,6 +17,10 @@ import { VoiceRecorder } from '@/components/diary/VoiceRecorder';
 import { PreviewModal } from '@/components/diary/PreviewModal';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { useFormErrors } from '@/hooks/useFormErrors';
+import { FormFieldError } from '@/components/FormFieldError';
+import { useOfflineQueue } from '@/contexts/OfflineQueueContext';
+import { isNetworkError } from '@/utils/errorHandler';
 
 // 위치 카테고리 목록
 const LOCATION_CATEGORIES = [
@@ -32,12 +36,21 @@ const LOCATION_CATEGORIES = [
 
 export default function CreateDiaryScreen() {
     const router = useRouter();
+    const { isOffline, queueCreateDiary } = useOfflineQueue();
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [isRecording, setIsRecording] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [errors, setErrors] = useState<{ title?: string; content?: string }>({});
+
+    // 새로운 폼 에러 훅 사용
+    const {
+        errors,
+        setFieldError,
+        clearFieldError,
+        clearAllErrors,
+        setErrorsFromResponse,
+    } = useFormErrors();
 
     // 위치 관련 상태
     const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
@@ -72,19 +85,19 @@ export default function CreateDiaryScreen() {
     };
 
     const handleSavePress = () => {
-        const newErrors: { title?: string; content?: string } = {};
+        clearAllErrors();
+        let hasError = false;
 
         if (!title.trim()) {
-            newErrors.title = '제목을 입력해주세요';
+            setFieldError('title', '제목을 입력해주세요');
+            hasError = true;
         }
         if (!content.trim()) {
-            newErrors.content = '내용을 입력해주세요';
+            setFieldError('content', '내용을 입력해주세요');
+            hasError = true;
         }
 
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
-            return;
-        }
+        if (hasError) return;
 
         setShowPreview(true);
     };
@@ -95,18 +108,38 @@ export default function CreateDiaryScreen() {
 
     const handleConfirmSave = async () => {
         setIsLoading(true);
+        const diaryData = {
+            title: title.trim(),
+            content: content.trim(),
+            location_name: locationName.trim() || null,
+        };
+
         try {
-            await diaryService.create({
-                title: title.trim(),
-                content: content.trim(),
-                location_name: locationName.trim() || null,
-            });
+            // 오프라인이면 큐에 저장
+            if (isOffline) {
+                await queueCreateDiary(diaryData);
+                setShowPreview(false);
+                router.back();
+                return;
+            }
+
+            await diaryService.create(diaryData);
             setShowPreview(false);
             Alert.alert('저장 완료 ✨', '일기가 안전하게 저장되었습니다', [
                 { text: '확인', onPress: () => router.back() },
             ]);
         } catch (err: any) {
-            Alert.alert('저장 실패', '일기 저장에 실패했습니다. 다시 시도해주세요.');
+            // 네트워크 에러인 경우 오프라인 큐로
+            if (isNetworkError(err)) {
+                await queueCreateDiary(diaryData);
+                setShowPreview(false);
+                router.back();
+                return;
+            }
+
+            // API 유효성 검증 에러 처리
+            setErrorsFromResponse(err);
+            setShowPreview(false);
         } finally {
             setIsLoading(false);
         }
@@ -227,12 +260,12 @@ export default function CreateDiaryScreen() {
                             value={title}
                             onChangeText={(text) => {
                                 setTitle(text);
-                                if (errors.title) setErrors({ ...errors, title: undefined });
+                                if (errors.title) clearFieldError('title');
                             }}
                             maxLength={200}
                             editable={!isRecording}
                         />
-                        {errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
+                        <FormFieldError error={errors.title} />
                     </View>
 
                     {/* 내용 입력 */}
@@ -244,13 +277,13 @@ export default function CreateDiaryScreen() {
                             value={content}
                             onChangeText={(text) => {
                                 setContent(text);
-                                if (errors.content) setErrors({ ...errors, content: undefined });
+                                if (errors.content) clearFieldError('content');
                             }}
                             multiline
                             textAlignVertical="top"
                             editable={!isRecording}
                         />
-                        {errors.content && <Text style={styles.errorText}>{errors.content}</Text>}
+                        <FormFieldError error={errors.content} />
                     </View>
 
                     {/* 음성 녹음 */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import {
     View,
     Text,
@@ -10,6 +10,8 @@ import {
     Platform,
     ScrollView,
 } from 'react-native';
+import { FormFieldError } from '@/components/FormFieldError';
+import { useFormErrors } from '@/hooks/useFormErrors';
 
 interface DiaryFormProps {
     initialTitle?: string;
@@ -17,34 +19,71 @@ interface DiaryFormProps {
     onSubmit: (title: string, content: string) => Promise<void>;
     submitButtonText?: string;
     isLoading?: boolean;
+    /** 외부에서 전달된 API 에러 (VALIDATION_ERROR 등) */
+    apiError?: unknown;
 }
 
-export const DiaryForm: React.FC<DiaryFormProps> = ({
+/** DiaryForm의 외부 인터페이스 */
+export interface DiaryFormRef {
+    setApiError: (error: unknown) => void;
+    clearErrors: () => void;
+}
+
+export const DiaryForm = forwardRef<DiaryFormRef, DiaryFormProps>(({
     initialTitle = '',
     initialContent = '',
     onSubmit,
     submitButtonText = '저장',
     isLoading = false,
-}) => {
+    apiError,
+}, ref) => {
     const [title, setTitle] = useState(initialTitle);
     const [content, setContent] = useState(initialContent);
-    const [errors, setErrors] = useState<{ title?: string; content?: string }>({});
+
+    // 새로운 폼 에러 훅 사용
+    const {
+        errors,
+        setFieldError,
+        clearFieldError,
+        clearAllErrors,
+        setErrorsFromResponse,
+    } = useFormErrors();
+
+    // 외부에서 전달된 API 에러 처리
+    useEffect(() => {
+        if (apiError) {
+            setErrorsFromResponse(apiError);
+        }
+    }, [apiError, setErrorsFromResponse]);
+
+    // 외부에서 에러를 설정할 수 있도록 ref 제공
+    useImperativeHandle(ref, () => ({
+        setApiError: (error: unknown) => {
+            setErrorsFromResponse(error);
+        },
+        clearErrors: () => {
+            clearAllErrors();
+        },
+    }), [setErrorsFromResponse, clearAllErrors]);
 
     const validate = () => {
-        const newErrors: { title?: string; content?: string } = {};
+        clearAllErrors();
+        let isValid = true;
 
         if (!title.trim()) {
-            newErrors.title = '제목을 입력해주세요';
+            setFieldError('title', '제목을 입력해주세요');
+            isValid = false;
         } else if (title.length > 200) {
-            newErrors.title = '제목은 200자 이내로 입력해주세요';
+            setFieldError('title', '제목은 200자 이내로 입력해주세요');
+            isValid = false;
         }
 
         if (!content.trim()) {
-            newErrors.content = '내용을 입력해주세요';
+            setFieldError('content', '내용을 입력해주세요');
+            isValid = false;
         }
 
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+        return isValid;
     };
 
     const handleSubmit = async () => {
@@ -67,12 +106,12 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({
                         value={title}
                         onChangeText={(text) => {
                             setTitle(text);
-                            if (errors.title) setErrors({ ...errors, title: undefined });
+                            if (errors.title) clearFieldError('title');
                         }}
                         maxLength={200}
                         editable={!isLoading}
                     />
-                    {errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
+                    <FormFieldError error={errors.title} />
                     <Text style={styles.charCount}>{title.length}/200</Text>
                 </View>
 
@@ -85,14 +124,14 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({
                         value={content}
                         onChangeText={(text) => {
                             setContent(text);
-                            if (errors.content) setErrors({ ...errors, content: undefined });
+                            if (errors.content) clearFieldError('content');
                         }}
                         multiline
                         numberOfLines={10}
                         textAlignVertical="top"
                         editable={!isLoading}
                     />
-                    {errors.content && <Text style={styles.errorText}>{errors.content}</Text>}
+                    <FormFieldError error={errors.content} />
                 </View>
 
                 <TouchableOpacity
@@ -110,7 +149,8 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({
             </ScrollView>
         </KeyboardAvoidingView>
     );
-};
+});
+
 
 const styles = StyleSheet.create({
     container: {

@@ -20,6 +20,7 @@ from datetime import timedelta, datetime
 from ..models import Diary, DiaryImage
 from ..serializers import DiarySerializer, DiaryImageSerializer
 from ..ai_service import ImageGenerator
+from ..messages import ERROR_INVALID_YEAR, ERROR_INVALID_YEAR_MONTH
 
 
 class DiaryViewSet(viewsets.ModelViewSet):
@@ -262,7 +263,7 @@ class DiaryViewSet(viewsets.ModelViewSet):
             month = int(month)
         except ValueError:
             return Response(
-                {"error": "유효하지 않은 연도/월입니다."},
+                {"error": str(ERROR_INVALID_YEAR_MONTH)},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -312,7 +313,7 @@ class DiaryViewSet(viewsets.ModelViewSet):
             year = int(year)
         except ValueError:
             return Response(
-                {"error": "유효하지 않은 연도입니다."},
+                {"error": str(ERROR_INVALID_YEAR)},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -649,7 +650,7 @@ class DiaryViewSet(viewsets.ModelViewSet):
             year = int(year)
         except ValueError:
             return Response(
-                {"error": "유효하지 않은 연도입니다."},
+                {"error": str(ERROR_INVALID_YEAR)},
                 status=status.HTTP_400_BAD_REQUEST
             )
         

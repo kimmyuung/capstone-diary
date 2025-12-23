@@ -155,9 +155,20 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ko'  # 기본 언어: 한국어
 
-TIME_ZONE = 'UTC'
+# 지원 언어 목록
+LANGUAGES = [
+    ('ko', '한국어'),
+    ('en', 'English'),
+]
+
+# 번역 파일 경로
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]
+
+TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
