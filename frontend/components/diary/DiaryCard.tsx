@@ -66,7 +66,14 @@ export const DiaryCard: React.FC<DiaryCardProps> = ({ diary, onDelete }) => {
                     <Text style={styles.title} numberOfLines={1}>
                         {diary.title || '제목 없음'}
                     </Text>
-                    <Text style={styles.date}>{formatDate(diary.created_at)}</Text>
+                    <View style={styles.metaRow}>
+                        <Text style={styles.date}>{formatDate(diary.created_at)}</Text>
+                        {diary.location_name && (
+                            <View style={styles.locationBadge}>
+                                <Text style={styles.locationText}>📍 {diary.location_name}</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
                 <TouchableOpacity
                     onPress={onDelete}
@@ -214,6 +221,22 @@ const styles = StyleSheet.create({
     },
     aiText: {
         color: Palette.secondary[500],
+    },
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        flexWrap: 'wrap',
+    },
+    locationBadge: {
+        backgroundColor: Palette.primary[50],
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 2,
+        borderRadius: BorderRadius.sm,
+    },
+    locationText: {
+        fontSize: FontSize.xs,
+        color: Palette.primary[600],
     },
 });
 

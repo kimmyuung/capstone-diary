@@ -1,5 +1,30 @@
 import '@testing-library/jest-native/extend-expect';
 
+// Mock axios globally
+jest.mock('axios', () => {
+    const mockInterceptors = {
+        request: { use: jest.fn(), eject: jest.fn() },
+        response: { use: jest.fn(), eject: jest.fn() },
+    };
+
+    const mockAxiosInstance = {
+        get: jest.fn(),
+        post: jest.fn(),
+        put: jest.fn(),
+        patch: jest.fn(),
+        delete: jest.fn(),
+        interceptors: mockInterceptors,
+    };
+
+    return {
+        __esModule: true,
+        default: {
+            ...mockAxiosInstance,
+            create: jest.fn(() => mockAxiosInstance),
+        },
+    };
+});
+
 // Mock expo-secure-store for web testing
 jest.mock('expo-secure-store', () => ({
     getItemAsync: jest.fn(),

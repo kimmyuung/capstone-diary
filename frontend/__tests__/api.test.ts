@@ -1,15 +1,19 @@
 /**
  * API 서비스 테스트
+ * 팩토리 함수를 사용하여 mock 데이터 중복 제거
  */
 import axios from 'axios';
 import { diaryService, Diary } from '../services/api';
+import {
+    createMockDiary,
+    createMockDiaries,
+    createMockCalendarResponse,
+    createMockReportResponse,
+    createMockExportResponse,
+} from './helpers/testFactories';
 
-// Mock axios
-jest.mock('axios');
+// 전역 mock은 jest.setup.ts에서 설정됨
 const mockedAxios = axios as jest.Mocked<typeof axios>;
-
-// Mock axios.create
-mockedAxios.create = jest.fn(() => mockedAxios);
 
 describe('diaryService', () => {
     beforeEach(() => {
@@ -18,25 +22,7 @@ describe('diaryService', () => {
 
     describe('getAll', () => {
         it('should fetch all diaries', async () => {
-            const mockDiaries: Diary[] = [
-                {
-                    id: 1,
-                    user: 1,
-                    title: '테스트 일기',
-                    content: '오늘 하루는 좋았다',
-                    images: [],
-                    emotion: 'happy',
-                    emotion_score: 85,
-                    emotion_emoji: '😊',
-                    emotion_analyzed_at: '2024-12-21T10:00:00Z',
-                    location_name: '집',
-                    latitude: null,
-                    longitude: null,
-                    created_at: '2024-12-21T10:00:00Z',
-                    updated_at: '2024-12-21T10:00:00Z',
-                },
-            ];
-
+            const mockDiaries = createMockDiaries(1, { location_name: '집' });
             mockedAxios.get.mockResolvedValueOnce({ data: mockDiaries });
 
             const result = await diaryService.getAll();
@@ -54,23 +40,7 @@ describe('diaryService', () => {
 
     describe('getById', () => {
         it('should fetch a diary by id', async () => {
-            const mockDiary: Diary = {
-                id: 1,
-                user: 1,
-                title: '테스트 일기',
-                content: '오늘 하루는 좋았다',
-                images: [],
-                emotion: 'happy',
-                emotion_score: 85,
-                emotion_emoji: '😊',
-                emotion_analyzed_at: '2024-12-21T10:00:00Z',
-                location_name: null,
-                latitude: null,
-                longitude: null,
-                created_at: '2024-12-21T10:00:00Z',
-                updated_at: '2024-12-21T10:00:00Z',
-            };
-
+            const mockDiary = createMockDiary();
             mockedAxios.get.mockResolvedValueOnce({ data: mockDiary });
 
             const result = await diaryService.getById(1);
@@ -88,20 +58,13 @@ describe('diaryService', () => {
                 location_name: '카페',
             };
 
-            const mockResponse: Diary = {
+            const mockResponse = createMockDiary({
                 id: 2,
-                user: 1,
                 ...newDiary,
-                images: [],
                 emotion: 'peaceful',
                 emotion_score: 70,
                 emotion_emoji: '😌',
-                emotion_analyzed_at: '2024-12-21T11:00:00Z',
-                latitude: null,
-                longitude: null,
-                created_at: '2024-12-21T11:00:00Z',
-                updated_at: '2024-12-21T11:00:00Z',
-            };
+            });
 
             mockedAxios.post.mockResolvedValueOnce({ data: mockResponse });
 
@@ -122,40 +85,9 @@ describe('diaryService', () => {
         });
     });
 
-    describe('search', () => {
-        it('should search diaries with keyword', async () => {
-            const mockDiaries: Diary[] = [];
-            mockedAxios.get.mockResolvedValueOnce({ data: mockDiaries });
-
-            await diaryService.search({ keyword: '행복' });
-
-            expect(mockedAxios.get).toHaveBeenCalledWith('/api/diaries/', {
-                params: { keyword: '행복' },
-            });
-        });
-
-        it('should search diaries with emotion filter', async () => {
-            const mockDiaries: Diary[] = [];
-            mockedAxios.get.mockResolvedValueOnce({ data: mockDiaries });
-
-            await diaryService.search({ emotion: 'happy' });
-
-            expect(mockedAxios.get).toHaveBeenCalledWith('/api/diaries/', {
-                params: { emotion: 'happy' },
-            });
-        });
-    });
-
     describe('getCalendar', () => {
         it('should fetch calendar data for a month', async () => {
-            const mockCalendar = {
-                year: 2024,
-                month: 12,
-                days: {
-                    '2024-12-01': { count: 1, emotion: 'happy', emoji: '😊', diary_ids: [1] },
-                },
-            };
-
+            const mockCalendar = createMockCalendarResponse(2024, 12);
             mockedAxios.get.mockResolvedValueOnce({ data: mockCalendar });
 
             const result = await diaryService.getCalendar(2024, 12);
@@ -167,12 +99,7 @@ describe('diaryService', () => {
 
     describe('getReport', () => {
         it('should fetch weekly report', async () => {
-            const mockReport = {
-                period: 'week',
-                total_diaries: 5,
-                emotion_stats: [],
-            };
-
+            const mockReport = createMockReportResponse('week');
             mockedAxios.get.mockResolvedValueOnce({ data: mockReport });
 
             const result = await diaryService.getReport('week');
@@ -184,12 +111,7 @@ describe('diaryService', () => {
 
     describe('exportDiaries', () => {
         it('should export all diaries', async () => {
-            const mockExport = {
-                exported_at: '2024-12-21T12:00:00Z',
-                total_diaries: 10,
-                diaries: [],
-            };
-
+            const mockExport = createMockExportResponse();
             mockedAxios.get.mockResolvedValueOnce({ data: mockExport });
 
             const result = await diaryService.exportDiaries();

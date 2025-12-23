@@ -123,7 +123,7 @@ describe('ThemeContext', () => {
         });
 
         it('should return false when mode is light', () => {
-            const themeMode = 'light';
+            const themeMode: string = 'light';
             const isDark = themeMode === 'dark';
 
             expect(isDark).toBe(false);

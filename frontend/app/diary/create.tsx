@@ -15,6 +15,7 @@ import { useRouter, Stack } from 'expo-router';
 import { diaryService } from '@/services/api';
 import { VoiceRecorder } from '@/components/diary/VoiceRecorder';
 import { PreviewModal } from '@/components/diary/PreviewModal';
+import { LocationPicker, LocationPickerValue } from '@/components/diary/LocationPicker';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { useFormErrors } from '@/hooks/useFormErrors';
@@ -22,17 +23,6 @@ import { FormFieldError } from '@/components/FormFieldError';
 import { useOfflineQueue } from '@/contexts/OfflineQueueContext';
 import { isNetworkError } from '@/utils/errorHandler';
 
-// 위치 카테고리 목록
-const LOCATION_CATEGORIES = [
-    { id: 'home', emoji: '🏠', label: '집' },
-    { id: 'work', emoji: '🏢', label: '회사/학교' },
-    { id: 'cafe', emoji: '☕', label: '카페' },
-    { id: 'restaurant', emoji: '🍽️', label: '식당' },
-    { id: 'park', emoji: '🌳', label: '공원' },
-    { id: 'gym', emoji: '🏋️', label: '헬스장' },
-    { id: 'travel', emoji: '✈️', label: '여행' },
-    { id: 'other', emoji: '📍', label: '기타' },
-];
 
 export default function CreateDiaryScreen() {
     const router = useRouter();
@@ -52,10 +42,12 @@ export default function CreateDiaryScreen() {
         setErrorsFromResponse,
     } = useFormErrors();
 
-    // 위치 관련 상태
-    const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
-    const [locationName, setLocationName] = useState('');
-    const [showLocationInput, setShowLocationInput] = useState(false);
+    // 위치 관련 상태 (LocationPicker에서 관리)
+    const [locationData, setLocationData] = useState<LocationPickerValue>({
+        locationName: null,
+        latitude: null,
+        longitude: null,
+    });
 
     const handleTranscription = useCallback((text: string) => {
         setContent((prev) => {
@@ -66,23 +58,9 @@ export default function CreateDiaryScreen() {
         });
     }, []);
 
-    const handleLocationSelect = (locationId: string) => {
-        if (selectedLocation === locationId) {
-            setSelectedLocation(null);
-            setShowLocationInput(false);
-            setLocationName('');
-        } else {
-            setSelectedLocation(locationId);
-            // 기타를 선택하면 직접 입력 표시
-            if (locationId === 'other') {
-                setShowLocationInput(true);
-            } else {
-                setShowLocationInput(false);
-                const category = LOCATION_CATEGORIES.find(c => c.id === locationId);
-                setLocationName(category?.label || '');
-            }
-        }
-    };
+    const handleLocationChange = useCallback((value: LocationPickerValue) => {
+        setLocationData(value);
+    }, []);
 
     const handleSavePress = () => {
         clearAllErrors();
@@ -111,7 +89,9 @@ export default function CreateDiaryScreen() {
         const diaryData = {
             title: title.trim(),
             content: content.trim(),
-            location_name: locationName.trim() || null,
+            location_name: locationData.locationName || null,
+            latitude: locationData.latitude || null,
+            longitude: locationData.longitude || null,
         };
 
         try {
@@ -202,54 +182,11 @@ export default function CreateDiaryScreen() {
                         </View>
                     </View>
 
-                    {/* 위치 선택 */}
-                    <View style={styles.locationSection}>
-                        <Text style={styles.moodLabel}>📍 장소</Text>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={styles.locationOptions}
-                        >
-                            {LOCATION_CATEGORIES.map((loc) => (
-                                <TouchableOpacity
-                                    key={loc.id}
-                                    style={[
-                                        styles.locationButton,
-                                        selectedLocation === loc.id && styles.locationButtonActive
-                                    ]}
-                                    onPress={() => handleLocationSelect(loc.id)}
-                                >
-                                    <Text style={styles.locationEmoji}>{loc.emoji}</Text>
-                                    <Text style={[
-                                        styles.locationLabel,
-                                        selectedLocation === loc.id && styles.locationLabelActive
-                                    ]}>
-                                        {loc.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-
-                        {/* 기타 선택 시 직접 입력 */}
-                        {showLocationInput && (
-                            <TextInput
-                                style={styles.locationInput}
-                                placeholder="장소명을 입력하세요"
-                                placeholderTextColor={Palette.neutral[400]}
-                                value={locationName}
-                                onChangeText={setLocationName}
-                            />
-                        )}
-
-                        {/* 선택된 위치 표시 */}
-                        {selectedLocation && !showLocationInput && (
-                            <View style={styles.selectedLocationBadge}>
-                                <Text style={styles.selectedLocationText}>
-                                    {LOCATION_CATEGORIES.find(c => c.id === selectedLocation)?.emoji} {locationName}
-                                </Text>
-                            </View>
-                        )}
-                    </View>
+                    {/* 위치 선택 - LocationPicker 컴포넌트 */}
+                    <LocationPicker
+                        onChange={handleLocationChange}
+                        disabled={isRecording}
+                    />
 
                     {/* 제목 입력 */}
                     <View style={styles.inputGroup}>

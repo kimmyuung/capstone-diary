@@ -1,96 +1,113 @@
 /**
  * DiaryCard 컴포넌트 테스트
+ * 리팩토링: 실제 컴포넌트를 사용하도록 수정
  */
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
+import { DiaryCard } from '@/components/diary/DiaryCard';
+import { createMockDiary } from '../helpers/testFactories';
+import { Diary } from '@/services/api';
 
-// Mock 컴포넌트 (실제 DiaryCard가 없으므로 인라인 테스트용)
-const DiaryCard = ({
-    diary,
-    onPress,
-    onDelete
-}: {
-    diary: { id: number; title: string; content: string; emotion?: string };
-    onPress: () => void;
-    onDelete?: () => void;
-}) => {
-    const { View, Text, TouchableOpacity } = require('react-native');
-    return (
-        <TouchableOpacity testID="diary-card" onPress={onPress}>
-            <Text testID="diary-title">{diary.title}</Text>
-            <Text testID="diary-content">{diary.content.substring(0, 50)}</Text>
-            {diary.emotion && <Text testID="diary-emotion">{diary.emotion}</Text>}
-            {onDelete && (
-                <TouchableOpacity testID="delete-button" onPress={onDelete}>
-                    <Text>삭제</Text>
-                </TouchableOpacity>
-            )}
-        </TouchableOpacity>
-    );
-};
+// expo-router mock
+jest.mock('expo-router', () => ({
+    useRouter: () => ({
+        push: jest.fn(),
+        back: jest.fn(),
+    }),
+}));
+
+// IconSymbol mock
+jest.mock('@/components/ui/icon-symbol', () => ({
+    IconSymbol: ({ name }: { name: string }) => null,
+}));
 
 describe('DiaryCard', () => {
-    const mockDiary = {
-        id: 1,
+    const mockDiary: Diary = createMockDiary({
         title: '오늘의 일기',
         content: '오늘은 정말 좋은 하루였습니다. 날씨도 좋고 기분도 좋았어요.',
         emotion: 'happy',
-    };
-
-    it('renders diary title correctly', () => {
-        const { getByTestId } = render(
-            <DiaryCard diary={mockDiary} onPress={jest.fn()} />
-        );
-
-        expect(getByTestId('diary-title')).toHaveTextContent('오늘의 일기');
+        emotion_emoji: '😊',
+        location_name: '카페',
     });
 
-    it('renders truncated content', () => {
-        const { getByTestId } = render(
-            <DiaryCard diary={mockDiary} onPress={jest.fn()} />
-        );
+    const mockOnDelete = jest.fn();
 
-        const content = getByTestId('diary-content');
-        expect(content.props.children.length).toBeLessThanOrEqual(50);
+    beforeEach(() => {
+        jest.clearAllMocks();
     });
 
-    it('renders emotion when provided', () => {
-        const { getByTestId } = render(
-            <DiaryCard diary={mockDiary} onPress={jest.fn()} />
-        );
+    describe('렌더링', () => {
+        it('일기 제목 표시', () => {
+            const { getByText } = render(
+                <DiaryCard diary={mockDiary} onDelete={mockOnDelete} />
+            );
 
-        expect(getByTestId('diary-emotion')).toHaveTextContent('happy');
+            expect(getByText('오늘의 일기')).toBeTruthy();
+        });
+
+        it('일기 내용 일부 표시', () => {
+            const { getByText } = render(
+                <DiaryCard diary={mockDiary} onDelete={mockOnDelete} />
+            );
+
+            // 내용의 일부가 표시되어야 함
+            expect(getByText(/좋은 하루/)).toBeTruthy();
+        });
+
+        it('일기 아이콘 표시', () => {
+            const { getByText } = render(
+                <DiaryCard diary={mockDiary} onDelete={mockOnDelete} />
+            );
+
+            // 📔 아이콘이 표시됨
+            expect(getByText('📔')).toBeTruthy();
+        });
+
+        it('위치명 표시', () => {
+            const { getByText } = render(
+                <DiaryCard diary={mockDiary} onDelete={mockOnDelete} />
+            );
+
+            expect(getByText(/📍 카페/)).toBeTruthy();
+        });
+
+        it('액션 버튼들 표시', () => {
+            const { getByText } = render(
+                <DiaryCard diary={mockDiary} onDelete={mockOnDelete} />
+            );
+
+            expect(getByText('좋아요')).toBeTruthy();
+            expect(getByText('수정')).toBeTruthy();
+            expect(getByText('AI 이미지')).toBeTruthy();
+        });
     });
 
-    it('calls onPress when card is pressed', () => {
-        const onPressMock = jest.fn();
-        const { getByTestId } = render(
-            <DiaryCard diary={mockDiary} onPress={onPressMock} />
-        );
+    describe('조건부 렌더링', () => {
+        it('위치가 없으면 위치 배지 미표시', () => {
+            const diaryWithoutLocation = createMockDiary({
+                title: '위치 없는 일기',
+                location_name: null,
+            });
 
-        fireEvent.press(getByTestId('diary-card'));
-        expect(onPressMock).toHaveBeenCalled();
-    });
+            const { queryByText } = render(
+                <DiaryCard diary={diaryWithoutLocation} onDelete={mockOnDelete} />
+            );
 
-    it('calls onDelete when delete button is pressed', () => {
-        const onDeleteMock = jest.fn();
-        const { getByTestId } = render(
-            <DiaryCard
-                diary={mockDiary}
-                onPress={jest.fn()}
-                onDelete={onDeleteMock}
-            />
-        );
+            // 📍가 포함된 텍스트가 없어야 함
+            expect(queryByText(/📍/)).toBeNull();
+        });
 
-        fireEvent.press(getByTestId('delete-button'));
-        expect(onDeleteMock).toHaveBeenCalled();
-    });
+        it('제목이 없으면 기본 제목 표시', () => {
+            const diaryWithoutTitle = createMockDiary({
+                title: '',
+            });
 
-    it('does not render delete button when onDelete is not provided', () => {
-        const { queryByTestId } = render(
-            <DiaryCard diary={mockDiary} onPress={jest.fn()} />
-        );
+            const { getByText } = render(
+                <DiaryCard diary={diaryWithoutTitle} onDelete={mockOnDelete} />
+            );
 
-        expect(queryByTestId('delete-button')).toBeNull();
+            expect(getByText('제목 없음')).toBeTruthy();
+        });
     });
 });
+

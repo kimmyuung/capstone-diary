@@ -8,6 +8,8 @@ import {
     StyleSheet,
     ActivityIndicator,
     Alert,
+    Linking,
+    Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { diaryService, Diary } from '@/services/api';
@@ -134,6 +136,34 @@ export default function DiaryDetailScreen() {
                 <View style={styles.contentContainer}>
                     <Text style={styles.content}>{diary.content}</Text>
                 </View>
+
+                {/* 위치 정보 섹션 */}
+                {diary.location_name && (
+                    <View style={styles.locationSection}>
+                        <Text style={styles.locationTitle}>📍 위치</Text>
+                        <View style={styles.locationContent}>
+                            <Text style={styles.locationName}>{diary.location_name}</Text>
+                            {diary.latitude && diary.longitude && (
+                                <TouchableOpacity
+                                    style={styles.mapButton}
+                                    onPress={() => {
+                                        const scheme = Platform.select({
+                                            ios: `maps:0,0?q=${diary.location_name}@${diary.latitude},${diary.longitude}`,
+                                            android: `geo:0,0?q=${diary.latitude},${diary.longitude}(${diary.location_name})`,
+                                            web: `https://www.google.com/maps/search/?api=1&query=${diary.latitude},${diary.longitude}`,
+                                        });
+                                        if (scheme) {
+                                            Linking.openURL(scheme);
+                                        }
+                                    }}
+                                >
+                                    <IconSymbol name="map" size={16} color="#fff" />
+                                    <Text style={styles.mapButtonText}>지도에서 보기</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+                )}
 
                 {/* AI 이미지 섹션 */}
                 <View style={styles.imageSection}>
@@ -273,5 +303,43 @@ const styles = StyleSheet.create({
         width: 200,
         height: 200,
         borderRadius: 12,
+    },
+    locationSection: {
+        padding: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
+    },
+    locationTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 12,
+    },
+    locationContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#f8f8f8',
+        padding: 16,
+        borderRadius: 12,
+    },
+    locationName: {
+        fontSize: 16,
+        color: '#333',
+        flex: 1,
+    },
+    mapButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#6C63FF',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 16,
+        gap: 6,
+    },
+    mapButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '500',
     },
 });
