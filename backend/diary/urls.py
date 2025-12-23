@@ -5,6 +5,7 @@ from .views import (
     UserPreferenceView, ThemeView,
     SummarizeView, SuggestTitleView
 )
+from .views.admin_views import AdminStatsView, AdminUsersView, AdminRecentDiariesView
 
 router = DefaultRouter()
 router.register(r'diaries', DiaryViewSet, basename='diary')
@@ -21,4 +22,9 @@ urlpatterns = [
     # AI 도우미 API
     path('summarize/', SummarizeView.as_view(), name='summarize'),
     path('suggest-title/', SuggestTitleView.as_view(), name='suggest_title'),
+    
+    # 관리자 API
+    path('admin/stats/', AdminStatsView.as_view(), name='admin_stats'),
+    path('admin/users/', AdminUsersView.as_view(), name='admin_users'),
+    path('admin/diaries/recent/', AdminRecentDiariesView.as_view(), name='admin_recent_diaries'),
 ]

@@ -331,13 +331,39 @@ CORS_PREFLIGHT_MAX_AGE = 86400  # 24시간
 
 
 # =============================================================================
+# Django 캐시 설정 (Redis 백엔드)
+# =============================================================================
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'diary',  # 캐시 키 접두사
+        'TIMEOUT': 3600,  # 기본 캐시 만료 시간 (1시간)
+    }
+}
+
+# 캐시 키 TTL 설정 (초 단위)
+CACHE_TTL = {
+    'report': 3600,      # 감정 리포트: 1시간
+    'calendar': 1800,    # 캘린더: 30분
+    'heatmap': 3600,     # 히트맵: 1시간
+    'popular_tags': 600, # 인기 태그: 10분
+}
+
+
+# =============================================================================
 # Celery 설정 (비동기 태스크 처리)
 # =============================================================================
 # Redis 브로커 URL
-CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_BROKER_URL = REDIS_URL
 
 # 결과 백엔드 (선택사항)
-CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = REDIS_URL
 
 # 태스크 직렬화 방식
 CELERY_ACCEPT_CONTENT = ['json']

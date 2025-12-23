@@ -15,6 +15,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Q
 from django.utils import timezone
+from django.core.cache import cache
+from django.conf import settings
 from datetime import timedelta, datetime
 
 from ..models import Diary, DiaryImage
@@ -133,8 +135,31 @@ class DiaryViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """
         새로운 일기 항목을 생성할 때 현재 사용자를 자동으로 할당합니다.
+        생성 후 관련 캐시를 무효화합니다.
         """
+        from ..cache_utils import invalidate_user_cache
+        
         serializer.save(user=self.request.user)
+        invalidate_user_cache(self.request.user.id)
+    
+    def perform_update(self, serializer):
+        """
+        일기 수정 시 관련 캐시를 무효화합니다.
+        """
+        from ..cache_utils import invalidate_user_cache
+        
+        serializer.save()
+        invalidate_user_cache(self.request.user.id)
+    
+    def perform_destroy(self, instance):
+        """
+        일기 삭제 시 관련 캐시를 무효화합니다.
+        """
+        from ..cache_utils import invalidate_user_cache
+        
+        user_id = instance.user.id
+        instance.delete()
+        invalidate_user_cache(user_id)
 
     @action(detail=False, methods=['get'], url_path='report')
     def report(self, request):
@@ -159,6 +184,12 @@ class DiaryViewSet(viewsets.ModelViewSet):
             }
         """
         period = request.query_params.get('period', 'week')
+        
+        # 캐시 키 생성 및 조회
+        cache_key = f"report:{request.user.id}:{period}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
         
         # 기간 설정
         now = timezone.now()
@@ -222,7 +253,7 @@ class DiaryViewSet(viewsets.ModelViewSet):
         else:
             insight = f"이번 {period_label} 기록된 감정이 없어요. 일기를 작성해보세요!"
         
-        return Response({
+        result = {
             'period': period,
             'period_label': period_label,
             'total_diaries': total_count,
@@ -231,7 +262,13 @@ class DiaryViewSet(viewsets.ModelViewSet):
             'emotion_stats': emotion_stats,
             'dominant_emotion': dominant_emotion,
             'insight': insight,
-        })
+        }
+        
+        # 캐시 저장 (1시간)
+        cache_ttl = getattr(settings, 'CACHE_TTL', {}).get('report', 3600)
+        cache.set(cache_key, result, cache_ttl)
+        
+        return Response(result)
 
     @action(detail=False, methods=['get'], url_path='calendar')
     def calendar(self, request):
@@ -267,6 +304,12 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # 캐시 키 생성 및 조회
+        cache_key = f"calendar:{request.user.id}:{year}:{month}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+        
         # 해당 월의 일기 조회 (본인 것만!)
         diaries = Diary.objects.filter(
             user=request.user,
@@ -292,11 +335,17 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 days[date_str]['emotion'] = diary.emotion
                 days[date_str]['emoji'] = diary.get_emotion_display_emoji()
         
-        return Response({
+        result = {
             'year': year,
             'month': month,
             'days': days
-        })
+        }
+        
+        # 캐시 저장 (30분)
+        cache_ttl = getattr(settings, 'CACHE_TTL', {}).get('calendar', 1800)
+        cache.set(cache_key, result, cache_ttl)
+        
+        return Response(result)
 
     @action(detail=False, methods=['get'], url_path='annual-report')
     def annual_report(self, request):
@@ -428,6 +477,54 @@ class DiaryViewSet(viewsets.ModelViewSet):
             'total_diaries': len(result),
             'diaries': result
         })
+
+    @action(detail=False, methods=['get'], url_path='export-csv')
+    def export_csv(self, request):
+        """
+        사용자의 모든 일기를 CSV 형식으로 내보냅니다.
+        
+        CSV 컬럼:
+            - id, title, content, emotion, emotion_score, 
+            - location_name, latitude, longitude,
+            - created_at, updated_at
+        """
+        import csv
+        from django.http import HttpResponse
+        
+        diaries = Diary.objects.filter(user=request.user).order_by('created_at')
+        
+        # CSV 응답 생성
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        filename = f"diary_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        # BOM 추가 (Excel 호환성)
+        response.write('\ufeff')
+        
+        writer = csv.writer(response)
+        
+        # 헤더 작성
+        writer.writerow([
+            'ID', '제목', '내용', '감정', '감정 점수',
+            '위치명', '위도', '경도', '작성일', '수정일'
+        ])
+        
+        # 데이터 작성
+        for diary in diaries:
+            writer.writerow([
+                diary.id,
+                diary.title,
+                diary.decrypt_content(),
+                diary.emotion or '',
+                diary.emotion_score or '',
+                diary.location_name or '',
+                diary.latitude or '',
+                diary.longitude or '',
+                diary.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                diary.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+            ])
+        
+        return response
 
     @action(detail=False, methods=['get'], url_path='locations')
     def locations(self, request):
@@ -654,6 +751,12 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # 캐시 키 생성 및 조회
+        cache_key = f"heatmap:{request.user.id}:{year}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+        
         # 감정별 색상 매핑
         emotion_colors = {
             'happy': '#FFD93D',      # 노란색
@@ -776,7 +879,7 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 'color': dominant_color
             })
         
-        return Response({
+        result = {
             'year': year,
             'total_entries': diaries.count(),
             'streak': {
@@ -786,4 +889,10 @@ class DiaryViewSet(viewsets.ModelViewSet):
             'emotion_colors': emotion_colors,
             'data': heatmap_data,
             'monthly_summary': monthly_summary
-        })
+        }
+        
+        # 캐시 저장 (1시간)
+        cache_ttl = getattr(settings, 'CACHE_TTL', {}).get('heatmap', 3600)
+        cache.set(cache_key, result, cache_ttl)
+        
+        return Response(result)

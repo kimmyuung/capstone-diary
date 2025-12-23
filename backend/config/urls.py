@@ -1,9 +1,3 @@
-"""
-URL configuration for config project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.0/topics/http/urls/
-"""
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework import permissions
@@ -15,6 +9,7 @@ from diary.views import (
     RegisterView, PasswordResetRequestView, PasswordResetConfirmView, FindUsernameView,
     EmailVerifyView, ResendVerificationView, PushTokenView
 )
+from diary.views.social_auth_views import GoogleLoginView, KakaoLoginView
 from config.healthcheck import HealthCheckView, SentryTestView
 
 # =============================================================================
@@ -69,6 +64,10 @@ urlpatterns = [
     path('api/email/resend/', ResendVerificationView.as_view(), name='email_resend'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
+    # 소셜 로그인
+    path('api/auth/google/', GoogleLoginView.as_view(), name='google_login'),
+    path('api/auth/kakao/', KakaoLoginView.as_view(), name='kakao_login'),
     
     # 비밀번호/아이디 찾기
     path('api/password/reset-request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
