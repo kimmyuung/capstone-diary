@@ -57,6 +57,17 @@ export default function CalendarScreen() {
 
     // 날짜 선택 시 해당 날짜 일기 로드
     const handleDateSelect = async (dateStr: string) => {
+        // 미래 날짜 선택 방지
+        const selectedDateObj = new Date(dateStr);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        selectedDateObj.setHours(0, 0, 0, 0);
+
+        if (selectedDateObj > today) {
+            Alert.alert('안내', '미래 날짜의 일기는 확인할 수 없습니다.');
+            return;
+        }
+
         setSelectedDate(dateStr);
         try {
             const diaries = await diaryService.getByDate(dateStr);
@@ -165,8 +176,17 @@ export default function CalendarScreen() {
         >
             {/* 헤더 */}
             <View style={styles.header}>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>📅 캘린더</Text>
-                <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>날짜를 선택하여 일기를 확인하세요</Text>
+                <View style={styles.headerLeft}>
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>📅 캘린더</Text>
+                    <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>날짜를 선택하여 일기를 확인하세요</Text>
+                </View>
+                <TouchableOpacity
+                    style={styles.writeButton}
+                    onPress={() => router.push('/diary/create' as any)}
+                >
+                    <IconSymbol name="plus" size={18} color="#fff" />
+                    <Text style={styles.writeButtonText}>작성</Text>
+                </TouchableOpacity>
             </View>
 
             {/* 월 네비게이션 */}
@@ -293,6 +313,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         paddingTop: 60,
         paddingHorizontal: Spacing.xl,
         paddingBottom: Spacing.lg,
@@ -430,6 +453,23 @@ const styles = StyleSheet.create({
     },
     loginButtonText: {
         color: '#fff',
+        fontWeight: FontWeight.semibold,
+    },
+    headerLeft: {
+        flex: 1,
+    },
+    writeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Palette.primary[500],
+        paddingVertical: Spacing.sm,
+        paddingHorizontal: Spacing.md,
+        borderRadius: BorderRadius.full,
+        gap: 4,
+    },
+    writeButtonText: {
+        color: '#fff',
+        fontSize: FontSize.sm,
         fontWeight: FontWeight.semibold,
     },
 });
