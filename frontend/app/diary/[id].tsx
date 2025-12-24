@@ -43,6 +43,12 @@ export default function DiaryDetailScreen() {
     const handleGenerateImage = async () => {
         if (!diary) return;
 
+        // 최대 3장 제한
+        if (diary.images.length >= 3) {
+            Alert.alert('알림', 'AI 이미지는 일기당 최대 3장까지 생성할 수 있습니다.');
+            return;
+        }
+
         setGeneratingImage(true);
         try {
             const newImage = await diaryService.generateImage(diary.id);
@@ -168,18 +174,25 @@ export default function DiaryDetailScreen() {
                 {/* AI 이미지 섹션 */}
                 <View style={styles.imageSection}>
                     <View style={styles.imageSectionHeader}>
-                        <Text style={styles.imageSectionTitle}>🎨 AI 생성 이미지</Text>
+                        <Text style={styles.imageSectionTitle}>
+                            🎨 AI 생성 이미지 ({diary.images.length}/3)
+                        </Text>
                         <TouchableOpacity
-                            style={[styles.generateButton, generatingImage && styles.generateButtonDisabled]}
+                            style={[
+                                styles.generateButton,
+                                (generatingImage || diary.images.length >= 3) && styles.generateButtonDisabled
+                            ]}
                             onPress={handleGenerateImage}
-                            disabled={generatingImage}
+                            disabled={generatingImage || diary.images.length >= 3}
                         >
                             {generatingImage ? (
                                 <ActivityIndicator size="small" color="#fff" />
                             ) : (
                                 <>
                                     <IconSymbol name="sparkles" size={16} color="#fff" />
-                                    <Text style={styles.generateButtonText}>생성</Text>
+                                    <Text style={styles.generateButtonText}>
+                                        {diary.images.length >= 3 ? '최대' : '생성'}
+                                    </Text>
                                 </>
                             )}
                         </TouchableOpacity>

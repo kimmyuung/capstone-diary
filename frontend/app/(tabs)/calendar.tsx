@@ -7,13 +7,14 @@ import {
     ScrollView,
     ActivityIndicator,
     RefreshControl,
+    Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { diaryService, Diary } from '@/services/api';
-import { DiaryCard } from '@/components/diary/DiaryCard';
+import { CalendarDiaryCard } from '@/components/diary/CalendarDiaryCard';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 
@@ -73,6 +74,24 @@ export default function CalendarScreen() {
             setSelectedDiaries(diaries);
         }
         setRefreshing(false);
+    };
+
+    // 일기 삭제
+    const handleDelete = async (id: number) => {
+        try {
+            await diaryService.delete(id);
+            setSelectedDiaries(prev => prev.filter(d => d.id !== id));
+            // 캘린더 데이터도 새로고침
+            await fetchCalendarData();
+        } catch (err) {
+            Alert.alert('오류', '삭제에 실패했습니다');
+        }
+    };
+
+    // 오늘 날짜 확인
+    const getTodayDateStr = () => {
+        const today = new Date();
+        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     };
 
     // 이전/다음 달 이동
@@ -241,7 +260,12 @@ export default function CalendarScreen() {
                         </View>
                     ) : (
                         selectedDiaries.map((diary) => (
-                            <DiaryCard key={diary.id} diary={diary} />
+                            <CalendarDiaryCard
+                                key={diary.id}
+                                diary={diary}
+                                isToday={selectedDate === getTodayDateStr()}
+                                onDelete={handleDelete}
+                            />
                         ))
                     )}
                 </View>
