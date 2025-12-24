@@ -1,45 +1,67 @@
 version: '3.8'
 
+# =============================================================================
+# AI 감성 일기 - 프로덕션 Docker Compose (Frontend + Backend 통합)
+# =============================================================================
+
 services:
+  # ===========================================================================
+  # PostgreSQL Database
+  # ===========================================================================
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     restart: always
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB:-diary_db}
+      POSTGRES_USER: ${POSTGRES_USER:-diary_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/db-backup:/backups
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-diary_user}" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # ===========================================================================
+  # Redis (Cache & Celery Broker)
+  # ===========================================================================
   redis:
     image: redis:7-alpine
     restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  web:
+  # ===========================================================================
+  # Backend (Django + Gunicorn)
+  # ===========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: diary-backend:latest
     restart: always
     environment:
       - DEBUG=False
       - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-diary_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-diary_db}
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DIARY_ENCRYPTION_KEY=${DIARY_ENCRYPTION_KEY}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - SENTRY_DSN=${SENTRY_DSN:-}
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/mediafiles
@@ -53,16 +75,23 @@ services:
     expose:
       - "8000"
 
+  # ===========================================================================
+  # Celery Worker (Background Tasks)
+  # ===========================================================================
   celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: diary-backend:latest
     restart: always
-    command: celery -A config worker --loglevel=info
+    command: celery -A config worker --loglevel=info --concurrency=2
     environment:
       - DEBUG=False
       - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-diary_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-diary_db}
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DIARY_ENCRYPTION_KEY=${DIARY_ENCRYPTION_KEY}
     depends_on:
       db:
         condition: service_healthy
@@ -71,6 +100,48 @@ services:
     networks:
       - backend
 
+  # ===========================================================================
+  # Celery Beat (Scheduled Tasks)
+  # ===========================================================================
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: diary-backend:latest
+    restart: always
+    command: celery -A config beat --loglevel=info
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-diary_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-diary_db}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend
+
+  # ===========================================================================
+  # Frontend (React Native Web + Nginx)
+  # ===========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        API_URL: ${API_URL:-https://api.your-domain.com}
+    image: diary-frontend:latest
+    restart: always
+    networks:
+      - backend
+    expose:
+      - "80"
+
+  # ===========================================================================
+  # Nginx Reverse Proxy (SSL Termination)
+  # ===========================================================================
   nginx:
     image: nginx:alpine
     restart: always
@@ -82,16 +153,44 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - static_volume:/app/staticfiles:ro
       - media_volume:/app/mediafiles:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_conf:/etc/letsencrypt:ro
     depends_on:
-      - web
+      - backend
+      - frontend
     networks:
       - backend
 
+  # ===========================================================================
+  # Certbot (Let's Encrypt SSL)
+  # ===========================================================================
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+# =============================================================================
+# Volumes
+# =============================================================================
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local
   static_volume:
+    driver: local
   media_volume:
+    driver: local
+  certbot_www:
+    driver: local
+  certbot_conf:
+    driver: local
 
+# =============================================================================
+# Networks
+# =============================================================================
 networks:
   backend:
     driver: bridge

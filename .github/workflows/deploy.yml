@@ -3,15 +3,27 @@ name: Deploy to AWS EC2
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'docker-compose.prod.yml'
+      - 'nginx/**'
   workflow_dispatch:  # 수동 배포 허용
 
 env:
-  DOCKER_IMAGE: diary-backend
-  EC2_HOST: ${{ secrets.EC2_HOST }}
-  EC2_USER: ${{ secrets.EC2_USER }}
+  DOCKER_BACKEND_IMAGE: diary-backend
+  DOCKER_FRONTEND_IMAGE: diary-frontend
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # ===========================================================================
+  # 테스트 (Backend + Frontend)
+  # ===========================================================================
   test:
+    name: Run Tests
     runs-on: ubuntu-latest
     
     services:
@@ -35,25 +47,49 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.12'
+        cache: 'pip'
+        cache-dependency-path: backend/requirements.txt
     
-    - name: Install dependencies
+    - name: Install backend dependencies
       run: |
+        cd backend
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
     
-    - name: Run migrations
-      run: python manage.py migrate
+    - name: Run backend tests
+      run: |
+        cd backend
+        python manage.py migrate
+        pytest --tb=short -q
       env:
         DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
-    
-    - name: Run tests
-      run: |
-        coverage run --source='.' manage.py test
-        coverage report
+        SECRET_KEY: test-secret-key-for-ci
+        DIARY_ENCRYPTION_KEY: test-encryption-key-32-chars
 
-  build-and-deploy:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci --legacy-peer-deps
+    
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm test -- --passWithNoTests
+
+  # ===========================================================================
+  # Docker 이미지 빌드 및 푸시
+  # ===========================================================================
+  build:
+    name: Build Docker Images
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -61,11 +97,69 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Build Docker image
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Backend Image
       run: |
-        docker build -t ${{ env.DOCKER_IMAGE }}:${{ github.sha }} .
-        docker tag ${{ env.DOCKER_IMAGE }}:${{ github.sha }} ${{ env.DOCKER_IMAGE }}:latest
-        docker save ${{ env.DOCKER_IMAGE }}:latest | gzip > image.tar.gz
+        cd backend
+        docker build \
+          --tag ${{ env.DOCKER_BACKEND_IMAGE }}:${{ github.sha }} \
+          --tag ${{ env.DOCKER_BACKEND_IMAGE }}:latest \
+          --cache-from type=gha \
+          --cache-to type=gha,mode=max \
+          .
+        docker save ${{ env.DOCKER_BACKEND_IMAGE }}:latest | gzip > backend-image.tar.gz
+
+    - name: Build Frontend Image
+      run: |
+        cd frontend
+        docker build \
+          --build-arg API_URL=${{ secrets.API_URL }} \
+          --tag ${{ env.DOCKER_FRONTEND_IMAGE }}:${{ github.sha }} \
+          --tag ${{ env.DOCKER_FRONTEND_IMAGE }}:latest \
+          --cache-from type=gha \
+          --cache-to type=gha,mode=max \
+          .
+        docker save ${{ env.DOCKER_FRONTEND_IMAGE }}:latest | gzip > frontend-image.tar.gz
+
+    - name: Upload Backend Image
+      uses: actions/upload-artifact@v4
+      with:
+        name: backend-image
+        path: backend/backend-image.tar.gz
+        retention-days: 1
+
+    - name: Upload Frontend Image
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-image
+        path: frontend/frontend-image.tar.gz
+        retention-days: 1
+
+  # ===========================================================================
+  # EC2 배포
+  # ===========================================================================
+  deploy:
+    name: Deploy to EC2
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download Backend Image
+      uses: actions/download-artifact@v4
+      with:
+        name: backend-image
+        path: ./images
+
+    - name: Download Frontend Image
+      uses: actions/download-artifact@v4
+      with:
+        name: frontend-image
+        path: ./images
 
     - name: Copy files to EC2
       uses: appleboy/scp-action@v0.1.7
@@ -73,8 +167,9 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "image.tar.gz,docker-compose.prod.yml,nginx/,.env.production"
+        source: "images/*.tar.gz,docker-compose.prod.yml,nginx/"
         target: "/home/${{ secrets.EC2_USER }}/app"
+        overwrite: true
 
     - name: Deploy to EC2
       uses: appleboy/ssh-action@v1.0.3
@@ -85,23 +180,43 @@ jobs:
         script: |
           cd /home/${{ secrets.EC2_USER }}/app
           
-          # Docker 이미지 로드
-          gunzip -c image.tar.gz | docker load
-          rm image.tar.gz
+          echo "🔄 Loading Docker images..."
+          gunzip -c images/backend-image.tar.gz | docker load
+          gunzip -c images/frontend-image.tar.gz | docker load
+          rm -rf images/
           
-          # 환경 변수 파일 복사
-          cp .env.production .env
+          echo "🔄 Stopping old containers..."
+          docker compose -f docker-compose.prod.yml down --remove-orphans
           
-          # 기존 컨테이너 중지 및 제거
-          docker-compose -f docker-compose.prod.yml down
+          echo "🚀 Starting new containers..."
+          docker compose -f docker-compose.prod.yml up -d
           
-          # 새 컨테이너 시작
-          docker-compose -f docker-compose.prod.yml up -d
+          echo "⏳ Waiting for services to be healthy..."
+          sleep 10
           
-          # 마이그레이션 실행
-          docker-compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
+          echo "🔄 Running migrations..."
+          docker compose -f docker-compose.prod.yml exec -T backend python manage.py migrate --noinput
           
-          # 이전 이미지 정리
+          echo "🧹 Cleaning up old images..."
           docker image prune -f
           
-          echo "🚀 Deployment completed successfully!"
+          echo "✅ Deployment completed!"
+
+    - name: Health Check
+      run: |
+        sleep 15
+        curl -f https://${{ secrets.EC2_HOST }}/api/health/ || exit 1
+        echo "✅ Health check passed!"
+
+    - name: Notify on Success
+      if: success()
+      run: |
+        echo "🎉 Deployment successful!"
+        echo "Version: ${{ github.sha }}"
+        echo "Time: $(date)"
+
+    - name: Notify on Failure
+      if: failure()
+      run: |
+        echo "❌ Deployment failed!"
+        echo "Check logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

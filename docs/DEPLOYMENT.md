@@ -1,192 +1,388 @@
-# AWS EC2 배포 가이드
+# 🚀 배포 가이드 (Deployment Guide)
 
-AI 기반 감성 일기 앱을 AWS EC2에 Docker로 배포하는 방법입니다.
+> AI 감성 일기 앱을 AWS EC2 또는 기타 클라우드 서비스에 배포하는 가이드입니다.
 
-## 📋 사전 준비
+---
 
-### 1. AWS 계정 설정
-- AWS 계정 생성
-- IAM 사용자 생성 (EC2, S3 권한)
-- EC2 Key Pair 생성 및 다운로드
+## 📋 목차
 
-### 2. 필요한 정보
-- OpenAI API Key
-- 도메인 (선택사항)
+1. [사전 요구사항](#사전-요구사항)
+2. [서버 초기 설정](#서버-초기-설정)
+3. [배포 과정](#배포-과정)
+4. [SSL 인증서 설정](#ssl-인증서-설정)
+5. [데이터베이스 백업](#데이터베이스-백업)
+6. [모니터링](#모니터링)
+7. [문제 해결](#문제-해결)
 
-## 🖥️ EC2 인스턴스 생성
+---
 
-### 1. 인스턴스 설정
-- **AMI**: Ubuntu Server 22.04 LTS
-- **인스턴스 유형**: t3.small 이상 권장 (t2.micro도 가능하나 Swap 필요)
-- **스토리지**: 20GB 이상
+## 📋 사전 요구사항
 
-### 2. 보안 그룹 설정
-| 유형 | 포트 | 소스 | 설명 |
-|------|------|------|------|
-| SSH | 22 | 내 IP | 서버 접속 |
-| HTTP | 80 | 0.0.0.0/0 | 웹 서비스 |
-| HTTPS | 443 | 0.0.0.0/0 | 보안 웹 서비스 |
+### 서버 요구사항
+| 항목 | 최소 사양 | 권장 사양 |
+|------|----------|----------|
+| CPU | 2 vCPU | 4 vCPU |
+| RAM | 2GB | 4GB |
+| Storage | 20GB SSD | 50GB SSD |
+| OS | Ubuntu 22.04 LTS | Ubuntu 22.04 LTS |
 
-### 3. 탄력적 IP 할당
-고정 IP를 위해 탄력적 IP를 생성하고 인스턴스에 연결합니다.
+### 필수 소프트웨어
+- Docker (v24.0+)
+- Docker Compose (v2.0+)
+- Git
 
-## 🚀 배포 단계
+### 필요한 계정/키
+- OpenAI API Key (AI 기능용)
+- 도메인 및 DNS 설정
+- (선택) Sentry DSN (에러 추적)
+- (선택) AWS S3 (미디어 저장)
 
-### 1. EC2 접속
+---
+
+## 🖥️ 서버 초기 설정
+
+### 1. AWS EC2 인스턴스 생성
 ```bash
-ssh -i "your-key.pem" ubuntu@your-ec2-ip
+# 권장 AMI: Ubuntu Server 22.04 LTS
+# 인스턴스 유형: t3.medium (테스트) / t3.large (프로덕션)
+# 보안 그룹:
+#   - SSH (22): 내 IP
+#   - HTTP (80): 0.0.0.0/0
+#   - HTTPS (443): 0.0.0.0/0
 ```
 
-### 2. 초기 설정 스크립트 실행
+### 2. 서버 기본 설정
 ```bash
-# 프로젝트 클론
-git clone https://github.com/kimmyuung/diary-backend.git
-cd diary-backend/backend
+# SSH 접속
+ssh -i your-key.pem ubuntu@your-ec2-ip
 
-# 초기 설정 (Docker, 방화벽 등)
-chmod +x scripts/ec2-setup.sh
-./scripts/ec2-setup.sh
+# 시스템 업데이트
+sudo apt update && sudo apt upgrade -y
 
-# 로그아웃 후 다시 접속 (docker 그룹 적용)
-exit
-ssh -i "your-key.pem" ubuntu@your-ec2-ip
+# 필수 패키지 설치
+sudo apt install -y curl git vim htop
+
+# 타임존 설정
+sudo timedatectl set-timezone Asia/Seoul
 ```
 
-### 3. 환경 변수 설정
+### 3. Docker 설치
 ```bash
-cd diary-backend/backend
+# Docker 설치 (공식 스크립트)
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
 
-# 환경 변수 파일 생성
-cp .env.production.example .env
+# 현재 사용자를 docker 그룹에 추가
+sudo usermod -aG docker $USER
+
+# 새 세션 시작 (또는 로그아웃 후 재접속)
+newgrp docker
+
+# Docker Compose 설치
+sudo apt install docker-compose-plugin
+
+# 설치 확인
+docker --version
+docker compose version
+```
+
+### 4. 방화벽 설정
+```bash
+# UFW 활성화
+sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+sudo ufw status
+```
+
+---
+
+## 🚀 배포 과정
+
+### 1. 소스 코드 클론
+```bash
+# 앱 디렉토리 생성
+mkdir -p ~/app && cd ~/app
+
+# Git 클론
+git clone https://github.com/kimmyuung/capstone-diary.git .
+```
+
+### 2. 환경 변수 설정
+```bash
+# 프로덕션 환경 파일 복사
+cp backend/.env.production.example .env
 
 # 환경 변수 편집
-nano .env
+vim .env
 ```
 
-**.env 파일 설정:**
+**필수 환경 변수:**
 ```env
+# Django (필수)
 DEBUG=False
-SECRET_KEY=your-secure-random-key
-ALLOWED_HOSTS=your-domain.com,your-ec2-ip
+SECRET_KEY=your-super-secret-key-at-least-50-characters-long
 
+# Database (필수)
 POSTGRES_DB=diary_db
 POSTGRES_USER=diary_user
-POSTGRES_PASSWORD=your-strong-password
+POSTGRES_PASSWORD=your-strong-database-password
 
-OPENAI_API_KEY=sk-your-openai-key
+# Encryption (필수)
+# 생성: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+DIARY_ENCRYPTION_KEY=your-fernet-encryption-key
 
-CORS_ALLOWED_ORIGINS=https://your-domain.com
+# OpenAI (AI 기능 사용 시 필수)
+OPENAI_API_KEY=sk-your-openai-api-key
+
+# 도메인 설정 (필수)
+ALLOWED_HOSTS=your-domain.com,www.your-domain.com
+CORS_ALLOWED_ORIGINS=https://your-domain.com,https://www.your-domain.com
+API_URL=https://api.your-domain.com
+
+# Sentry (선택)
+SENTRY_DSN=https://your-sentry-dsn
 ```
 
-### 4. 배포 실행
+### 3. Docker 이미지 빌드
 ```bash
-chmod +x scripts/deploy.sh
-./scripts/deploy.sh
+# 백엔드 빌드
+docker compose -f docker-compose.prod.yml build backend
+
+# 프론트엔드 빌드
+docker compose -f docker-compose.prod.yml build frontend
+
+# 또는 전체 빌드
+docker compose -f docker-compose.prod.yml build
 ```
 
-## 🔐 SSL 인증서 설정 (HTTPS)
-
-### Let's Encrypt 무료 SSL
+### 4. 서비스 시작
 ```bash
-# Certbot 설치
-sudo apt-get install certbot
+# 서비스 시작 (백그라운드)
+docker compose -f docker-compose.prod.yml up -d
 
-# 인증서 발급 (nginx 중지 후)
-docker-compose -f docker-compose.prod.yml stop nginx
-sudo certbot certonly --standalone -d your-domain.com
+# 로그 확인
+docker compose -f docker-compose.prod.yml logs -f
 
-# 인증서 복사
-sudo cp /etc/letsencrypt/live/your-domain.com/fullchain.pem ~/app/nginx/ssl/
-sudo cp /etc/letsencrypt/live/your-domain.com/privkey.pem ~/app/nginx/ssl/
-
-# nginx.conf에서 HTTPS 설정 활성화 후 재시작
-docker-compose -f docker-compose.prod.yml up -d nginx
+# 특정 서비스 로그
+docker compose -f docker-compose.prod.yml logs -f backend
 ```
 
-### 인증서 자동 갱신
+### 5. 데이터베이스 마이그레이션
 ```bash
-# crontab에 추가
-sudo crontab -e
+# 마이그레이션 실행
+docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
 
-# 매월 1일 새벽 3시에 갱신
-0 3 1 * * certbot renew --quiet && docker-compose -f /home/ubuntu/app/docker-compose.prod.yml restart nginx
+# 관리자 계정 생성
+docker compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser
+
+# 시스템 템플릿 생성
+docker compose -f docker-compose.prod.yml exec backend python manage.py create_system_templates
 ```
+
+### 6. 상태 확인
+```bash
+# 컨테이너 상태
+docker compose -f docker-compose.prod.yml ps
+
+# 헬스 체크
+curl http://localhost:80/api/health/
+```
+
+---
+
+## 🔐 SSL 인증서 설정
+
+### Let's Encrypt 자동 발급
+```bash
+# SSL 초기화 스크립트 실행
+chmod +x scripts/init-ssl.sh
+./scripts/init-ssl.sh your-domain.com admin@your-domain.com
+```
+
+### 수동 설정 (이미 인증서가 있는 경우)
+```bash
+# 인증서 디렉토리 생성
+mkdir -p nginx/ssl
+
+# 인증서 파일 복사
+cp /path/to/fullchain.pem nginx/ssl/
+cp /path/to/privkey.pem nginx/ssl/
+
+# Nginx 재시작
+docker compose -f docker-compose.prod.yml restart nginx
+```
+
+### 인증서 갱신 확인
+```bash
+# Certbot 컨테이너가 자동으로 12시간마다 갱신 체크합니다
+docker compose -f docker-compose.prod.yml logs certbot
+```
+
+---
+
+## 💾 데이터베이스 백업
+
+### 자동 백업 설정 (Cron)
+```bash
+# 백업 스크립트 실행 권한
+chmod +x scripts/backup-db.sh
+
+# Cron 설정 (매일 새벽 2시)
+crontab -e
+# 다음 줄 추가:
+# 0 2 * * * cd /home/ubuntu/app && docker compose -f docker-compose.prod.yml exec -T db /backups/backup-db.sh >> /var/log/db-backup.log 2>&1
+```
+
+### 수동 백업
+```bash
+# 백업 실행
+docker compose -f docker-compose.prod.yml exec db pg_dump -U $POSTGRES_USER $POSTGRES_DB | gzip > backup_$(date +%Y%m%d).sql.gz
+```
+
+### 백업 복원
+```bash
+# 복원 스크립트 사용
+chmod +x scripts/restore-db.sh
+./scripts/restore-db.sh /path/to/backup.sql.gz
+```
+
+---
 
 ## 📊 모니터링
 
-### 로그 확인
+### 서비스 상태 확인
 ```bash
-# 모든 서비스 로그
-docker-compose -f docker-compose.prod.yml logs -f
-
-# 특정 서비스 로그
-docker-compose -f docker-compose.prod.yml logs -f web
-docker-compose -f docker-compose.prod.yml logs -f nginx
-```
-
-### 상태 확인
-```bash
-# 컨테이너 상태
-docker-compose -f docker-compose.prod.yml ps
+# 모든 컨테이너 상태
+docker compose -f docker-compose.prod.yml ps
 
 # 리소스 사용량
 docker stats
+
+# 디스크 사용량
+df -h
 ```
 
-## 🔄 업데이트 배포
-
-### 자동 배포 (GitHub Actions)
-main 브랜치에 push하면 자동으로 배포됩니다.
-
-**필요한 GitHub Secrets:**
-| Secret 이름 | 설명 |
-|-------------|------|
-| EC2_HOST | EC2 탄력적 IP |
-| EC2_USER | ubuntu |
-| EC2_SSH_KEY | .pem 파일 내용 |
-
-### 수동 배포
+### 로그 확인
 ```bash
-cd ~/app/diary-backend/backend
+# 전체 로그
+docker compose -f docker-compose.prod.yml logs -f
+
+# 최근 100줄
+docker compose -f docker-compose.prod.yml logs --tail=100
+
+# 특정 서비스 로그
+docker compose -f docker-compose.prod.yml logs backend
+docker compose -f docker-compose.prod.yml logs nginx
+docker compose -f docker-compose.prod.yml logs celery
+```
+
+### Sentry 설정 (선택)
+1. [Sentry](https://sentry.io) 계정 생성
+2. 프로젝트 생성 (Django)
+3. DSN을 `.env`에 추가:
+   ```env
+   SENTRY_DSN=https://xxxxx@sentry.io/xxxxx
+   ```
+
+---
+
+## 🔧 문제 해결
+
+### 컨테이너가 시작되지 않음
+```bash
+# 로그 확인
+docker compose -f docker-compose.prod.yml logs <service-name>
+
+# 컨테이너 재시작
+docker compose -f docker-compose.prod.yml restart <service-name>
+```
+
+### 데이터베이스 연결 오류
+```bash
+# DB 컨테이너 상태 확인
+docker compose -f docker-compose.prod.yml exec db pg_isready
+
+# 환경 변수 확인
+docker compose -f docker-compose.prod.yml exec backend env | grep DATABASE
+```
+
+### Nginx 502 Bad Gateway
+```bash
+# 백엔드 상태 확인
+docker compose -f docker-compose.prod.yml logs backend
+
+# Nginx 로그 확인
+docker compose -f docker-compose.prod.yml logs nginx
+```
+
+### 디스크 공간 부족
+```bash
+# Docker 정리
+docker system prune -a --volumes
+
+# 오래된 로그 삭제
+truncate -s 0 /var/log/*.log
+```
+
+### 서비스 재배포
+```bash
+# 코드 업데이트
 git pull origin main
-./scripts/deploy.sh
+
+# 재빌드 및 재시작
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d
+
+# 마이그레이션 (필요 시)
+docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
 ```
 
-## 🛠️ 문제 해결
+---
 
-### 컨테이너 재시작
+## 📝 유용한 명령어
+
 ```bash
-docker-compose -f docker-compose.prod.yml restart
+# 서비스 시작/중지
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml down
+
+# 특정 서비스만 재시작
+docker compose -f docker-compose.prod.yml restart backend
+
+# 쉘 접속
+docker compose -f docker-compose.prod.yml exec backend bash
+docker compose -f docker-compose.prod.yml exec db psql -U $POSTGRES_USER -d $POSTGRES_DB
+
+# 로그 실시간 보기
+docker compose -f docker-compose.prod.yml logs -f --tail=100
+
+# 이미지/컨테이너 정리
+docker system prune -f
 ```
 
-### 데이터베이스 백업
-```bash
-# 백업
-docker-compose -f docker-compose.prod.yml exec db pg_dump -U diary_user diary_db > backup.sql
+---
 
-# 복원
-cat backup.sql | docker-compose -f docker-compose.prod.yml exec -T db psql -U diary_user diary_db
-```
+## 📌 체크리스트
 
-### 디스크 공간 정리
-```bash
-docker system prune -a
-```
+배포 전 확인사항:
 
-## 💰 예상 비용 (월간)
+- [ ] `.env` 파일의 모든 필수 환경 변수 설정
+- [ ] `DIARY_ENCRYPTION_KEY` 안전하게 백업
+- [ ] DNS 설정 완료 (도메인 → EC2 IP)
+- [ ] 보안 그룹 포트 개방 (80, 443)
+- [ ] 데이터베이스 백업 Cron 설정
+- [ ] SSL 인증서 발급 완료
+- [ ] 관리자 계정 생성
+- [ ] 시스템 템플릿 생성
+- [ ] 헬스체크 정상 확인
 
-| 서비스 | 사양 | 예상 비용 |
-|--------|------|-----------|
-| EC2 t3.small | 2 vCPU, 2GB RAM | ~$15 |
-| EBS 20GB | SSD | ~$2 |
-| 탄력적 IP | 고정 IP | $0 (사용 중) |
-| 데이터 전송 | 100GB | ~$9 |
-| **합계** | | **~$26/월** |
+---
 
-> 💡 **프리 티어 활용**: 신규 AWS 계정은 12개월간 t2.micro 무료 사용 가능
+## 🆘 지원
 
-## 📚 추가 자료
-
-- [AWS EC2 공식 문서](https://docs.aws.amazon.com/ec2/)
-- [Docker 공식 문서](https://docs.docker.com/)
-- [Django 배포 체크리스트](https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/)
+문제가 발생하면:
+1. [GitHub Issues](https://github.com/kimmyuung/capstone-diary/issues)
+2. 로그 확인: `docker compose logs`
+3. Sentry 에러 추적 확인
