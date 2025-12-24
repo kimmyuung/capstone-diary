@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { diaryService, Diary } from '@/services/api';
 import { DiaryCard } from '@/components/diary/DiaryCard';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -24,6 +25,7 @@ const MONTHS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', 
 export default function CalendarScreen() {
     const router = useRouter();
     const { isAuthenticated } = useAuth();
+    const { colors, isDark } = useTheme();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [calendarData, setCalendarData] = useState<CalendarData>({});
@@ -127,7 +129,7 @@ export default function CalendarScreen() {
 
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
+            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
                 <ActivityIndicator size="large" color={Palette.primary[500]} />
             </View>
         );
@@ -137,38 +139,39 @@ export default function CalendarScreen() {
 
     return (
         <ScrollView
-            style={styles.container}
+            style={[styles.container, { backgroundColor: colors.background }]}
             refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Palette.primary[500]} />
             }
         >
             {/* 헤더 */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>📅 캘린더</Text>
-                <Text style={styles.headerSubtitle}>날짜를 선택하여 일기를 확인하세요</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>📅 캘린더</Text>
+                <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>날짜를 선택하여 일기를 확인하세요</Text>
             </View>
 
             {/* 월 네비게이션 */}
             <View style={styles.monthNav}>
                 <TouchableOpacity onPress={goToPrevMonth} style={styles.navButton}>
-                    <IconSymbol name="chevron.left" size={24} color={Palette.neutral[600]} />
+                    <IconSymbol name="chevron.left" size={24} color={colors.textSecondary} />
                 </TouchableOpacity>
-                <Text style={styles.monthTitle}>
+                <Text style={[styles.monthTitle, { color: colors.text }]}>
                     {currentDate.getFullYear()}년 {MONTHS[currentDate.getMonth()]}
                 </Text>
                 <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
-                    <IconSymbol name="chevron.right" size={24} color={Palette.neutral[600]} />
+                    <IconSymbol name="chevron.right" size={24} color={colors.textSecondary} />
                 </TouchableOpacity>
             </View>
 
             {/* 달력 */}
-            <View style={styles.calendarCard}>
+            <View style={[styles.calendarCard, { backgroundColor: colors.card }]}>
                 {/* 요일 헤더 */}
                 <View style={styles.weekdayRow}>
                     {WEEKDAYS.map((day, idx) => (
                         <View key={day} style={styles.weekdayCell}>
                             <Text style={[
                                 styles.weekdayText,
+                                { color: colors.textSecondary },
                                 idx === 0 && styles.sundayText,
                                 idx === 6 && styles.saturdayText
                             ]}>
@@ -197,12 +200,13 @@ export default function CalendarScreen() {
                                 style={[
                                     styles.dayCell,
                                     isSelected && styles.selectedDay,
-                                    isToday && styles.todayDay,
+                                    isToday && !isSelected && [styles.todayDay, { backgroundColor: isDark ? Palette.primary[900] : Palette.primary[100] }],
                                 ]}
                                 onPress={() => handleDateSelect(dateStr)}
                             >
                                 <Text style={[
                                     styles.dayNumber,
+                                    { color: colors.text },
                                     isSelected && styles.selectedDayText,
                                     dayOfWeek === 0 && styles.sundayText,
                                     dayOfWeek === 6 && styles.saturdayText,
@@ -221,13 +225,13 @@ export default function CalendarScreen() {
             {/* 선택된 날짜의 일기 목록 */}
             {selectedDate && (
                 <View style={styles.diariesSection}>
-                    <Text style={styles.sectionTitle}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
                         {selectedDate} 일기 ({selectedDiaries.length}개)
                     </Text>
                     {selectedDiaries.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Text style={styles.emptyEmoji}>📭</Text>
-                            <Text style={styles.emptyText}>이 날짜에 작성된 일기가 없습니다</Text>
+                        <View style={[styles.emptyState, { backgroundColor: colors.card }]}>
+                            <Text style={styles.emptyEmoji}>📬</Text>
+                            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>이 날짜에 작성된 일기가 없습니다</Text>
                             <TouchableOpacity
                                 style={styles.createButton}
                                 onPress={() => router.push('/diary/create' as any)}

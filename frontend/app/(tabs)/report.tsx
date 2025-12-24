@@ -11,6 +11,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
 import { diaryService, EmotionReport } from '@/services/api';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
@@ -53,6 +54,7 @@ interface AnnualReport {
 export default function ReportScreen() {
     const router = useRouter();
     const { isAuthenticated } = useAuth();
+    const { colors, isDark } = useTheme();
     const [period, setPeriod] = useState<'week' | 'month' | 'year'>('week');
     const [report, setReport] = useState<EmotionReport | null>(null);
     const [annualReport, setAnnualReport] = useState<AnnualReport | null>(null);
@@ -149,18 +151,18 @@ export default function ReportScreen() {
 
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
+            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
                 <ActivityIndicator size="large" color={Palette.secondary[500]} />
             </View>
         );
     }
 
     return (
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
             {/* 헤더 */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>감정 리포트</Text>
-                <Text style={styles.headerSubtitle}>AI가 분석한 나의 감정</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>감정 리포트</Text>
+                <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>AI가 분석한 나의 감정</Text>
             </View>
 
             {/* 기간 선택 */}

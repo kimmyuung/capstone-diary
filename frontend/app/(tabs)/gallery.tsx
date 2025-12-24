@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { diaryService } from '@/services/api';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 
@@ -31,6 +32,7 @@ interface GalleryImage {
 export default function GalleryScreen() {
     const router = useRouter();
     const { isAuthenticated } = useAuth();
+    const { colors, isDark } = useTheme();
     const [images, setImages] = useState<GalleryImage[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
@@ -73,7 +75,7 @@ export default function GalleryScreen() {
 
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
+            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
                 <ActivityIndicator size="large" color={Palette.primary[500]} />
             </View>
         );
@@ -90,18 +92,18 @@ export default function GalleryScreen() {
     );
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             {/* 헤더 */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>🖼️ 이미지 갤러리</Text>
-                <Text style={styles.headerSubtitle}>{images.length}개의 AI 생성 이미지</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>🖼️ 이미지 갤러리</Text>
+                <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>{images.length}개의 AI 생성 이미지</Text>
             </View>
 
             {images.length === 0 ? (
                 <View style={styles.emptyState}>
                     <Text style={styles.emptyEmoji}>🎨</Text>
-                    <Text style={styles.emptyTitle}>아직 생성된 이미지가 없어요</Text>
-                    <Text style={styles.emptyText}>일기를 작성하고 AI 이미지를 생성해보세요!</Text>
+                    <Text style={[styles.emptyTitle, { color: colors.text }]}>아직 생성된 이미지가 없어요</Text>
+                    <Text style={[styles.emptyText, { color: colors.textSecondary }]}>일기를 작성하고 AI 이미지를 생성해보세요!</Text>
                 </View>
             ) : (
                 <FlatList

@@ -24,6 +24,7 @@ if (Platform.OS !== 'web') {
 }
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { diaryService } from '@/services/api';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
@@ -42,6 +43,7 @@ interface LocationDiary {
 export default function PlacesScreen() {
     const router = useRouter();
     const { isAuthenticated } = useAuth();
+    const { colors, isDark } = useTheme();
     const [locations, setLocations] = useState<LocationDiary[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedLocation, setSelectedLocation] = useState<LocationDiary | null>(null);
@@ -106,18 +108,18 @@ export default function PlacesScreen() {
 
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
+            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
                 <ActivityIndicator size="large" color={Palette.primary[500]} />
             </View>
         );
     }
 
     return (
-        <ScrollView style={styles.container}>
+        <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
             {/* 헤더 */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>📍 장소별 일기</Text>
-                <Text style={styles.headerSubtitle}>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>📍 장소별 일기</Text>
+                <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
                     {locations.length}개의 위치 기록
                 </Text>
             </View>

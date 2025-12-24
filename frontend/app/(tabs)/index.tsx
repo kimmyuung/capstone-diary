@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { diaryService, Diary } from '@/services/api';
 import { DiaryCard } from '@/components/diary/DiaryCard';
 import { DiaryListSkeleton } from '@/components/Skeleton';
@@ -23,6 +24,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export default function DiaryListScreen() {
     const router = useRouter();
     const { isAuthenticated, logout } = useAuth();
+    const { colors, isDark } = useTheme();
     const [diaries, setDiaries] = useState<Diary[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -107,9 +109,9 @@ export default function DiaryListScreen() {
     // 로딩 상태
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
+            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>나의 일기</Text>
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>나의 일기</Text>
                 </View>
                 <DiaryListSkeleton count={4} />
             </View>
@@ -119,11 +121,11 @@ export default function DiaryListScreen() {
     // 빈 상태
     const renderEmptyState = () => (
         <View style={styles.emptyContainer}>
-            <View style={styles.emptyIcon}>
+            <View style={[styles.emptyIcon, { backgroundColor: isDark ? colors.card : Palette.neutral[100] }]}>
                 <Text style={styles.emptyEmoji}>📝</Text>
             </View>
-            <Text style={styles.emptyTitle}>아직 작성된 일기가 없어요</Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>아직 작성된 일기가 없어요</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
                 오늘 하루를 기록해볼까요?
             </Text>
             <TouchableOpacity
@@ -139,11 +141,11 @@ export default function DiaryListScreen() {
     const renderHeader = () => (
         <View style={styles.header}>
             <View>
-                <Text style={styles.greeting}>안녕하세요 👋</Text>
-                <Text style={styles.headerTitle}>나의 일기</Text>
+                <Text style={[styles.greeting, { color: colors.textSecondary }]}>안녕하세요 👋</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>나의 일기</Text>
             </View>
             <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-                <IconSymbol name="rectangle.portrait.and.arrow.right" size={20} color={Palette.neutral[600]} />
+                <IconSymbol name="rectangle.portrait.and.arrow.right" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
         </View>
     );
@@ -151,9 +153,9 @@ export default function DiaryListScreen() {
     // 통계 카드
     const renderStats = () => (
         <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{diaries.length}</Text>
-                <Text style={styles.statLabel}>총 일기</Text>
+            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+                <Text style={[styles.statNumber, { color: colors.text }]}>{diaries.length}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>총 일기</Text>
             </View>
             <View style={[styles.statCard, styles.statCardAccent]}>
                 <Text style={[styles.statNumber, styles.statNumberAccent]}>
@@ -165,17 +167,17 @@ export default function DiaryListScreen() {
                 </Text>
                 <Text style={[styles.statLabel, styles.statLabelAccent]}>오늘</Text>
             </View>
-            <View style={styles.statCard}>
-                <Text style={styles.statNumber}>
+            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+                <Text style={[styles.statNumber, { color: colors.text }]}>
                     {diaries.reduce((acc, d) => acc + d.images.length, 0)}
                 </Text>
-                <Text style={styles.statLabel}>AI 이미지</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>AI 이미지</Text>
             </View>
         </View>
     );
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <FlatList
                 data={diaries}
                 keyExtractor={(item) => item.id.toString()}
@@ -186,7 +188,7 @@ export default function DiaryListScreen() {
                     <>
                         {renderHeader()}
                         {renderStats()}
-                        <Text style={styles.sectionTitle}>최근 일기</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>최근 일기</Text>
                     </>
                 }
                 ListEmptyComponent={renderEmptyState}
