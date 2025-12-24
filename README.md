@@ -11,6 +11,18 @@
 
 ---
 
+## 📸 앱 스크린샷
+
+| 로그인 | 홈 화면 | 캘린더 |
+|:------:|:-------:|:------:|
+| ![로그인](docs/screenshots/login_screen.png) | ![홈](docs/screenshots/home_screen.png) | ![캘린더](docs/screenshots/calendar_screen.png) |
+
+| 갤러리 | 설정 |
+|:------:|:----:|
+| ![갤러리](docs/screenshots/gallery_screen.png) | ![설정](docs/screenshots/settings_screen.png) |
+
+---
+
 ## ✨ 주요 기능
 
 ### 🧠 AI 감정 분석
