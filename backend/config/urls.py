@@ -1,13 +1,13 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework import permissions
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from diary.views import (
     TestConnectionView, TranscribeView, TranslateAudioView, SupportedLanguagesView,
     RegisterView, PasswordResetRequestView, PasswordResetConfirmView, FindUsernameView,
-    EmailVerifyView, ResendVerificationView, PushTokenView
+    EmailVerifyView, ResendVerificationView, PushTokenView, CustomTokenObtainPairView
 )
 from diary.views.social_auth_views import GoogleLoginView, KakaoLoginView
 from config.healthcheck import HealthCheckView, SentryTestView
@@ -62,7 +62,7 @@ urlpatterns = [
     path('api/register/', RegisterView.as_view(), name='register'),
     path('api/email/verify/', EmailVerifyView.as_view(), name='email_verify'),
     path('api/email/resend/', ResendVerificationView.as_view(), name='email_resend'),
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     # 소셜 로그인

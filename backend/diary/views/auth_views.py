@@ -5,11 +5,15 @@
 - 이메일 인증
 - 비밀번호 재설정
 - 아이디 찾기
+- 커스텀 로그인 (이메일 미인증 처리)
 """
 from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from django.contrib.auth import authenticate
 
 from ..serializers import UserRegisterSerializer
 from ..messages import (
@@ -36,6 +40,80 @@ from config.throttling import (
     PasswordResetRateThrottle,
     EmailResendRateThrottle,
 )
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """
+    커스텀 로그인 API (이메일 미인증 사용자 처리)
+    
+    POST /api/token/
+    
+    Request Body:
+        {
+            "username": "사용자명",
+            "password": "비밀번호"
+        }
+    
+    Response (200 OK):
+        {
+            "access": "...",
+            "refresh": "..."
+        }
+    
+    Response (401 Unauthorized - 이메일 미인증):
+        {
+            "error": "EMAIL_NOT_VERIFIED",
+            "message": "이메일 인증이 필요합니다. 이메일을 확인해주세요.",
+            "email": "user@example.com"
+        }
+    
+    Response (401 Unauthorized - 일반):
+        {
+            "error": "INVALID_CREDENTIALS",
+            "message": "아이디 또는 비밀번호가 올바르지 않습니다."
+        }
+    """
+    throttle_classes = [LoginRateThrottle]
+    
+    def post(self, request, *args, **kwargs):
+        from django.contrib.auth.models import User
+        
+        username = request.data.get('username', '').strip()
+        password = request.data.get('password', '')
+        
+        # 사용자 존재 여부 및 이메일 인증 상태 확인
+        try:
+            user = User.objects.get(username=username)
+            
+            # 비밀번호 확인
+            if not user.check_password(password):
+                return Response({
+                    "error": "INVALID_CREDENTIALS",
+                    "message": "아이디 또는 비밀번호가 올바르지 않습니다."
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # 이메일 미인증 사용자 처리
+            if not user.is_active:
+                return Response({
+                    "error": "EMAIL_NOT_VERIFIED",
+                    "message": "이메일 인증이 필요합니다. 이메일을 확인해주세요.",
+                    "email": user.email
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+        except User.DoesNotExist:
+            return Response({
+                "error": "INVALID_CREDENTIALS",
+                "message": "아이디 또는 비밀번호가 올바르지 않습니다."
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # 정상 로그인 처리 (SimpleJWT 기본 로직)
+        try:
+            return super().post(request, *args, **kwargs)
+        except InvalidToken as e:
+            return Response({
+                "error": "INVALID_CREDENTIALS",
+                "message": "아이디 또는 비밀번호가 올바르지 않습니다."
+            }, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class RegisterView(generics.CreateAPIView):

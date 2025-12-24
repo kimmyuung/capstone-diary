@@ -31,15 +31,47 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         fields = ['username', 'email', 'password', 'password_confirm']
 
     def validate_username(self, value):
-        """사용자명 중복 확인"""
-        if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("이미 사용 중인 아이디입니다.")
+        """사용자명 중복 확인 (미인증 사용자 포함)"""
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        existing_user = User.objects.filter(username=value).first()
+        if existing_user:
+            # 24시간 이상 미인증 상태인 계정은 삭제하고 재사용 허용
+            if not existing_user.is_active:
+                time_since_joined = timezone.now() - existing_user.date_joined
+                if time_since_joined > timedelta(hours=24):
+                    # 만료된 미인증 계정 삭제
+                    existing_user.delete()
+                    return value
+                else:
+                    raise serializers.ValidationError(
+                        "이미 회원가입 대기 중인 아이디입니다. 이메일 인증을 완료하거나 24시간 후 재시도해주세요."
+                    )
+            else:
+                raise serializers.ValidationError("이미 사용 중인 아이디입니다.")
         return value
 
     def validate_email(self, value):
-        """이메일 중복 확인"""
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("이미 등록된 이메일입니다.")
+        """이메일 중복 확인 (미인증 사용자 포함)"""
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        existing_user = User.objects.filter(email=value).first()
+        if existing_user:
+            # 24시간 이상 미인증 상태인 계정은 삭제하고 재사용 허용
+            if not existing_user.is_active:
+                time_since_joined = timezone.now() - existing_user.date_joined
+                if time_since_joined > timedelta(hours=24):
+                    # 만료된 미인증 계정 삭제
+                    existing_user.delete()
+                    return value
+                else:
+                    raise serializers.ValidationError(
+                        "이미 회원가입 대기 중인 이메일입니다. 이메일 인증을 완료하거나 24시간 후 재시도해주세요."
+                    )
+            else:
+                raise serializers.ValidationError("이미 등록된 이메일입니다.")
         return value
 
     def validate(self, attrs):

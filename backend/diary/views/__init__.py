@@ -12,6 +12,7 @@ from .auth_views import (
     PasswordResetRequestView,
     PasswordResetConfirmView,
     FindUsernameView,
+    CustomTokenObtainPairView,
 )
 
 # 일기 관련 뷰
@@ -51,6 +52,7 @@ __all__ = [
     'PasswordResetRequestView',
     'PasswordResetConfirmView',
     'FindUsernameView',
+    'CustomTokenObtainPairView',
     # Diary
     'DiaryViewSet',
     # Tags

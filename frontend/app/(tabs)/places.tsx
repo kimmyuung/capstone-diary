@@ -10,7 +10,18 @@ import {
     Linking,
     Dimensions,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+
+// react-native-maps는 웹에서 지원되지 않으므로 조건부 import
+let MapView: any = null;
+let Marker: any = null;
+let PROVIDER_GOOGLE: any = null;
+
+if (Platform.OS !== 'web') {
+    const Maps = require('react-native-maps');
+    MapView = Maps.default;
+    Marker = Maps.Marker;
+    PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+}
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { diaryService } from '@/services/api';
@@ -121,39 +132,58 @@ export default function PlacesScreen() {
                 </View>
             ) : (
                 <>
-                    {/* 실제 지도 뷰 */}
+                    {/* 실제 지도 뷰 (웹에서는 대체 UI 표시) */}
                     <View style={styles.mapPreview}>
-                        <MapView
-                            style={styles.map}
-                            provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-                            initialRegion={{
-                                latitude: locations[0]?.latitude || 37.5665,
-                                longitude: locations[0]?.longitude || 126.9780,
-                                latitudeDelta: 0.1,
-                                longitudeDelta: 0.1,
-                            }}
-                            showsUserLocation={true}
-                            showsMyLocationButton={true}
-                        >
-                            {locations.map((location) => (
-                                <Marker
-                                    key={location.id}
-                                    coordinate={{
-                                        latitude: location.latitude,
-                                        longitude: location.longitude,
-                                    }}
-                                    title={location.title}
-                                    description={`${location.location_name} | ${location.created_at}`}
-                                    onCalloutPress={() => router.push(`/diary/${location.id}` as any)}
+                        {Platform.OS === 'web' || !MapView ? (
+                            <View style={styles.mapPlaceholder}>
+                                <Text style={styles.mapPlaceholderEmoji}>🗺️</Text>
+                                <Text style={styles.mapPlaceholderText}>
+                                    지도는 모바일 앱에서 확인하세요
+                                </Text>
+                                <TouchableOpacity
+                                    style={styles.openMapButton}
+                                    onPress={() => openInMaps(
+                                        locations[0]?.latitude || 37.5665,
+                                        locations[0]?.longitude || 126.9780,
+                                        locations[0]?.location_name || '서울'
+                                    )}
                                 >
-                                    <View style={styles.markerContainer}>
-                                        <Text style={styles.markerEmoji}>
-                                            {location.emotion_emoji || '📍'}
-                                        </Text>
-                                    </View>
-                                </Marker>
-                            ))}
-                        </MapView>
+                                    <Text style={styles.openMapButtonText}>구글 지도에서 보기</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <MapView
+                                style={styles.map}
+                                provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                                initialRegion={{
+                                    latitude: locations[0]?.latitude || 37.5665,
+                                    longitude: locations[0]?.longitude || 126.9780,
+                                    latitudeDelta: 0.1,
+                                    longitudeDelta: 0.1,
+                                }}
+                                showsUserLocation={true}
+                                showsMyLocationButton={true}
+                            >
+                                {locations.map((location) => (
+                                    <Marker
+                                        key={location.id}
+                                        coordinate={{
+                                            latitude: location.latitude,
+                                            longitude: location.longitude,
+                                        }}
+                                        title={location.title}
+                                        description={`${location.location_name} | ${location.created_at}`}
+                                        onCalloutPress={() => router.push(`/diary/${location.id}` as any)}
+                                    >
+                                        <View style={styles.markerContainer}>
+                                            <Text style={styles.markerEmoji}>
+                                                {location.emotion_emoji || '📍'}
+                                            </Text>
+                                        </View>
+                                    </Marker>
+                                ))}
+                            </MapView>
+                        )}
                     </View>
 
                     {/* 위치별 그룹 목록 */}

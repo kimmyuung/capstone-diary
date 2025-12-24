@@ -331,21 +331,30 @@ CORS_PREFLIGHT_MAX_AGE = 86400  # 24시간
 
 
 # =============================================================================
-# Django 캐시 설정 (Redis 백엔드)
+# Django 캐시 설정
 # =============================================================================
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': REDIS_URL,
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        },
-        'KEY_PREFIX': 'diary',  # 캐시 키 접두사
-        'TIMEOUT': 3600,  # 기본 캐시 만료 시간 (1시간)
+# 개발 환경에서는 로컬 메모리 캐시 사용, 프로덕션에서는 Redis 사용
+if DEBUG and not os.environ.get('USE_REDIS', ''):
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            },
+            'KEY_PREFIX': 'diary',  # 캐시 키 접두사
+            'TIMEOUT': 3600,  # 기본 캐시 만료 시간 (1시간)
+        }
+    }
 
 # 캐시 키 TTL 설정 (초 단위)
 CACHE_TTL = {

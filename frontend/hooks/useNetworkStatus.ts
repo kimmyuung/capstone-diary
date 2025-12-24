@@ -28,6 +28,9 @@ export const useNetworkStatus = (options?: UseNetworkStatusOptions) => {
     });
 
     const wasOfflineRef = useRef(false);
+    // options 참조를 안정화하여 무한 루프 방지
+    const optionsRef = useRef(options);
+    optionsRef.current = options;
 
     const handleNetworkChange = useCallback((state: NetInfoState) => {
         const isOnline = state.isConnected && state.isInternetReachable;
@@ -43,7 +46,7 @@ export const useNetworkStatus = (options?: UseNetworkStatusOptions) => {
             if (__DEV__) {
                 console.log('[Network] Connection restored');
             }
-            options?.onConnected?.();
+            optionsRef.current?.onConnected?.();
         }
 
         // 온라인에서 오프라인으로 전환
@@ -51,11 +54,11 @@ export const useNetworkStatus = (options?: UseNetworkStatusOptions) => {
             if (__DEV__) {
                 console.log('[Network] Connection lost');
             }
-            options?.onDisconnected?.();
+            optionsRef.current?.onDisconnected?.();
         }
 
         wasOfflineRef.current = !isOnline;
-    }, [options]);
+    }, []);
 
     useEffect(() => {
         // 초기 상태 확인

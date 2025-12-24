@@ -24,6 +24,7 @@ export default function LoginScreen() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     const handleLogin = async () => {
         if (!username.trim()) {
@@ -36,18 +37,37 @@ export default function LoginScreen() {
         }
 
         setIsLoading(true);
-        try {
-            const success = await login(username.trim(), password);
-            if (success) {
-                router.replace('/' as any);
+        setErrorMessage(''); // 이전 에러 메시지 초기화
+
+        const result = await login(username.trim(), password);
+
+        if (result.success) {
+            router.replace('/' as any);
+        } else {
+            // 이메일 미인증 사용자 처리
+            if (result.error === 'EMAIL_NOT_VERIFIED') {
+                setErrorMessage('이메일 인증이 필요합니다. 가입 시 입력한 이메일을 확인해주세요.');
+                // 이메일 재인증 화면으로 이동할 수 있도록 버튼 표시
+                Alert.alert(
+                    '이메일 인증 필요',
+                    `${result.email}로 전송된 인증 코드를 입력해주세요.`,
+                    [
+                        { text: '취소', style: 'cancel' },
+                        {
+                            text: '인증하기',
+                            onPress: () => router.push({
+                                pathname: '/register' as any,
+                                params: { email: result.email, step: 'verify' }
+                            })
+                        }
+                    ]
+                );
             } else {
-                Alert.alert('로그인 실패', '아이디 또는 비밀번호를 확인해주세요');
+                setErrorMessage(result.message || '아이디 또는 비밀번호가 올바르지 않습니다.');
             }
-        } catch (err) {
-            Alert.alert('오류', '로그인 중 문제가 발생했습니다');
-        } finally {
-            setIsLoading(false);
         }
+
+        setIsLoading(false);
     };
 
     return (
@@ -74,6 +94,13 @@ export default function LoginScreen() {
 
                     {/* 폼 카드 */}
                     <View style={styles.formCard}>
+                        {/* 에러 메시지 표시 */}
+                        {errorMessage ? (
+                            <View style={styles.errorContainer}>
+                                <Text style={styles.errorIcon}>⚠️</Text>
+                                <Text style={styles.errorText}>{errorMessage}</Text>
+                            </View>
+                        ) : null}
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>아이디</Text>
                             <TextInput
@@ -292,5 +319,25 @@ const styles = StyleSheet.create({
     forgotPasswordText: {
         fontSize: FontSize.sm,
         color: Palette.neutral[500],
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FEE2E2',
+        borderRadius: BorderRadius.md,
+        padding: Spacing.md,
+        marginBottom: Spacing.lg,
+        borderWidth: 1,
+        borderColor: '#FCA5A5',
+    },
+    errorIcon: {
+        fontSize: FontSize.lg,
+        marginRight: Spacing.sm,
+    },
+    errorText: {
+        flex: 1,
+        fontSize: FontSize.sm,
+        color: '#DC2626',
+        fontWeight: FontWeight.medium,
     },
 });
