@@ -176,29 +176,20 @@ export default function CalendarScreen() {
         >
             {/* 헤더 */}
             <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <Text style={[styles.headerTitle, { color: colors.text }]}>📅 캘린더</Text>
-                    <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>날짜를 선택하여 일기를 확인하세요</Text>
-                </View>
-                <TouchableOpacity
-                    style={styles.writeButton}
-                    onPress={() => router.push('/diary/create' as any)}
-                >
-                    <IconSymbol name="plus" size={18} color="#fff" />
-                    <Text style={styles.writeButtonText}>작성</Text>
-                </TouchableOpacity>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>📅 캘린더</Text>
+                <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>날짜를 선택하여 일기를 확인하세요</Text>
             </View>
 
             {/* 월 네비게이션 */}
             <View style={styles.monthNav}>
                 <TouchableOpacity onPress={goToPrevMonth} style={styles.navButton}>
-                    <IconSymbol name="chevron.left" size={24} color={colors.textSecondary} />
+                    <Text style={styles.navArrow}>◀</Text>
                 </TouchableOpacity>
                 <Text style={[styles.monthTitle, { color: colors.text }]}>
                     {currentDate.getFullYear()}년 {MONTHS[currentDate.getMonth()]}
                 </Text>
                 <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
-                    <IconSymbol name="chevron.right" size={24} color={colors.textSecondary} />
+                    <Text style={styles.navArrow}>▶</Text>
                 </TouchableOpacity>
             </View>
 
@@ -291,6 +282,15 @@ export default function CalendarScreen() {
                 </View>
             )}
 
+            {/* 오늘 일기 작성하기 버튼 */}
+            <TouchableOpacity
+                style={styles.writeLargeButton}
+                onPress={() => router.push('/diary/create' as any)}
+            >
+                <IconSymbol name="plus.circle.fill" size={24} color="#fff" />
+                <Text style={styles.writeLargeButtonText}>오늘 일기 작성하기</Text>
+            </TouchableOpacity>
+
             <View style={{ height: 100 }} />
         </ScrollView>
     );
@@ -313,9 +313,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
         paddingTop: 60,
         paddingHorizontal: Spacing.xl,
         paddingBottom: Spacing.lg,
@@ -339,6 +336,10 @@ const styles = StyleSheet.create({
     },
     navButton: {
         padding: Spacing.sm,
+    },
+    navArrow: {
+        fontSize: 24,
+        color: Palette.primary[500],
     },
     monthTitle: {
         fontSize: FontSize.xl,
@@ -390,6 +391,8 @@ const styles = StyleSheet.create({
     todayDay: {
         backgroundColor: Palette.primary[100],
         borderRadius: BorderRadius.md,
+        borderWidth: 2,
+        borderColor: Palette.primary[500],
     },
     dayNumber: {
         fontSize: FontSize.md,
@@ -471,5 +474,22 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: FontSize.sm,
         fontWeight: FontWeight.semibold,
+    },
+    writeLargeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: Palette.primary[500],
+        marginHorizontal: Spacing.lg,
+        marginTop: Spacing.xl,
+        paddingVertical: Spacing.lg,
+        borderRadius: BorderRadius.xl,
+        gap: Spacing.sm,
+        ...Shadows.md,
+    },
+    writeLargeButtonText: {
+        color: '#fff',
+        fontSize: FontSize.lg,
+        fontWeight: FontWeight.bold,
     },
 });
