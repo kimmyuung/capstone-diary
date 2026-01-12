@@ -22,6 +22,9 @@ from .push import PushToken
 # 사용자 설정 관련
 from .preference import UserPreference
 
+# 채팅 임베딩 관련
+from .chat_models import DiaryEmbedding
+
 
 __all__ = [
     # Diary
@@ -39,4 +42,6 @@ __all__ = [
     'PushToken',
     # Preference
     'UserPreference',
+    # Chat
+    'DiaryEmbedding',
 ]

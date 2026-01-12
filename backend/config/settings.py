@@ -15,7 +15,13 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables first
-load_dotenv()
+# Load environment variables first
+# load_dotenv(encoding='utf-8') # Explicit encoding
+# If that fails, try generic load or just rely on system envs in prod
+try:
+    load_dotenv(encoding='utf-8')
+except Exception:
+    load_dotenv() # Fallback to default
 
 # =============================================================================
 # Sentry 모니터링 설정 (에러 추적)
@@ -86,7 +92,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-    'drf_yasg',  # Swagger/OpenAPI 문서
+    'drf_spectacular',  # OpenAPI 3.0 문서
     # Local apps
     'diary',
 ]
@@ -179,10 +185,24 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Media files (Uploaded files)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 
 # OpenAI API Key
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+
+# Gemini API Key (For Free AI Chat)
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+
+# Gemini Imagen Model (Optional)
+GEMINI_IMAGE_MODEL = os.environ.get('GEMINI_IMAGE_MODEL', 'gemini-3-pro-image-preview')
+
+# Gemini Text Model (Emotion/Summary/Template)
+GEMINI_TEXT_MODEL = os.environ.get('GEMINI_TEXT_MODEL', 'gemini-3-flash-preview')
 
 # 일기 내용 암호화 키 (32바이트 Base64 인코딩)
 # 프로덕션에서는 반드시 환경 변수로 설정할 것!
@@ -397,3 +417,19 @@ CELERY_TASK_ROUTES = {
 
 # 동시 실행 워커 수 제한
 CELERY_WORKER_CONCURRENCY = 4
+
+# =============================================================================
+# drf-spectacular 설정 (OpenAPI 3.0)
+# =============================================================================
+SPECTACULAR_SETTINGS = {
+    'TITLE': '감성 일기 API',
+    'DESCRIPTION': 'AI 감정 분석 및 그림 생성 일기 서비스 API 문서',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': True,
+    },
+}

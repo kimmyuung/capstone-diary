@@ -32,7 +32,8 @@
 - Git
 
 ### 필요한 계정/키
-- OpenAI API Key (AI 기능용)
+- Google Gemini API Key (필수 - AI 요약/이미지)
+- OpenAI API Key (선택 - Fallback/감정분석)
 - 도메인 및 DNS 설정
 - (선택) Sentry DSN (에러 추적)
 - (선택) AWS S3 (미디어 저장)
@@ -133,7 +134,11 @@ POSTGRES_PASSWORD=your-strong-database-password
 # 생성: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 DIARY_ENCRYPTION_KEY=your-fernet-encryption-key
 
-# OpenAI (AI 기능 사용 시 필수)
+# Google Gemini (필수 - AI 요약/이미지)
+GEMINI_API_KEY=AIza...
+GEMINI_TEXT_MODEL=gemini-3-flash-preview
+
+# OpenAI (선택 - Fallback/감정분석)
 OPENAI_API_KEY=sk-your-openai-api-key
 
 # 도메인 설정 (필수)

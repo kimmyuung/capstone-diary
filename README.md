@@ -31,8 +31,9 @@
 - 감정 점수(0-100) 제공
 
 ### 🎨 AI 그림 생성
-- **DALL-E 3**를 사용하여 일기 내용에 어울리는 감성적인 이미지 자동 생성
-- 일기당 최대 3개의 AI 이미지 저장 가능
+- **Gemini Imagen 4.0 Fast**를 기본으로 사용하여 감성적인 이미지 생성
+- 결제/오류 발생 시 **DALL-E 3**로 자동 전환 (Fallback)
+- 생성된 이미지는 서버에 안전하게 저장 (`media/ai_images/`)
 
 ### 🎙️ 음성 일기
 - **Whisper API**를 통해 말하는 대로 일기가 작성됩니다
@@ -45,8 +46,12 @@
 - **플레이스홀더**: `{{날짜}}`, `{{요일}}` 등 자동 치환
 
 ### ✨ AI 요약 & 제목 제안
-- 일기 내용을 3줄/1줄/불릿으로 요약
+- **Gemini 1.5 Flash**를 활용하여 일기 내용을 3줄/1줄/불릿으로 요약
 - 일기 제목 자동 제안 (3가지 스타일)
+
+### 🧠 고급 AI 알고리즘
+- **🔑 스마트 키워드 추출 (KeyBERT)**: 단순 빈도수가 아닌 문맥 기반 핵심 태그 추출
+- **🧠 유사 기억 연상 (Vector Search)**: `pgvector`를 활용해 현재 일기와 감정/내용이 비슷한 과거의 기억 추천
 
 ### 📊 감정 리포트 & 히트맵
 - **주간/월간/연간 리포트**: 감정 변화 통계 및 그래프
@@ -85,8 +90,11 @@
 | **Backend** | Django | 6.0 | Python 웹 프레임워크 |
 | | Django REST Framework | 3.x | RESTful API |
 | | SQLite (개발) / PostgreSQL (배포) | - | 데이터베이스 |
-| **AI Models** | GPT-4o-mini | - | 감정 분석, 요약, 템플릿 생성 |
-| | DALL-E 3 | - | 이미지 생성 |
+| | pgvector | - | 벡터 유사도 검색 |
+| **AI Models** | GPT-4o-mini | - | 감정 분석, 템플릿 생성 |
+| | Gemini 1.5 Flash | - | 일기 요약 |
+| | Imagen 4.0 Fast | - | 이미지 생성 (Primary) |
+| | DALL-E 3 | - | 이미지 생성 (Fallback) |
 | | Whisper-1 | - | 음성 인식 (100+ 언어) |
 | **Security** | AES-256 (Fernet) | - | 일기 내용 암호화 |
 | | JWT (SimpleJWT) | - | 사용자 인증 |
@@ -127,7 +135,8 @@ pip install -r requirements.txt
 cp .env.example .env
 # .env 파일에 다음 값 입력:
 # - SECRET_KEY: Django 비밀 키
-# - OPENAI_API_KEY: OpenAI API 키 (선택 - AI 기능용)
+# - GEMINI_API_KEY: Google Gemini API 키 (필수 - 요약/이미지)
+# - OPENAI_API_KEY: OpenAI API 키 (선택 - Fallback/감정분석)
 # - DIARY_ENCRYPTION_KEY: 일기 암호화 키
 
 # DB 마이그레이션
@@ -189,6 +198,7 @@ python manage.py shell -c "from django.contrib.auth.models import User; User.obj
 | GET | `/api/diaries/heatmap/` | 연간 감정 히트맵 |
 | GET | `/api/diaries/gallery/` | AI 이미지 갤러리 |
 | GET | `/api/diaries/locations/` | 위치별 일기 목록 |
+| GET | `/api/diaries/{id}/similar/` | 유사 일기 추천 (Vector Search) |
 | POST | `/api/diaries/{id}/generate-image/` | AI 이미지 생성 |
 
 ### 태그 (5)
@@ -259,9 +269,10 @@ capstone-diary/
 │   │   │   ├── speech_views.py # 음성 인식
 │   │   │   └── ...
 │   │   ├── services/
-│   │   │   ├── ai_service.py       # AI 서비스 (GPT, DALL-E)
-│   │   │   ├── emotion_service.py  # 감정 분석
-│   │   │   └── push_service.py     # 푸시 알림
+│   │   │   └── chat_service.py     # AI 채팅 서비스
+│   │   ├── ai_service.py       # AI 서비스 (Gemini, Fallback, Whisper)
+│   │   ├── emotion_service.py  # 감정 분석 (GPT)
+│   │   ├── push_service.py     # 푸시 알림
 │   │   ├── encryption.py       # AES-256 암호화
 │   │   ├── messages.py         # 다국어 메시지
 │   │   └── tests/              # 단위 테스트
@@ -345,7 +356,7 @@ npx playwright test
 - [x] **Phase 6**: 모노레포 통합, Swagger 문서화
 - [x] **Phase 7**: 이메일 인증, 소셜 로그인, 보안 강화
 - [x] **Phase 8**: 위치 기반 기능, 오프라인 모드
-- [ ] **Phase 9**: 배포 (Docker, AWS/GCP, CI/CD)
+- [x] **Phase 9**: 배포 (Docker, AWS/GCP, CI/CD)
 
 ---
 
@@ -357,7 +368,10 @@ npx playwright test
 SECRET_KEY=your-secret-key
 DEBUG=True
 
-# OpenAI API (선택 - AI 기능용)
+# Google Gemini API (필수 - 요약/이미지)
+GEMINI_API_KEY=AIza...
+
+# OpenAI API (선택 - Fallback/감정분석)
 OPENAI_API_KEY=sk-your-openai-api-key
 
 # 일기 암호화 키 (필수)

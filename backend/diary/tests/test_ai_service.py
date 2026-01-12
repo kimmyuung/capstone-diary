@@ -258,6 +258,67 @@ class TestDiarySummarizer:
         
         assert title == "오늘의 일기"
 
+    @patch('diary.ai_service.genai')
+    def test_generate_report_insight_success(self, mock_genai):
+        """리포트 인사이트 생성 성공 케이스"""
+        from diary.ai_service import DiarySummarizer
+        from diary.models import Diary
+        from unittest.mock import Mock
+        from datetime import datetime
+        
+        # Mock Response
+        mock_model = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "이번 주는 행복한 감정이 주를 이루었네요."
+        mock_model.generate_content.return_value = mock_response
+        mock_genai.GenerativeModel.return_value = mock_model
+        
+        # Test Data
+        diaries = [
+            Mock(spec=Diary, emotion='happy', content='좋은 날', created_at=datetime.now()),
+            Mock(spec=Diary, emotion='sad', content='나쁜 날', created_at=datetime.now())
+        ]
+        
+        summarizer = DiarySummarizer()
+        with patch('diary.ai_service.settings') as mock_settings:
+            mock_settings.GEMINI_API_KEY = 'test-key'
+            mock_settings.GEMINI_TEXT_MODEL = 'gemini-pro'
+            
+            insight = summarizer.generate_report_insight(diaries, '일주일')
+            
+            assert insight == "이번 주는 행복한 감정이 주를 이루었네요."
+            mock_model.generate_content.assert_called_once()
+            
+    def test_generate_report_insight_empty_diaries(self):
+        """일기가 없을 때 안내 메시지 반환"""
+        from diary.ai_service import DiarySummarizer
+        
+        summarizer = DiarySummarizer()
+        insight = summarizer.generate_report_insight([], '일주일')
+        
+        assert "기록된 일기가 없어서" in insight
+
+    @patch('diary.ai_service.genai')
+    def test_generate_report_insight_error(self, mock_genai):
+        """AI 생성 중 에러 발생 시 폴백 메시지"""
+        from diary.ai_service import DiarySummarizer
+        from diary.models import Diary
+        from unittest.mock import Mock
+        from datetime import datetime
+        
+        # Mock Error
+        mock_genai.GenerativeModel.side_effect = Exception("API Fail")
+        
+        diaries = [Mock(spec=Diary, emotion='happy', content='Test', created_at=datetime.now())]
+        
+        summarizer = DiarySummarizer()
+        with patch('diary.ai_service.settings') as mock_settings:
+            mock_settings.GEMINI_API_KEY = 'test-key'
+            
+            insight = summarizer.generate_report_insight(diaries, '일주일')
+            
+            assert "문제가 발생했어요" in insight
+
 
 class TestTemplateGenerator:
     """템플릿 생성기 테스트"""

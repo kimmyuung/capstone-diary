@@ -8,6 +8,7 @@ import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { OfflineQueueProvider } from '@/contexts/OfflineQueueContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { BiometricProvider } from '@/contexts/BiometricContext';
 
 export const unstable_settings = {
   anchor: '(tabs)',

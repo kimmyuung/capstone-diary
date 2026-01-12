@@ -10,21 +10,28 @@ import {
     ActivityIndicator,
     Share,
     Platform,
+    Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useBiometric } from '@/contexts/BiometricContext';
 import { diaryService } from '@/services/api';
+import { Palette, Spacing, FontSize, FontWeight, BorderRadius, Shadows } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
-
 export default function SettingsScreen() {
     const router = useRouter();
     const { isAuthenticated, logout } = useAuth();
     const { themeMode, isDark, setThemeMode, toggleTheme } = useTheme();
     const {
+        isBiometricSupported,
+        isBiometricEnabled,
+        toggleBiometric,
+    } = useBiometric();
+    const {
         reminderSettings,
+        // ...
         toggleReminder,
         sendTestNotification,
         registerForPushNotifications,
@@ -187,6 +194,30 @@ export default function SettingsScreen() {
                 </View>
             </View>
 
+            {/* 보안 설정 */}
+            {isBiometricSupported && (
+                <View style={[styles.section, isDark && styles.sectionDark]}>
+                    <Text style={[styles.sectionTitle, isDark && styles.textDark]}>보안</Text>
+                    <View style={styles.settingRow}>
+                        <View style={styles.settingInfo}>
+                            <IconSymbol name="lock.fill" size={20} color={isDark ? '#fff' : Palette.neutral[600]} />
+                            <View style={styles.settingTextContainer}>
+                                <Text style={[styles.settingLabel, isDark && styles.textDark]}>생체 인식 잠금</Text>
+                                <Text style={[styles.settingDescription, isDark && styles.textMutedDark]}>
+                                    앱 실행 시 인증 요구
+                                </Text>
+                            </View>
+                        </View>
+                        <Switch
+                            value={isBiometricEnabled}
+                            onValueChange={() => toggleBiometric()}
+                            trackColor={{ false: Palette.neutral[300], true: Palette.primary[400] }}
+                            thumbColor="#fff"
+                        />
+                    </View>
+                </View>
+            )}
+
             {/* 알림 설정 */}
             <View style={[styles.section, isDark && styles.sectionDark]}>
                 <Text style={[styles.sectionTitle, isDark && styles.textDark]}>알림</Text>
@@ -304,6 +335,25 @@ export default function SettingsScreen() {
                     <Text style={styles.settingValue}>1.0.0</Text>
                 </View>
             </View>
+
+            {/* 개발자 옵션 (로컬 환경 전용) */}
+            {__DEV__ && (
+                <View style={[styles.section, isDark && styles.sectionDark]}>
+                    <Text style={[styles.sectionTitle, isDark && styles.textDark]}>개발자 옵션</Text>
+                    <TouchableOpacity
+                        style={styles.settingRow}
+                        onPress={() => Linking.openURL('http://localhost:8000/admin')}
+                    >
+                        <View style={styles.settingInfo}>
+                            <IconSymbol name="wrench.and.screwdriver.fill" size={20} color={Palette.status.warning} />
+                            <Text style={[styles.settingLabel, isDark && styles.textDark]}>
+                                관리자 페이지
+                            </Text>
+                        </View>
+                        <IconSymbol name="chevron.right" size={16} color={Palette.neutral[400]} />
+                    </TouchableOpacity>
+                </View>
+            )}
 
             <View style={{ height: 100 }} />
         </ScrollView>

@@ -9,20 +9,25 @@
 - 위치 기반 일기
 - AI 이미지 생성
 """
-from rest_framework import viewsets, status
+import logging
+from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Avg
 from django.utils import timezone
 from django.core.cache import cache
 from django.conf import settings
 from datetime import timedelta, datetime
 
-from ..models import Diary, DiaryImage
-from ..serializers import DiarySerializer, DiaryImageSerializer
-from ..ai_service import ImageGenerator
+from ..models import Diary, DiaryEmbedding
+from ..serializers import DiarySerializer, DiaryListSerializer, ReportSerializer
+from ..ai_service import ImageGenerator, DiarySummarizer, KeywordExtractor
+from ..services.report_service import ReportService
+from ..paginations import StandardResultsSetPagination
 from ..messages import ERROR_INVALID_YEAR, ERROR_INVALID_YEAR_MONTH
+
+logger = logging.getLogger(__name__)
 
 
 class DiaryViewSet(viewsets.ModelViewSet):
@@ -132,6 +137,58 @@ class DiaryViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    def retrieve(self, request, *args, **kwargs):
+        """일기 상세 조회 (키워드 추출 포함)"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        
+        # 키워드 추출 (캐싱 고려 가능, 현재는 실시간)
+        try:
+            if instance.content and len(instance.content) > 20:
+                extractor = KeywordExtractor()
+                keywords = extractor.extract_keywords(instance.content)
+                data['keywords'] = keywords
+        except Exception as e:
+            logger.error(f"Keyword extraction error in view: {e}")
+            data['keywords'] = []
+            
+        return Response(data)
+
+    @action(detail=True, methods=['get'])
+    def similar(self, request, pk=None):
+        """유사한 일기 추천 (Vector Search)"""
+        diary = self.get_object()
+        
+        # 1. 현재 일기의 임베딩 조회
+        try:
+            embedding_obj = DiaryEmbedding.objects.get(diary=diary)
+        except DiaryEmbedding.DoesNotExist:
+            return Response({"message": "No embedding found for this diary"}, status=status.HTTP_404_NOT_FOUND)
+            
+        # 2. pgvector 거리 기반 검색 (L2 distance <->)
+        # 자기 자신 제외, 상위 3개
+        similar_embeddings = DiaryEmbedding.objects.filter(
+            diary__user=request.user
+        ).exclude(
+            diary=diary
+        ).order_by(
+            embedding_obj.vector.l2_distance('vector')
+        )[:3]
+        
+        similar_diaries = []
+        for emb in similar_embeddings:
+            d = emb.diary
+            similar_diaries.append({
+                'id': d.id,
+                'title': d.title,
+                'date': d.created_at.strftime("%Y-%m-%d"),
+                'emotion': d.emotion,
+                'preview': d.content[:50]
+            })
+            
+        return Response(similar_diaries)
+
     def perform_create(self, serializer):
         """
         새로운 일기 항목을 생성할 때 현재 사용자를 자동으로 할당합니다.
@@ -240,7 +297,7 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 'percentage': percentage,
             })
         
-        # 가장 많은 감정
+        # 가장 많은 감정 & AI 인사이트
         dominant_emotion = None
         insight = None
         if emotion_stats:
@@ -249,7 +306,16 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 'emotion': top['emotion'],
                 'label': top['label'],
             }
-            insight = f"이번 {period_label} 가장 많이 느낀 감정은 {top['label']}이에요."
+            
+            # AI 인사이트 생성 (DiarySummarizer 활용)
+            try:
+                from ..ai_service import DiarySummarizer
+                summarizer = DiarySummarizer()
+                insight = summarizer.generate_report_insight(diaries, period_label)
+            except Exception as e:
+                # AI 분석 실패 시 기본 멘트
+                insight = f"이번 {period_label} 가장 많이 느낀 감정은 {top['label']}이에요."
+                
         else:
             insight = f"이번 {period_label} 기록된 감정이 없어요. 일기를 작성해보세요!"
         
@@ -688,7 +754,7 @@ class DiaryViewSet(viewsets.ModelViewSet):
             
         try:
             generator = ImageGenerator()
-            result = generator.generate(diary.content)
+            result = generator.generate(diary.content, emotion=diary.emotion)
             
             diary_image = DiaryImage.objects.create(
                 diary=diary,

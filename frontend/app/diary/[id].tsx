@@ -21,10 +21,23 @@ export default function DiaryDetailScreen() {
     const [diary, setDiary] = useState<Diary | null>(null);
     const [loading, setLoading] = useState(true);
     const [generatingImage, setGeneratingImage] = useState(false);
+    const [similarDiaries, setSimilarDiaries] = useState<Partial<Diary>[]>([]);
 
     useEffect(() => {
-        fetchDiary();
+        if (id) {
+            fetchDiary();
+            fetchSimilarDiaries();
+        }
     }, [id]);
+
+    const fetchSimilarDiaries = async () => {
+        try {
+            const data = await diaryService.getSimilarDiaries(Number(id));
+            setSimilarDiaries(data);
+        } catch (err) {
+            console.error('Failed to fetch similar diaries:', err);
+        }
+    };
 
     const fetchDiary = async () => {
         try {
@@ -137,6 +150,16 @@ export default function DiaryDetailScreen() {
                 <View style={styles.header}>
                     <Text style={styles.title}>{diary.title}</Text>
                     <Text style={styles.date}>{formatDate(diary.created_at)}</Text>
+                    {/* 키워드 섹션 */}
+                    {diary.keywords && diary.keywords.length > 0 && (
+                        <View style={styles.keywordContainer}>
+                            {diary.keywords.map((keyword, index) => (
+                                <View key={index} style={styles.keywordBadge}>
+                                    <Text style={styles.keywordText}>#{keyword}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
                 </View>
 
                 <View style={styles.contentContainer}>
@@ -219,6 +242,31 @@ export default function DiaryDetailScreen() {
                         </ScrollView>
                     )}
                 </View>
+
+                {/* 유사 일기 섹션 */}
+                {similarDiaries.length > 0 && (
+                    <View style={styles.similarSection}>
+                        <Text style={styles.similarTitle}>🧠 회상: 비슷한 날의 기억</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.similarList}>
+                            {similarDiaries.map((item) => (
+                                <TouchableOpacity
+                                    key={item.id}
+                                    style={styles.similarCard}
+                                    onPress={() => router.push(`/diary/${item.id}` as any)}
+                                >
+                                    <Text style={styles.similarCardDate}>{item.date}</Text>
+                                    <Text style={styles.similarCardTitle} numberOfLines={1}>{item.title}</Text>
+                                    <Text style={styles.similarCardPreview} numberOfLines={2}>
+                                        {item.preview || (item.content ? item.content.substring(0, 50) : '')}
+                                    </Text>
+                                    <View style={styles.similarCardEmotion}>
+                                        <Text>{item.emotion}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
             </ScrollView>
         </>
     );
@@ -354,5 +402,80 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 14,
         fontWeight: '500',
+    },
+    mapButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    // 키워드 스타일
+    keywordContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 12,
+    },
+    keywordBadge: {
+        backgroundColor: '#F0F0FF',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E0E0FF',
+    },
+    keywordText: {
+        fontSize: 12,
+        color: '#6C63FF',
+        fontWeight: '500',
+    },
+    // 유사 일기 스타일
+    similarSection: {
+        padding: 20,
+        paddingTop: 0,
+        paddingBottom: 40,
+    },
+    similarTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 16,
+    },
+    similarList: {
+        flexGrow: 0,
+    },
+    similarCard: {
+        width: 160,
+        backgroundColor: '#f8f8f8',
+        borderRadius: 16,
+        padding: 16,
+        marginRight: 12,
+        borderWidth: 1,
+        borderColor: '#eee',
+    },
+    similarCardDate: {
+        fontSize: 12,
+        color: '#999',
+        marginBottom: 4,
+    },
+    similarCardTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#333',
+        marginBottom: 8,
+    },
+    similarCardPreview: {
+        fontSize: 12,
+        color: '#666',
+        lineHeight: 16,
+        marginBottom: 8,
+    },
+    similarCardEmotion: {
+        alignSelf: 'flex-start',
+        backgroundColor: '#fff',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#eee',
     },
 });

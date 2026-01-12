@@ -1,13 +1,14 @@
 # diary/emotion_service.py
 """
 AI 기반 감정 분석 서비스
-OpenAI GPT를 사용하여 일기 내용에서 감정을 분석합니다.
+Google Gemini를 사용하여 일기 내용에서 감정을 분석합니다.
 """
 import json
 import logging
 from typing import Dict, Optional
 from django.conf import settings
 from django.utils import timezone
+import google.generativeai as genai
 
 logger = logging.getLogger('diary')
 
@@ -41,9 +42,8 @@ class EmotionAnalyzer:
     }
     
     def __init__(self):
-        import openai
-        openai.api_key = settings.OPENAI_API_KEY
-        self.client = openai
+        if settings.GEMINI_API_KEY:
+            genai.configure(api_key=settings.GEMINI_API_KEY)
     
     def analyze(self, content: str) -> Dict:
         """
@@ -67,15 +67,19 @@ class EmotionAnalyzer:
                 'score': 50,
                 'reason': '내용이 너무 짧아 분석이 어렵습니다.',
             }
+            
+        if not settings.GEMINI_API_KEY:
+            logger.error("Gemini API Key is not configured for Emotion Analysis.")
+            return self._fallback_analysis(content)
         
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """당신은 일기 내용을 분석하여 작성자의 감정을 파악하는 전문가입니다.
-                        
+            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
+            
+            prompt = f"""당신은 일기 내용을 분석하여 작성자의 감정을 파악하는 전문가입니다.
+            
+일기 내용:
+"{content[:2000]}"
+
 다음 8가지 감정 중 하나를 선택하세요:
 - happy: 행복하고 기쁜 감정
 - sad: 슬프거나 우울한 감정
@@ -87,18 +91,20 @@ class EmotionAnalyzer:
 - love: 사랑스럽고 따뜻한 감정
 
 반드시 다음 JSON 형식으로만 응답하세요:
-{"emotion": "감정키", "score": 점수(0-100), "reason": "분석 근거 한 문장"}"""
-                    },
-                    {
-                        "role": "user",
-                        "content": f"다음 일기의 감정을 분석해주세요:\n\n{content[:1000]}"
-                    }
-                ],
-                temperature=0.3,
-                max_tokens=150,
-            )
+{{"emotion": "감정키", "score": 점수(0-100), "reason": "분석 근거 한 문장"}}"""
+
+            response = model.generate_content(prompt)
+            result_text = response.text.strip()
             
-            result_text = response.choices[0].message.content.strip()
+            # JSON 포맷팅 정리 (Markdown 코드 블록 제거)
+            if result_text.startswith('```json'):
+                result_text = result_text[7:]
+            if result_text.startswith('```'):
+                result_text = result_text[3:]
+            if result_text.endswith('```'):
+                result_text = result_text[:-3]
+            
+            result_text = result_text.strip()
             logger.debug(f"Emotion analysis raw response: {result_text}")
             
             # JSON 파싱
@@ -119,9 +125,6 @@ class EmotionAnalyzer:
                 'reason': result.get('reason', ''),
             }
             
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON parsing failed: {e}")
-            return self._fallback_analysis(content)
         except Exception as e:
             logger.error(f"Emotion analysis failed: {e}")
             return self._fallback_analysis(content)
@@ -149,14 +152,14 @@ class EmotionAnalyzer:
                         'emotion': emotion,
                         'emotion_label': self.EMOTION_LABELS[emotion],
                         'score': 60,
-                        'reason': f'"{keyword}" 키워드 감지',
+                        'reason': f'"{keyword}" 키워드 감지 (Fallback)',
                     }
         
         return {
             'emotion': 'peaceful',
             'emotion_label': '평온',
             'score': 50,
-            'reason': '특별한 감정 키워드가 감지되지 않았습니다.',
+            'reason': '특별한 감정 키워드가 감지되지 않았습니다. (Fallback)',
         }
 
 

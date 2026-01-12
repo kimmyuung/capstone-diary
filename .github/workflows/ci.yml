@@ -31,7 +31,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
-        pip install ruff mypy types-requests
     
     - name: Run Ruff (Lint)
       run: |
@@ -58,7 +57,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        image: pgvector/pgvector:pg15
         env:
           POSTGRES_DB: test_db
           POSTGRES_USER: test_user
@@ -90,16 +89,16 @@ jobs:
       run: python manage.py migrate
       env:
         DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
-        SECRET_KEY: test-secret-key-for-ci
-        DIARY_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
+        SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        DIARY_ENCRYPTION_KEY: ${{ secrets.DIARY_ENCRYPTION_KEY }}
     
     - name: Run tests with coverage
       run: |
         pytest --cov=diary --cov-report=xml --cov-report=term-missing -v
       env:
         DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
-        SECRET_KEY: test-secret-key-for-ci
-        DIARY_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
+        SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        DIARY_ENCRYPTION_KEY: ${{ secrets.DIARY_ENCRYPTION_KEY }}
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

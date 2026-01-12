@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { diaryService, EmotionReport } from '@/services/api';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { PieChart } from 'react-native-chart-kit';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HIDE_BANNER_KEY = 'hideDataBannerUntil';
@@ -325,27 +326,31 @@ export default function ReportScreen() {
                 <View style={styles.statsContainer}>
                     <Text style={styles.sectionTitle}>감정 분포</Text>
 
-                    {report.emotion_stats.map((stat) => (
-                        <View key={stat.emotion} style={styles.statRow}>
-                            <View style={styles.statInfo}>
-                                <Text style={styles.statEmoji}>{EMOTION_EMOJIS[stat.emotion]}</Text>
-                                <Text style={styles.statLabel}>{stat.label}</Text>
-                                <Text style={styles.statCount}>{stat.count}회</Text>
-                            </View>
-                            <View style={styles.statBarContainer}>
-                                <View
-                                    style={[
-                                        styles.statBar,
-                                        {
-                                            width: `${stat.percentage}%`,
-                                            backgroundColor: EMOTION_COLORS[stat.emotion],
-                                        },
-                                    ]}
-                                />
-                            </View>
-                            <Text style={styles.statPercentage}>{stat.percentage}%</Text>
-                        </View>
-                    ))}
+                    {/* 차트 라이브러리 활용 */}
+                    <PieChart
+                        data={report.emotion_stats.map(stat => ({
+                            name: stat.label,
+                            population: stat.percentage,
+                            color: EMOTION_COLORS[stat.emotion],
+                            legendFontColor: "#7F7F7F",
+                            legendFontSize: 12
+                        }))}
+                        width={SCREEN_WIDTH - 64}
+                        height={220}
+                        chartConfig={{
+                            backgroundColor: "#1cc910",
+                            backgroundGradientFrom: "#eff3ff",
+                            backgroundGradientTo: "#efefef",
+                            decimalPlaces: 2,
+                            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                            style: { borderRadius: 16 }
+                        }}
+                        accessor={"population"}
+                        backgroundColor={"transparent"}
+                        paddingLeft={"15"}
+                        center={[10, 0]}
+                        absolute
+                    />
                 </View>
             ) : period !== 'year' && (
                 <View style={styles.emptyContainer}>

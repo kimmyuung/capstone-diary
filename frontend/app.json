@@ -39,7 +39,9 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "./plugins/withAndroidWidget.js",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

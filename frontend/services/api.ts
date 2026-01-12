@@ -84,6 +84,7 @@ export interface Diary {
     tags: Tag[];
     created_at: string;
     updated_at: string;
+    keywords?: string[]; // 핵심 키워드
 }
 
 export interface DiaryImage {
@@ -251,9 +252,22 @@ export const diaryService = {
         const response = await api.post(`/api/diaries/${id}/generate-image/`);
         return response.data;
     },
+    /**
+   * 유사한 일기 추천 (Vector Search)
+   */
+    async getSimilarDiaries(id: number): Promise<Partial<Diary>[]> {
+        try {
+            const response = await api.get(`/api/diaries/${id}/similar/`);
+            return response.data;
+        } catch (error) {
+            console.error('Failed to fetch similar diaries:', error);
+            return [];
+        }
+    },
 
-    // 감정 리포트 조회
-    async getReport(period: 'week' | 'month' = 'week'): Promise<EmotionReport> {
+  /**
+   * 일기 통계 (리포트) 조회
+   */ async getReport(period: 'week' | 'month' = 'week'): Promise<EmotionReport> {
         const response = await api.get(`/api/diaries/report/?period=${period}`);
         return response.data;
     },
@@ -302,11 +316,13 @@ export const diaryService = {
 
     // 일기 내보내기 (JSON)
     async exportDiaries(): Promise<{
-        exported_at: string;
-        total_diaries: number;
+        metadata: { username: string; email: string; export_date: string; version: string };
         diaries: Diary[];
+        tags: Tag[];
+        preferences: UserPreference;
+        templates: DiaryTemplate[];
     }> {
-        const response = await api.get('/api/diaries/export/');
+        const response = await api.get('/api/export/data/');
         return response.data;
     },
 
@@ -423,7 +439,7 @@ export const aiService = {
 // ============================================================================
 export const speechService = {
     // 음성을 텍스트로 변환
-    async transcribe(audioFile: FormData, language: string = 'ko'): Promise<{ text: string; language: string }> {
+    async transcribe(audioFile: FormData, language: string = 'ko'): Promise<{ text: string; language: string; summary: string }> {
         audioFile.append('language', language);
         const response = await api.post('/api/transcribe/', audioFile, {
             headers: {
@@ -473,6 +489,7 @@ export const templateService = {
         await api.delete(`/api/templates/${id}/`);
     },
 
+    // 템플릿 사용 (사용 횟수 증가 + 내용 반환)
     // 템플릿 사용 (사용 횟수 증가 + 내용 반환)
     async use(id: number): Promise<{ id: number; name: string; emoji: string; content: string; use_count: number; message: string }> {
         const response = await api.post(`/api/templates/${id}/use/`);

@@ -14,7 +14,7 @@ import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 import { speechService } from '@/services/api';
 
 interface VoiceRecorderProps {
-    onTranscription: (text: string) => void;
+    onTranscription: (text: string, summary?: string) => void;
     onRecordingStateChange?: (isRecording: boolean) => void;
     language?: string;
 }
@@ -131,7 +131,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
                 try {
                     const result = await speechService.transcribe(formData, language);
-                    onTranscription(result.text);
+                    onTranscription(result.text, result.summary);
                 } catch (apiError) {
                     console.error('Transcription API error:', apiError);
                     Alert.alert('변환 실패', '음성을 텍스트로 변환하는데 실패했습니다');

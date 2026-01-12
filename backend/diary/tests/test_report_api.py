@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from rest_framework import status
 from datetime import datetime, timedelta
+from unittest.mock import patch
 from diary.models import Diary
 
 
@@ -55,7 +56,22 @@ class ReportAPITestCase(TestCase):
         
         emotion_stats = response.data.get('emotion_stats', [])
         total_count = sum(stat['count'] for stat in emotion_stats)
+        emotion_stats = response.data.get('emotion_stats', [])
+        total_count = sum(stat['count'] for stat in emotion_stats)
         self.assertEqual(total_count, 5)
+
+    @patch('diary.ai_service.DiarySummarizer.generate_report_insight')
+    def test_report_includes_ai_insight(self, mock_generate_insight):
+        """리포트에 AI 인사이트가 포함되는지 테스트"""
+        mock_generate_insight.return_value = "AI가 분석한 이번 주 멘탈 케어 메시지입니다."
+        
+        response = self.client.get('/api/diaries/report/?period=week')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # AI Insight가 응답에 포함되어야 함
+        self.assertEqual(response.data['insight'], "AI가 분석한 이번 주 멘탈 케어 메시지입니다.")
+        # AI Service가 호출되었는지 확인
+        mock_generate_insight.assert_called_once()
     
     def test_report_requires_auth(self):
         """인증 없이 리포트 조회 테스트"""

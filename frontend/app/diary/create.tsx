@@ -49,12 +49,13 @@ export default function CreateDiaryScreen() {
         longitude: null,
     });
 
-    const handleTranscription = useCallback((text: string) => {
+    const handleTranscription = useCallback((text: string, summary?: string) => {
         setContent((prev) => {
-            if (prev.trim()) {
-                return prev + '\n' + text;
+            let newContent = prev.trim() ? prev + '\n' + text : text;
+            if (summary) {
+                newContent += '\n\n[AI 요약]\n' + summary;
             }
-            return text;
+            return newContent;
         });
     }, []);
 

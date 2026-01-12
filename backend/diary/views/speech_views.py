@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from ..ai_service import SpeechToText
+from ..ai_service import SpeechToText, DiarySummarizer
 from config.throttling import TranscriptionRateThrottle
 
 
@@ -34,7 +34,8 @@ class TranscribeView(APIView):
         Response:
             {
                 "text": "변환된 텍스트",
-                "language": "사용된 언어 코드"
+                "language": "사용된 언어 코드",
+                "summary": "3줄 요약"
             }
         """
         audio_file = request.FILES.get('audio')
@@ -64,9 +65,21 @@ class TranscribeView(APIView):
             stt = SpeechToText()
             result = stt.transcribe(audio_file, language)
             
+            # 텍스트가 있으면 요약 생성
+            summary = ""
+            if result.get('text'):
+                try:
+                    summarizer = DiarySummarizer()
+                    summary_result = summarizer.summarize(result['text'])
+                    summary = summary_result.get('summary', '')
+                except Exception as e:
+                    # 요약 실패해도 텍스트 변환 결과는 반환
+                    print(f"Summary generation failed: {e}")
+            
             return Response({
                 'text': result['text'],
-                'language': result['language']
+                'language': result['language'],
+                'summary': summary
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
