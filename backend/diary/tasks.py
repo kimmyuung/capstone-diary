@@ -254,3 +254,63 @@ def cleanup_old_exports(days: int = 7):
     
     logger.info(f"[Celery] Cleaned up {deleted} old export files")
     return deleted
+
+
+# =============================================================================
+# AI 작업 태스크 (이미지, 키워드, 요약)
+# =============================================================================
+
+@shared_task
+def generate_image_task(diary_id: int):
+    """일기 이미지 생성 태스크"""
+    from .models import Diary
+    from .ai_service import ImageGenerator
+    
+    try:
+        diary = Diary.objects.get(id=diary_id)
+        # 이미지가 이미 있는지 확인
+        if diary.images.exists():
+            return "Image already exists"
+            
+        generator = ImageGenerator()
+        image_url = generator.generate(diary)
+        
+        if image_url:
+            return f"Image generated for diary {diary_id}"
+        return f"Image generation failed for diary {diary_id}"
+    except Exception as e:
+        logger.error(f"[Celery] Image generation failed: {e}")
+        return str(e)
+
+@shared_task
+def extract_keywords_task(diary_id: int):
+    """키워드 추출 및 태그 저장 태스크 (Auto-tagging)"""
+    from .models import Diary, Tag, DiaryTag
+    from .ai_service import KeywordExtractor
+    
+    try:
+        diary = Diary.objects.get(id=diary_id)
+        content = diary.decrypt_content()
+        if not content or len(content) < 10:
+            return "Content too short"
+            
+        extractor = KeywordExtractor()
+        keywords = extractor.extract_keywords(content, top_n=5)
+        
+        if not keywords:
+            return "No keywords found"
+            
+        for keyword in keywords:
+            tag, _ = Tag.objects.get_or_create(
+                user=diary.user,
+                name=keyword,
+                defaults={'color': '#6366F1'}
+            )
+            DiaryTag.objects.get_or_create(diary=diary, tag=tag)
+            
+        logger.info(f"[Celery] Auto-tagged diary {diary_id} with {keywords}")
+        return keywords
+    except Exception as e:
+        logger.error(f"[Celery] Auto-tagging failed: {e}")
+        return str(e)
+

@@ -309,6 +309,12 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 "insight": "이번 주 가장 많이 느낀 감정은 행복이에요."
             }
         """
+    @action(detail=False, methods=['get'])
+    def report(self, request):
+        """
+        주간/월간 감정 분석 리포트를 반환합니다.
+        (캐싱 적용됨)
+        """
         period = request.query_params.get('period', 'week')
         
         # 캐시 키 생성 및 조회
@@ -317,114 +323,23 @@ class DiaryViewSet(viewsets.ModelViewSet):
         if cached_data:
             return Response(cached_data)
         
-        # 기간 설정
-        now = timezone.now()
-        if period == 'month':
-            start_date = now - timedelta(days=30)
-            period_label = '한 달'
-            recommended_count = 15
-        else:
-            start_date = now - timedelta(days=7)
-            period_label = '일주일'
-            recommended_count = 7
-        
-        # 해당 기간 일기 조회
-        diaries = Diary.objects.filter(
-            user=request.user,
-            created_at__gte=start_date,
-            emotion__isnull=False
-        )
-        
-        total_count = diaries.count()
-        data_sufficient = total_count >= recommended_count
-        
-        # 감정별 통계
-        emotion_counts = diaries.values('emotion').annotate(
-            count=Count('emotion')
-        ).order_by('-count')
-        
-        emotion_labels = {
-            'happy': '행복',
-            'sad': '슬픔',
-            'angry': '화남',
-            'anxious': '불안',
-            'peaceful': '평온',
-            'excited': '신남',
-            'tired': '피곤',
-            'love': '사랑',
-        }
-        
-        emotion_stats = []
-        for item in emotion_counts:
-            emotion = item['emotion']
-            count = item['count']
-            percentage = round((count / total_count) * 100) if total_count > 0 else 0
-            emotion_stats.append({
-                'emotion': emotion,
-                'label': emotion_labels.get(emotion, emotion),
-                'count': count,
-                'percentage': percentage,
-            })
-        
-        # 가장 많은 감정 & AI 인사이트
-        dominant_emotion = None
-        insight = None
-        if emotion_stats:
-            top = emotion_stats[0]
-            dominant_emotion = {
-                'emotion': top['emotion'],
-                'label': top['label'],
-            }
+        try:
+            from ..services.report_service import ReportService
+            result = ReportService.get_period_report(request.user, period)
             
-            # AI 인사이트 생성 (DiarySummarizer 활용)
-            try:
-                from ..ai_service import DiarySummarizer
-                summarizer = DiarySummarizer()
-                insight = summarizer.generate_report_insight(diaries, period_label)
-            except Exception as e:
-                # AI 분석 실패 시 기본 멘트
-                insight = f"이번 {period_label} 가장 많이 느낀 감정은 {top['label']}이에요."
-                
-        else:
-            insight = f"이번 {period_label} 기록된 감정이 없어요. 일기를 작성해보세요!"
-        
-        result = {
-            'period': period,
-            'period_label': period_label,
-            'total_diaries': total_count,
-            'data_sufficient': data_sufficient,
-            'recommended_count': recommended_count,
-            'emotion_stats': emotion_stats,
-            'dominant_emotion': dominant_emotion,
-            'insight': insight,
-        }
-        
-        # 캐시 저장 (1시간)
-        cache_ttl = getattr(settings, 'CACHE_TTL', {}).get('report', 3600)
-        cache.set(cache_key, result, cache_ttl)
-        
-        return Response(result)
+            # 캐시 저장 (1시간)
+            cache_ttl = getattr(settings, 'CACHE_TTL', {}).get('report', 3600)
+            cache.set(cache_key, result, cache_ttl)
+            
+            return Response(result)
+        except Exception as e:
+            logger.error(f"Report generation failed: {e}")
+            return Response({"error": "Failed to generate report"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'], url_path='calendar')
     def calendar(self, request):
         """
         캘린더 뷰를 위한 월별 일기 요약을 반환합니다.
-        본인의 일기만 조회됩니다.
-        
-        Query Parameters:
-            - year: 연도 (기본값: 현재 연도)
-            - month: 월 (기본값: 현재 월)
-        
-        Response:
-            {
-                "year": 2024,
-                "month": 12,
-                "days": {
-                    "2024-12-01": {"count": 1, "emotion": "happy", "emoji": "😊"},
-                    "2024-12-05": {"count": 2, "emotion": "sad", "emoji": "😢"},
-                    ...
-                }
-            }
         """
         now = timezone.now()
         year = request.query_params.get('year', now.year)
@@ -444,51 +359,24 @@ class DiaryViewSet(viewsets.ModelViewSet):
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
-        
-        # 해당 월의 일기 조회 (본인 것만!)
-        diaries = Diary.objects.filter(
-            user=request.user,
-            created_at__year=year,
-            created_at__month=month
-        ).order_by('created_at')
-        
-        # 날짜별 요약 생성
-        days = {}
-        for diary in diaries:
-            date_str = diary.created_at.strftime('%Y-%m-%d')
-            if date_str not in days:
-                days[date_str] = {
-                    'count': 0,
-                    'emotion': diary.emotion,
-                    'emoji': diary.get_emotion_display_emoji() if diary.emotion else '',
-                    'diary_ids': []
-                }
-            days[date_str]['count'] += 1
-            days[date_str]['diary_ids'].append(diary.id)
-            # 여러 일기가 있으면 마지막 일기의 감정 사용
-            if diary.emotion:
-                days[date_str]['emotion'] = diary.emotion
-                days[date_str]['emoji'] = diary.get_emotion_display_emoji()
-        
-        result = {
-            'year': year,
-            'month': month,
-            'days': days
-        }
-        
-        # 캐시 저장 (30분)
-        cache_ttl = getattr(settings, 'CACHE_TTL', {}).get('calendar', 1800)
-        cache.set(cache_key, result, cache_ttl)
-        
-        return Response(result)
+            
+        try:
+            from ..services.report_service import ReportService
+            result = ReportService.get_calendar_data(request.user, year, month)
+            
+            # 캐시 저장 (30분)
+            cache_ttl = getattr(settings, 'CACHE_TTL', {}).get('calendar', 1800)
+            cache.set(cache_key, result, cache_ttl)
+            
+            return Response(result)
+        except Exception as e:
+            logger.error(f"Calendar generation failed: {e}")
+            return Response({"error": "Failed to generate calendar"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'], url_path='annual-report')
     def annual_report(self, request):
         """
         연간 감정 리포트를 반환합니다.
-        
-        Query Parameters:
-            - year: 연도 (기본값: 현재 연도)
         """
         now = timezone.now()
         year = request.query_params.get('year', now.year)
@@ -500,64 +388,14 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 {"error": str(ERROR_INVALID_YEAR)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # 해당 연도의 일기 조회
-        diaries = Diary.objects.filter(
-            user=request.user,
-            created_at__year=year
-        )
-        
-        total_count = diaries.count()
-        
-        # 월별 통계
-        monthly_stats = []
-        for month in range(1, 13):
-            month_diaries = diaries.filter(created_at__month=month)
-            month_count = month_diaries.count()
             
-            # 해당 월의 주요 감정
-            dominant_emotion = None
-            if month_count > 0:
-                emotion_counts = month_diaries.filter(emotion__isnull=False).values('emotion').annotate(
-                    count=Count('emotion')
-                ).order_by('-count').first()
-                if emotion_counts:
-                    dominant_emotion = emotion_counts['emotion']
-            
-            monthly_stats.append({
-                'month': month,
-                'count': month_count,
-                'dominant_emotion': dominant_emotion
-            })
-        
-        # 연간 감정 통계
-        emotion_labels = {
-            'happy': '행복', 'sad': '슬픔', 'angry': '화남', 'anxious': '불안',
-            'peaceful': '평온', 'excited': '신남', 'tired': '피곤', 'love': '사랑',
-        }
-        
-        annual_emotions = diaries.filter(emotion__isnull=False).values('emotion').annotate(
-            count=Count('emotion')
-        ).order_by('-count')
-        
-        emotion_stats = []
-        for item in annual_emotions:
-            emotion = item['emotion']
-            count = item['count']
-            percentage = round((count / total_count) * 100) if total_count > 0 else 0
-            emotion_stats.append({
-                'emotion': emotion,
-                'label': emotion_labels.get(emotion, emotion),
-                'count': count,
-                'percentage': percentage,
-            })
-        
-        return Response({
-            'year': year,
-            'total_diaries': total_count,
-            'monthly_stats': monthly_stats,
-            'emotion_stats': emotion_stats,
-        })
+        try:
+            from ..services.report_service import ReportService
+            result = ReportService.get_annual_report(request.user, year)
+            return Response(result)
+        except Exception as e:
+            logger.error(f"Annual report generation failed: {e}")
+            return Response({"error": "Failed to generate annual report"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'], url_path='gallery')
     def gallery(self, request):
@@ -590,76 +428,24 @@ class DiaryViewSet(viewsets.ModelViewSet):
         """
         사용자의 모든 일기를 JSON 형식으로 내보냅니다.
         """
-        diaries = Diary.objects.filter(user=request.user).order_by('created_at')
-        
-        result = []
-        for diary in diaries:
-            result.append({
-                'id': diary.id,
-                'title': diary.title,
-                'content': diary.decrypt_content(),
-                'emotion': diary.emotion,
-                'emotion_score': diary.emotion_score,
-                'location_name': diary.location_name,
-                'latitude': diary.latitude,
-                'longitude': diary.longitude,
-                'created_at': diary.created_at.isoformat(),
-                'updated_at': diary.updated_at.isoformat(),
-            })
-        
-        return Response({
-            'exported_at': timezone.now().isoformat(),
-            'total_diaries': len(result),
-            'diaries': result
-        })
+        from ..services.export_service import ExportService
+        try:
+            return Response(ExportService.export_json(request.user))
+        except Exception as e:
+            logger.error(f"JSON export failed: {e}")
+            return Response({"error": "Failed to export JSON"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'], url_path='export-csv')
     def export_csv(self, request):
         """
         사용자의 모든 일기를 CSV 형식으로 내보냅니다.
-        
-        CSV 컬럼:
-            - id, title, content, emotion, emotion_score, 
-            - location_name, latitude, longitude,
-            - created_at, updated_at
         """
-        import csv
-        from django.http import HttpResponse
-        
-        diaries = Diary.objects.filter(user=request.user).order_by('created_at')
-        
-        # CSV 응답 생성
-        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-        filename = f"diary_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
-        # BOM 추가 (Excel 호환성)
-        response.write('\ufeff')
-        
-        writer = csv.writer(response)
-        
-        # 헤더 작성
-        writer.writerow([
-            'ID', '제목', '내용', '감정', '감정 점수',
-            '위치명', '위도', '경도', '작성일', '수정일'
-        ])
-        
-        # 데이터 작성
-        for diary in diaries:
-            writer.writerow([
-                diary.id,
-                diary.title,
-                diary.decrypt_content(),
-                diary.emotion or '',
-                diary.emotion_score or '',
-                diary.location_name or '',
-                diary.latitude or '',
-                diary.longitude or '',
-                diary.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                diary.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
-            ])
-        
-        return response
+        from ..services.export_service import ExportService
+        try:
+            return ExportService.export_csv(request.user)
+        except Exception as e:
+            logger.error(f"CSV export failed: {e}")
+            return Response({"error": "Failed to export CSV"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'], url_path='locations')
     def locations(self, request):
@@ -695,118 +481,12 @@ class DiaryViewSet(viewsets.ModelViewSet):
         """
         사용자의 모든 일기를 PDF 파일로 내보냅니다.
         """
-        from django.http import HttpResponse
-        from io import BytesIO
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import cm
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-        
-        diaries = Diary.objects.filter(user=request.user).order_by('-created_at')
-        
-        # PDF 버퍼 생성
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=A4,
-            rightMargin=2*cm,
-            leftMargin=2*cm,
-            topMargin=2*cm,
-            bottomMargin=2*cm
-        )
-        
-        # 스타일 설정
-        styles = getSampleStyleSheet()
-        
-        # 커스텀 스타일 (한글 지원을 위해 기본 폰트 사용)
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=24,
-            spaceAfter=30,
-            alignment=1,  # 중앙 정렬
-        )
-        
-        diary_title_style = ParagraphStyle(
-            'DiaryTitle',
-            parent=styles['Heading2'],
-            fontSize=14,
-            spaceBefore=20,
-            spaceAfter=10,
-        )
-        
-        content_style = ParagraphStyle(
-            'Content',
-            parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=10,
-            leading=16,
-        )
-        
-        date_style = ParagraphStyle(
-            'DateStyle',
-            parent=styles['Normal'],
-            fontSize=9,
-            textColor=colors.gray,
-            spaceAfter=5,
-        )
-        
-        # 문서 내용 구성
-        elements = []
-        
-        # 제목
-        elements.append(Paragraph("My Diary Export", title_style))
-        elements.append(Paragraph(
-            f"Exported on {timezone.now().strftime('%Y-%m-%d %H:%M')} | Total: {diaries.count()} entries",
-            date_style
-        ))
-        elements.append(Spacer(1, 1*cm))
-        
-        # 감정 이모지 매핑
-        emotion_map = {
-            'happy': 'Happy', 'sad': 'Sad', 'angry': 'Angry',
-            'anxious': 'Anxious', 'peaceful': 'Peaceful',
-            'excited': 'Excited', 'tired': 'Tired', 'love': 'Love'
-        }
-        
-        # 각 일기 추가
-        for diary in diaries:
-            # 날짜
-            date_str = diary.created_at.strftime('%Y-%m-%d %H:%M')
-            emotion_str = emotion_map.get(diary.emotion, '') if diary.emotion else ''
-            location_str = f" | Location: {diary.location_name}" if diary.location_name else ""
-            
-            elements.append(Paragraph(
-                f"{date_str} | {emotion_str}{location_str}",
-                date_style
-            ))
-            
-            # 제목
-            # HTML 특수문자 이스케이프
-            safe_title = diary.title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            elements.append(Paragraph(safe_title, diary_title_style))
-            
-            # 내용
-            content = diary.decrypt_content()
-            # HTML 특수문자 이스케이프 및 줄바꿈 처리
-            safe_content = content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            safe_content = safe_content.replace('\n', '<br/>')
-            elements.append(Paragraph(safe_content, content_style))
-            
-            # 구분선
-            elements.append(Spacer(1, 0.5*cm))
-        
-        # PDF 생성
-        doc.build(elements)
-        
-        # 응답 생성
-        buffer.seek(0)
-        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-        filename = f"diary_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
-        return response
+        from ..services.export_service import ExportService
+        try:
+            return ExportService.export_pdf(request.user)
+        except Exception as e:
+            logger.error(f"PDF export failed: {e}")
+            return Response({"error": "Failed to export PDF"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'], url_path='generate-image')
     def generate_image(self, request, pk=None):

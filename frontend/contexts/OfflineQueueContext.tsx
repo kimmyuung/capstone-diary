@@ -108,9 +108,12 @@ export const OfflineQueueProvider: React.FC<OfflineQueueProviderProps> = ({ chil
         let successCount = 0;
         let failCount = 0;
 
+        // 배치 처리를 위한 ID 매핑 (Temp ID -> Real ID)
+        const idMap = new Map<string, number>();
+
         for (const request of queue) {
             try {
-                await processRequest(request);
+                await processRequest(request, idMap);
                 await offlineStorage.removeRequest(request.id);
                 successCount++;
             } catch (error: any) {
@@ -151,25 +154,99 @@ export const OfflineQueueProvider: React.FC<OfflineQueueProviderProps> = ({ chil
     /**
      * 개별 요청 처리
      */
-    const processRequest = async (request: OfflineRequest): Promise<void> => {
-        switch (request.type) {
+    const processRequest = async (request: OfflineRequest, idMap: Map<string, number>): Promise<void> => {
+        let { type, payload } = request;
+
+        // ID 매핑 적용 (이전 요청에서 생성된 ID로 교체)
+        if (idMap.size > 0) {
+            if (type === 'UPDATE_DIARY' || type === 'DELETE_DIARY') {
+                const payloadObj = payload as { id: any };
+                // payload.id가 임시 ID라면 실제 ID로 교체
+                if (idMap.has(String(payloadObj.id))) {
+                    const realId = idMap.get(String(payloadObj.id))!;
+                    if (__DEV__) {
+                        console.log(`[OfflineQueue] Mapping ID: ${payloadObj.id} -> ${realId}`);
+                    }
+                    payload = { ...payloadObj, id: realId };
+                }
+            }
+        }
+
+        switch (type) {
             case 'CREATE_DIARY': {
-                const data = request.payload as CreateDiaryRequest;
-                await api.post('/api/diaries/', data);
+                const data = payload as CreateDiaryRequest & { id?: string }; // 로컬 임시 ID 포함 가능성
+
+                // 이미지 업로드 처리 (FormData)
+                if (data.images && data.images.length > 0) {
+                    const formData = new FormData();
+                    formData.append('title', data.title);
+                    formData.append('content', data.content);
+                    if (data.emotion) formData.append('emotion', data.emotion);
+                    if (data.weather) formData.append('weather', data.weather);
+
+                    data.images.forEach((imageUri: string) => {
+                        const filename = imageUri.split('/').pop() || 'image.jpg';
+                        const match = /\.(\w+)$/.exec(filename);
+                        const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+                        // React Native FormData format
+                        formData.append('images', { uri: imageUri, name: filename, type } as any);
+                    });
+
+                    const response = await api.post('/api/diaries/', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+
+                    // 성공 시 실제 ID 매핑 저장 (임시 ID가 있다면)
+                    if (data.id && response.data.id) {
+                        idMap.set(String(data.id), response.data.id);
+                    }
+                } else {
+                    // 일반 JSON 요청
+                    const response = await api.post('/api/diaries/', data);
+                    // 성공 시 실제 ID 매핑 저장
+                    if (data.id && response.data.id) {
+                        idMap.set(String(data.id), response.data.id);
+                    }
+                }
                 break;
             }
             case 'UPDATE_DIARY': {
-                const { id, ...data } = request.payload as UpdateDiaryRequest & { id: number };
-                await api.put(`/api/diaries/${id}/`, data);
+                const { id, ...data } = payload as UpdateDiaryRequest & { id: number };
+
+                // 이미지 업로드 처리 (FormData) - 수정 시에도 이미지가 있을 수 있음
+                if (data.images && data.images.length > 0) {
+                    const formData = new FormData();
+                    if (data.title) formData.append('title', data.title);
+                    if (data.content) formData.append('content', data.content);
+
+                    // 기존 이미지는 URL일 것이고, 새 이미지는 file URI일 것임.
+                    // 서버 API가 어떻게 처리하는지에 따라 다르지만, 보통 새 파일만 보냄.
+                    // 여기서는 단순히 새 이미지만 보낸다고 가정 (구현 필요 시 확장)
+                    data.images.forEach((imageUri: string) => {
+                        if (!imageUri.startsWith('http')) { // 로컬 파일만 전송
+                            const filename = imageUri.split('/').pop() || 'image.jpg';
+                            const match = /\.(\w+)$/.exec(filename);
+                            const type = match ? `image/${match[1]}` : 'image/jpeg';
+                            formData.append('images', { uri: imageUri, name: filename, type } as any);
+                        }
+                    });
+
+                    await api.put(`/api/diaries/${id}/`, formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                } else {
+                    await api.put(`/api/diaries/${id}/`, data);
+                }
                 break;
             }
             case 'DELETE_DIARY': {
-                const { id } = request.payload as { id: number };
+                const { id } = payload as { id: number };
                 await api.delete(`/api/diaries/${id}/`);
                 break;
             }
             default:
-                console.warn(`[OfflineQueue] Unknown request type:`, request.type);
+                console.warn(`[OfflineQueue] Unknown request type:`, type);
         }
     };
 
