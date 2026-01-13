@@ -232,6 +232,59 @@ def generate_pdf_async(self, user_id: int, diary_ids: list, filename: str):
 
 
 @shared_task
+def migrate_encryption_key(target_version=None, batch_size=100):
+    """
+    [Phase 2] Key Rotation Migration Task
+    오래된 버전의 암호화 키로 잠긴 일기들을 최신 키로 재암호화합니다.
+    """
+    from .models import Diary
+    from django.conf import settings
+    from django.db import transaction
+    import time
+    
+    current_version = getattr(settings, 'CURRENT_ENCRYPTION_VERSION', 1)
+    if target_version is None:
+        target_version = current_version
+        
+    logger.info(f"Starting encryption migration to version {target_version}")
+    
+    # 처리할 일기 조회 (버전이 낮은 것들)
+    # 한 번에 너무 많이 가져오면 메모리 이슈 발생 -> batch 처리
+    qs = Diary.objects.filter(encryption_version__lt=target_version).order_by('id')
+    total_count = qs.count()
+    
+    processed = 0
+    updated_count = 0
+    
+    logger.info(f"Found {total_count} diaries to migrate.")
+    
+    while processed < total_count:
+        # Batch 조회
+        batch = list(qs[:batch_size])
+        if not batch:
+            break
+            
+        for diary in batch:
+            try:
+                # 1. 기존 키로 복호화 (decrypt_content는 encryption_version 참조)
+                plain_content = diary.decrypt_content()
+                
+                # 2. 최신 키로 재암호화 (encrypt_content는 최신 키 사용)
+                diary.encrypt_content(plain_content)
+                diary.save(update_fields=['content', 'is_encrypted', 'encryption_version'])
+                updated_count += 1
+            except Exception as e:
+                logger.error(f"Failed to migrate diary {diary.id}: {e}")
+        
+        processed += len(batch)
+        logger.info(f"Migrated {processed}/{total_count} diaries...")
+        time.sleep(0.1) # DB 부하 방지
+        
+    logger.info(f"Encryption migration completed. Updated {updated_count} diaries.")
+    return f"Updated {updated_count} diaries."
+
+
+@shared_task
 def cleanup_old_exports(days: int = 7):
     """오래된 내보내기 파일 정리"""
     import os

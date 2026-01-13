@@ -1,7 +1,12 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
+
+// Conditional SecureStore import - only for native platforms
+let SecureStore: any = null;
+if (Platform.OS !== 'web') {
+    SecureStore = require('expo-secure-store');
+}
 
 // API 기본 URL - 개발 환경에서는 localhost
 const API_BASE_URL = 'http://localhost:8000';
@@ -34,7 +39,10 @@ const tokenStorage = {
         if (Platform.OS === 'web') {
             return localStorage.getItem('jwt_token');
         }
-        return await SecureStore.getItemAsync('jwt_token');
+        if (SecureStore) {
+            return await SecureStore.getItemAsync('jwt_token');
+        }
+        return null;
     },
 
     async setToken(token: string): Promise<void> {
@@ -42,7 +50,9 @@ const tokenStorage = {
             localStorage.setItem('jwt_token', token);
             return;
         }
-        await SecureStore.setItemAsync('jwt_token', token);
+        if (SecureStore) {
+            await SecureStore.setItemAsync('jwt_token', token);
+        }
     },
 
     async removeToken(): Promise<void> {
@@ -50,7 +60,9 @@ const tokenStorage = {
             localStorage.removeItem('jwt_token');
             return;
         }
-        await SecureStore.deleteItemAsync('jwt_token');
+        if (SecureStore) {
+            await SecureStore.deleteItemAsync('jwt_token');
+        }
     },
 };
 

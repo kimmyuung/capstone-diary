@@ -295,6 +295,18 @@ GEMINI_TEXT_MODEL = os.environ.get('GEMINI_TEXT_MODEL', 'gemini-3-flash-preview'
 # 생성 방법: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 DIARY_ENCRYPTION_KEY = get_env_variable('DIARY_ENCRYPTION_KEY')
 
+# [Phase 2] Key Rotation Support
+# 키 버전 관리를 위한 Dictionary.
+# 새로운 키를 추가할 때마다 버전을 올리고 여기에 추가합니다.
+DIARY_ENCRYPTION_KEYS = {
+    1: DIARY_ENCRYPTION_KEY,
+    # 2: os.environ.get('DIARY_ENCRYPTION_KEY_V2'), # Future key
+}
+
+
+# 현재 활성화된(암호화 시 사용할) 키 버전
+CURRENT_ENCRYPTION_VERSION = 1
+
 # =============================================================================
 # 이메일 설정 (비밀번호 재설정용)
 # =============================================================================

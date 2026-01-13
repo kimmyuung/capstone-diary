@@ -20,6 +20,7 @@ export const diaryService = {
         startDate?: string;
         endDate?: string;
         tag?: number;              // 태그 ID로 필터
+        exactMatch?: boolean;      // 정확한 단어 일치 여부 (Option A)
     }): Promise<Diary[]> {
         const params = new URLSearchParams();
         if (filters.search) params.append('search', filters.search);
@@ -29,6 +30,7 @@ export const diaryService = {
         if (filters.startDate) params.append('start_date', filters.startDate);
         if (filters.endDate) params.append('end_date', filters.endDate);
         if (filters.tag) params.append('tag', filters.tag.toString());
+        if (filters.exactMatch) params.append('exact_match', 'true');
 
         const queryString = params.toString();
         const url = queryString ? `/api/diaries/?${queryString}` : '/api/diaries/';

@@ -3,11 +3,13 @@
  * 
  * 네트워크 끊김 시 중요 요청을 큐에 저장하고, 연결 복구 시 자동 재전송합니다.
  */
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { Alert } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import { diaryService } from '@/services/diary';
 import { offlineStorage, OfflineRequest } from '@/utils/offlineStorage';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { api, CreateDiaryRequest, UpdateDiaryRequest } from '@/services/api';
-import { Alert } from 'react-native';
 
 interface OfflineQueueContextType {
     /** 대기 중인 요청 목록 */
@@ -80,6 +82,20 @@ export const OfflineQueueProvider: React.FC<OfflineQueueProviderProps> = ({ chil
         Alert.alert(
             '오프라인 저장',
             '네트워크에 연결되면 자동으로 저장됩니다.',
+            [{ text: '확인' }]
+        );
+    }, []);
+
+    /**
+     * 일기 삭제 요청 큐에 추가 (오프라인용)
+     */
+    const queueDeleteDiary = useCallback(async (id: number) => {
+        const request = await offlineStorage.addRequest('DELETE_DIARY', { id });
+        setPendingRequests(prev => [...prev, request]);
+
+        Alert.alert(
+            '오프라인 삭제',
+            '네트워크에 연결되면 자동으로 삭제됩니다.',
             [{ text: '확인' }]
         );
     }, []);
@@ -204,7 +220,7 @@ export const OfflineQueueProvider: React.FC<OfflineQueueProviderProps> = ({ chil
         }
     }, [isSyncing, isOnline]);
 
-    import * as FileSystem from 'expo-file-system'; // Add import
+
 
     // ... (existing code)
 

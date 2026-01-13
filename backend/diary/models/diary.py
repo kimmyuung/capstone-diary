@@ -107,12 +107,14 @@ class Diary(models.Model):
         return emoji_map.get(self.emotion, '')
 
     def encrypt_content(self, plain_content: str) -> None:
-        """내용을 암호화하여 저장"""
+        """내용을 암호화하여 저장 (최신 키 버전 사용)"""
         from ..encryption import get_encryption_service
         service = get_encryption_service()
         if service.is_enabled:
             self.content = service.encrypt(plain_content)
             self.is_encrypted = True
+            # 현재 사용된 암호화 키 버전 저장
+            self.encryption_version = getattr(settings, 'CURRENT_ENCRYPTION_VERSION', 1)
         else:
             self.content = plain_content
             self.is_encrypted = False
@@ -123,7 +125,8 @@ class Diary(models.Model):
             return self.content
         from ..encryption import get_encryption_service
         service = get_encryption_service()
-        return service.decrypt(self.content)
+        # 저장된 키 버전을 사용하여 복호화
+        return service.decrypt(self.content, version=self.encryption_version)
 
 
 class DiaryImage(models.Model):

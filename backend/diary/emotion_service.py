@@ -48,18 +48,15 @@ class EmotionAnalyzer:
     def analyze(self, content: str) -> Dict:
         """
         일기 내용을 분석하여 감정을 반환합니다.
-        
-        Args:
-            content: 일기 내용 (복호화된 텍스트)
-            
-        Returns:
-            {
-                'emotion': str,       # 감정 키 (예: 'happy')
-                'emotion_label': str, # 감정 라벨 (예: '행복')
-                'score': int,         # 감정 강도 (0-100)
-                'reason': str,        # 분석 근거
-            }
+        (Circuit Breaker Pattern Applied)
         """
+        from django.core.cache import cache
+        
+        CB_KEY_FAILURES = 'gemini_api_failures'
+        CB_KEY_OPEN = 'gemini_circuit_open'
+        CB_THRESHOLD = 3
+        CB_TIMEOUT = 60 # 60 seconds cooldown
+        
         if not content or len(content.strip()) < 5:
             return {
                 'emotion': 'peaceful',
@@ -67,6 +64,11 @@ class EmotionAnalyzer:
                 'score': 50,
                 'reason': '내용이 너무 짧아 분석이 어렵습니다.',
             }
+            
+        # 1. Circuit Open Check (Fail Fast)
+        if cache.get(CB_KEY_OPEN):
+            logger.warning("Circuit Breaker is OPEN. Skipping Gemini API call.")
+            return self._fallback_analysis(content)
             
         if not settings.GEMINI_API_KEY:
             logger.error("Gemini API Key is not configured for Emotion Analysis.")
@@ -93,10 +95,11 @@ class EmotionAnalyzer:
 반드시 다음 JSON 형식으로만 응답하세요:
 {{"emotion": "감정키", "score": 점수(0-100), "reason": "분석 근거 한 문장"}}"""
 
+            # API Call
             response = model.generate_content(prompt)
             result_text = response.text.strip()
             
-            # JSON 포맷팅 정리 (Markdown 코드 블록 제거)
+            # JSON 포맷팅 정리
             if result_text.startswith('```json'):
                 result_text = result_text[7:]
             if result_text.startswith('```'):
@@ -105,10 +108,12 @@ class EmotionAnalyzer:
                 result_text = result_text[:-3]
             
             result_text = result_text.strip()
-            logger.debug(f"Emotion analysis raw response: {result_text}")
             
             # JSON 파싱
             result = json.loads(result_text)
+            
+            # Success -> Reset Failure Count
+            cache.delete(CB_KEY_FAILURES)
             
             emotion = result.get('emotion', 'peaceful')
             if emotion not in self.VALID_EMOTIONS:
@@ -127,6 +132,19 @@ class EmotionAnalyzer:
             
         except Exception as e:
             logger.error(f"Emotion analysis failed: {e}")
+            
+            # Failure Handling -> Increment Count
+            try:
+                failures = cache.incr(CB_KEY_FAILURES)
+            except ValueError:
+                cache.set(CB_KEY_FAILURES, 1, timeout=300)
+                failures = 1
+                
+            if failures >= CB_THRESHOLD:
+                logger.error(f"Circuit Breaker TRIPPED! Opened for {CB_TIMEOUT}s.")
+                cache.set(CB_KEY_OPEN, True, timeout=CB_TIMEOUT)
+                cache.delete(CB_KEY_FAILURES) # Reset count after trip
+            
             return self._fallback_analysis(content)
     
     def _fallback_analysis(self, content: str) -> Dict:

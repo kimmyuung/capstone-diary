@@ -98,3 +98,38 @@ class EncryptionServiceSingletonTest(TestCase):
         service2 = get_encryption_service()
         
         self.assertIs(service1, service2)
+
+    def test_key_rotation_fallback(self):
+        """[Phase 2] Key Rotation & Fallback 테스트"""
+        key_v1 = 'key-v1-for-encryption-32bytes!!!'
+        key_v2 = 'key-v2-for-encryption-32bytes!!!'
+        
+        # 1. V1 키로 암호화
+        with override_settings(DIARY_ENCRYPTION_KEYS={1: key_v1}, CURRENT_ENCRYPTION_VERSION=1):
+            service_v1 = DiaryEncryptionService()
+            original_content = "비밀 데이터"
+            encrypted_v1 = service_v1.encrypt(original_content)
+            
+        # 2. V2가 최신이지만, V1도 키 목록에 있는 상태 (Rotation 직후)
+        # decrypt 시 version=1을 명시하지 않아도(혹은 DB에 저장된 버전 사용) 풀려야 함.
+        # 하지만 decrypt 메서드는 version 인자를 받으므로, 그걸 테스트.
+        settings_override = {
+            'DIARY_ENCRYPTION_KEYS': {1: key_v1, 2: key_v2},
+            'CURRENT_ENCRYPTION_VERSION': 2
+        }
+        
+        with override_settings(**settings_override):
+            service_v2 = DiaryEncryptionService()
+            
+            # V2 서비스 인스턴스는 V2가 Default지만 V1도 로드되어 있어야 함
+            self.assertTrue(service_v2.is_enabled)
+            
+            # V1으로 암호화된 내용을 복호화 (version=1 명시)
+            decrypted = service_v2.decrypt(encrypted_v1, version=1)
+            self.assertEqual(decrypted, original_content)
+            
+            # (심화) 만약 version 정보가 유실되어 기본값(1)이나 다른 값으로 들어왔을 때
+            # Fallback 루프가 도는지 테스트 (InvalidToken 발생 -> Loop)
+            # version=2 (최신)로 시도 -> 실패 -> Fallback Loop -> V1으로 성공
+            decrypted_fallback = service_v2.decrypt(encrypted_v1, version=2)
+            self.assertEqual(decrypted_fallback, original_content)

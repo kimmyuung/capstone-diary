@@ -68,6 +68,42 @@ class DiaryAPITest(APITestCase):
             self.assertEqual(len(response.data['results']), 2)
         else:
             self.assertEqual(len(response.data), 2)
+            
+    def test_list_diaries_exact_match(self):
+        """[Phase 3] 정밀 검색(Exact Match) 테스트"""
+        # 1. 일기 생성 (키워드 추출 시뮬레이션: save 시 자동 추출되지만, 테스트에선 명시적 확인)
+        d1 = Diary.objects.create(
+            user=self.user, 
+            title='사과', 
+            content='맛있는 사과를 먹었다.',
+            search_keywords='사과 과일'  # save() 시 자동추출 되지만, 명시적 테스트를 위해 값 확인 필요시 설정
+        )
+        d2 = Diary.objects.create(
+            user=self.user, 
+            title='바나나', 
+            content='노란 바나나가 좋아.',
+            search_keywords='바나나 과일'
+        )
+        
+        url = reverse('diary-list')
+        
+        # 2. 일반 검색 (사과) -> d1 검색됨
+        response = self.client.get(url, {'content_search': '사과', 'exact_match': 'true'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # DRF Pagination 'results' check
+        results = response.data.get('results', response.data)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['title'], '사과')
+        
+        # 3. 공통 키워드 검색 (과일) -> d1, d2 둘 다 검색됨
+        response_common = self.client.get(url, {'content_search': '과일', 'exact_match': 'true'})
+        results_common = response_common.data.get('results', response_common.data)
+        self.assertEqual(len(results_common), 2)
+        
+        # 4. 없는 키워드 -> 0건
+        response_none = self.client.get(url, {'content_search': '비행기', 'exact_match': 'true'})
+        results_none = response_none.data.get('results', response_none.data)
+        self.assertEqual(len(results_none), 0)
         
     def test_retrieve_diary(self):
         """일기 상세 조회 API 테스트"""

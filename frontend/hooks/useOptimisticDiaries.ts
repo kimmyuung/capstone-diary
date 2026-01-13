@@ -21,9 +21,14 @@ export const useOptimisticDiaries = () => {
     // displayedDiaries: Final list shown to user
     const [displayedDiaries, setDisplayedDiaries] = useState<Diary[]>([]);
 
-    const fetchDiaries = useCallback(async () => {
+    const fetchDiaries = useCallback(async (filters?: any) => {
         try {
-            const data = await diaryService.getAll();
+            let data;
+            if (filters && Object.keys(filters).length > 0) {
+                data = await diaryService.search(filters);
+            } else {
+                data = await diaryService.getAll();
+            }
             setServerDiaries(data);
         } catch (error) {
             console.error('Failed to fetch diaries:', error);
@@ -119,6 +124,7 @@ export const useOptimisticDiaries = () => {
         isLoading,
         isRefreshing,
         isSyncing,
-        refresh
+        refresh,
+        searchDiaries: fetchDiaries
     };
 };

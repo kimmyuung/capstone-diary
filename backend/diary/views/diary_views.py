@@ -165,21 +165,33 @@ class DiaryViewSet(viewsets.ModelViewSet):
         """
         queryset = self.filter_queryset(self.get_queryset())
         
-        # [Optimized] 본문 검색 (태그 기반)
-        # 기존: O(N) 복호화 -> 변경: DiaryTag Join 검색 (Index)
+        # [Optimized] 본문 검색 (태그 기반 or 키워드 필드)
         content_search = request.query_params.get('content_search', None)
-        if content_search:
-            # 태그 이름에 검색어가 포함된 일기 검색
-            queryset = queryset.filter(diary_tags__tag__name__icontains=content_search).distinct()
+        exact_match = request.query_params.get('exact_match', 'false').lower() == 'true'
         
-        # [Optimized] 통합 검색 (제목 + 본문(태그))
+        if content_search:
+            if exact_match:
+                # [Feature: Option A] Exact Match using search_keywords field
+                # 단순 포함 검색이지만, 명사 키워드 필드를 대상으로 하여 정확도 높임
+                queryset = queryset.filter(search_keywords__icontains=content_search)
+            else:
+                # [Legacy/Hybrid] 태그 이름에 검색어가 포함된 일기 검색
+                queryset = queryset.filter(diary_tags__tag__name__icontains=content_search).distinct()
+        
+        # [Optimized] 통합 검색 (제목 + 본문)
         q = request.query_params.get('q', None)
         if q:
             from django.db.models import Q
-            queryset = queryset.filter(
-                Q(title__icontains=q) | 
-                Q(diary_tags__tag__name__icontains=q)
-            ).distinct()
+            if exact_match:
+                 queryset = queryset.filter(
+                    Q(title__icontains=q) | 
+                    Q(search_keywords__icontains=q)
+                ).distinct()
+            else:
+                queryset = queryset.filter(
+                    Q(title__icontains=q) | 
+                    Q(diary_tags__tag__name__icontains=q)
+                ).distinct()
             
         # 정렬 및 최적화
         queryset = queryset.order_by('-created_at').select_related('user').prefetch_related('images', 'diary_tags__tag')

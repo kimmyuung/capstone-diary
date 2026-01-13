@@ -1,8 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
 import { useRouter, useSegments } from 'expo-router';
+
+// Conditional SecureStore import - only for native platforms
+let SecureStore: any = null;
+if (Platform.OS !== 'web') {
+    SecureStore = require('expo-secure-store');
+}
 
 // 키 이름
 const BIOMETRIC_ENABLED_KEY = 'biometric_enabled';
@@ -28,16 +33,25 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
     // 초기화: 지원 여부 및 설정 로드
     useEffect(() => {
         const init = async () => {
+            // Web에서는 생체 인식 비활성화
+            if (Platform.OS === 'web') {
+                setIsBiometricSupported(false);
+                setIsBiometricEnabled(false);
+                return;
+            }
+
             const compatible = await LocalAuthentication.hasHardwareAsync();
             const enrolled = await LocalAuthentication.isEnrolledAsync();
             setIsBiometricSupported(compatible && enrolled);
 
-            const enabled = await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY);
-            setIsBiometricEnabled(enabled === 'true');
+            if (SecureStore) {
+                const enabled = await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY);
+                setIsBiometricEnabled(enabled === 'true');
 
-            // 앱 시작 시 활성화되어 있다면 잠금
-            if (enabled === 'true') {
-                setIsLocked(true);
+                // 앱 시작 시 활성화되어 있다면 잠금
+                if (enabled === 'true') {
+                    setIsLocked(true);
+                }
             }
         };
         init();
@@ -86,6 +100,10 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
 
     // 생체 인식 설정 토글
     const toggleBiometric = async (enabled: boolean): Promise<boolean> => {
+        if (Platform.OS === 'web') {
+            return false; // Web에서는 생체 인식 불가
+        }
+
         if (enabled) {
             // 활성화 시도 시 먼저 본인 인증
             const result = await LocalAuthentication.authenticateAsync({
@@ -94,9 +112,12 @@ export function BiometricProvider({ children }: { children: React.ReactNode }) {
             if (!result.success) return false;
         }
 
-        await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, String(enabled));
-        setIsBiometricEnabled(enabled);
-        return true;
+        if (SecureStore) {
+            await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, String(enabled));
+            setIsBiometricEnabled(enabled);
+            return true;
+        }
+        return false;
     };
 
     // 잠금 상태일 때 잠금 화면으로 이동하거나 Overlay 표시

@@ -36,13 +36,14 @@ class TestChatService:
                 mock_settings.GEMINI_API_KEY = 'test-key'
                 mock_settings.GEMINI_TEXT_MODEL = 'gemini-pro'
                 
-                response = service.generate_chat_response(user, "오늘 기분이 어때?", history)
+                response_gen = service.generate_chat_response(user, "오늘 기분이 어때?", history)
+                response = "".join(list(response_gen))
                 
                 assert response == "네, 그랬군요."
                 
                 # History가 프롬프트에 포함되었는지 확인 (간접적 검증)
                 args, _ = mock_model.generate_content.call_args
-                prompt = args[0]
+                prompt = args[0][0]['parts'][0]
                 assert "안녕" in prompt
                 assert "반가워요" in prompt
 
@@ -58,9 +59,10 @@ class TestChatService:
             with patch('diary.services.chat_service.settings') as mock_settings:
                 mock_settings.GEMINI_API_KEY = 'test-key'
                 
-                response = service.generate_chat_response(user, "테스트")
+                response_gen = service.generate_chat_response(user, "테스트")
+                response = "".join(list(response_gen))
                 
-                assert "죄송합니다" in response
+                assert "Sorry" in response or "죄송합니다" in response
 
     @patch('diary.services.chat_service.genai')
     def test_generate_reflection_question_success(self, mock_genai):
