@@ -436,6 +436,11 @@ EMAIL_HOST=smtp.gmail.com
 EMAIL_HOST_USER=your-email@gmail.com
 EMAIL_HOST_PASSWORD=your-app-password
 
+# 이메일 인증 정책 (개발/운영 분기)
+# 개발 환경: False (이메일 인증 없이 즉시 활성화)
+# 운영 환경: True (이메일 인증 필수)
+EMAIL_VERIFICATION_REQUIRED=False
+
 # Sentry (선택)
 SENTRY_DSN=your-sentry-dsn
 ```

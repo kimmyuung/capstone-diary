@@ -321,6 +321,13 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@emotionaldiary.com')
 
+# =============================================================================
+# 이메일 인증 정책 (환경별 분기)
+# =============================================================================
+# 개발 환경에서는 이메일 인증 없이도 회원가입 가능하도록 설정 가능
+# 운영 환경에서는 반드시 True로 설정하여 보안 유지
+EMAIL_VERIFICATION_REQUIRED = os.environ.get('EMAIL_VERIFICATION_REQUIRED', 'True').lower() in ('true', '1', 'yes')
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

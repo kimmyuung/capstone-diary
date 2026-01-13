@@ -82,15 +82,31 @@ export const useRegister = () => {
         setIsLoading(true);
         clearAllErrors();
         try {
-            await axios.post(`${API_BASE_URL}/api/register/`, {
+            const response = await axios.post(`${API_BASE_URL}/api/register/`, {
                 username: username.trim(),
                 email: email.trim(),
                 password,
                 password_confirm: passwordConfirm,
             });
 
-            setStep('verify');
-            Alert.alert('인증 코드 전송', '이메일로 6자리 인증 코드가 전송되었습니다.');
+            // 환경별 이메일 인증 정책에 따라 다른 처리
+            const requiresVerification = response.data?.requires_verification ?? true;
+            const isDevEnvironment = !response.data?.email_verification_required;
+
+            if (requiresVerification) {
+                // 이메일 인증이 필요한 경우 (운영 환경)
+                setStep('verify');
+                Alert.alert('인증 코드 전송', '이메일로 6자리 인증 코드가 전송되었습니다.');
+            } else {
+                // 이메일 인증이 불필요한 경우 (개발 환경)
+                Alert.alert(
+                    '회원가입 완료',
+                    isDevEnvironment
+                        ? '개발 환경입니다. 이메일 인증 없이 바로 로그인하세요.'
+                        : '회원가입이 완료되었습니다. 바로 로그인하세요.',
+                    [{ text: '확인', onPress: () => router.replace('/login' as any) }]
+                );
+            }
         } catch (err: any) {
             setErrorsFromResponse(err);
             if (isNetworkErr) {

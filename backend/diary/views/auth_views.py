@@ -171,24 +171,41 @@ class RegisterView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         from ..models import EmailVerificationToken
         from ..email_service import send_email_verification
+        from django.conf import settings
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         
-        # 계정 비활성화 (이메일 인증 전까지)
-        user.is_active = False
-        user.save()
+        # 환경별 이메일 인증 정책 적용
+        email_verification_required = getattr(settings, 'EMAIL_VERIFICATION_REQUIRED', True)
         
-        # 이메일 인증 토큰 생성 및 전송
-        token = EmailVerificationToken.generate_token(user)
-        send_email_verification(user, token)
+        if email_verification_required:
+            # [운영 환경] 이메일 인증 필수
+            user.is_active = False
+            user.save()
+            
+            # 이메일 인증 토큰 생성 및 전송
+            token = EmailVerificationToken.generate_token(user)
+            send_email_verification(user, token)
 
-        return Response({
-            "message": str(SUCCESS_CODE_SENT_10MIN),
-            "email": user.email,
-            "requires_verification": True
-        }, status=status.HTTP_201_CREATED)
+            return Response({
+                "message": str(SUCCESS_CODE_SENT_10MIN),
+                "email": user.email,
+                "requires_verification": True,
+                "email_verification_required": True
+            }, status=status.HTTP_201_CREATED)
+        else:
+            # [개발 환경] 이메일 인증 없이 즉시 활성화
+            user.is_active = True
+            user.save()
+
+            return Response({
+                "message": "회원가입이 완료되었습니다. 바로 로그인하세요.",
+                "email": user.email,
+                "requires_verification": False,
+                "email_verification_required": False
+            }, status=status.HTTP_201_CREATED)
 
 
 class EmailVerifyView(APIView):
