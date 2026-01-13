@@ -159,29 +159,13 @@ class DiaryTemplateViewSet(viewsets.ModelViewSet):
         })
     
     @action(detail=False, methods=['post'], url_path='generate')
-    def generate_template(self, request):
+    async def generate_template(self, request):
         """
-        AI로 템플릿 생성
+        AI로 템플릿 생성 (Async/Non-blocking)
         
         POST /api/templates/generate/
-        
-        Request Body:
-            {
-                "topic": "독서 일기",
-                "style": "default" | "simple" | "detailed" (선택)
-            }
-        
-        Response:
-            {
-                "name": "독서 일기",
-                "emoji": "📚",
-                "description": "책을 읽고 느낀 점을 기록합니다",
-                "content": "📚 오늘 읽은 책:\n\n...",
-                "message": "템플릿이 생성되었습니다."
-            }
         """
         from ..services.analysis_service import TemplateGenerator
-        from config.throttling import AIImageGenerationThrottle
         
         topic = request.data.get('topic', '').strip()
         style = request.data.get('style', 'default')
@@ -206,7 +190,8 @@ class DiaryTemplateViewSet(viewsets.ModelViewSet):
         
         try:
             generator = TemplateGenerator()
-            result = generator.generate(topic, style)
+            # 비동기 메서드 호출 (Non-blocking)
+            result = await generator.generate_async(topic, style)
             
             return Response({
                 **result,

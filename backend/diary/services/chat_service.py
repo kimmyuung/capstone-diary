@@ -66,9 +66,11 @@ class ChatService:
         if keywords:
             keyword_q = Q()
             for k in keywords:
-                # 제목이나 태그(자동생성된 키워드)에 키워드가 포함된 경우
-                # content는 암호화되어 있어 검색 불가 -> diary_tags 활용
-                keyword_q |= Q(diary__title__icontains=k) | Q(diary__diary_tags__tag__name__icontains=k)
+                # 제목이나 태그(자동생성된 키워드), [New] 검색 전용 키워드 필드에 키워드가 포함된 경우
+                # content는 암호화되어 있어 검색 불가 -> search_keywords 활용 (Option A)
+                keyword_q |= Q(diary__title__icontains=k) | \
+                             Q(diary__diary_tags__tag__name__icontains=k) | \
+                             Q(diary__search_keywords__icontains=k)
             
             keyword_candidate_ids = list(DiaryEmbedding.objects.filter(diary__user=user) \
                 .filter(keyword_q) \
@@ -162,10 +164,9 @@ class ChatService:
 
     @staticmethod
     def generate_chat_response(user, message, history=[]):
-        """RAG 기반 답변 생성 (Gemini) - Hybrid & Hierarchical"""
+        """RAG 기반 답변 생성 (Gemini) - Streaming & Hybrid"""
         
         # 1. 계층적 검색 (요약본 검색) - Broad Context
-        # 질문이 포괄적인 경우 요약본이 높은 유사도를 가질 것임
         related_summaries = ChatService.search_summaries(user, message, limit=2)
         
         # 2. 세부 검색 (일기 검색) - Detail Context
@@ -174,7 +175,7 @@ class ChatService:
         # 3. 프롬프트 구성
         context_parts = []
         
-        # 3-1. 요약 Context (상위 레벨)
+        # 3-1. 요약 Context
         if related_summaries:
             summary_text = "\n".join([
                 f"- [{s.period_type}] {s.start_date}~{s.end_date}: {s.summary_text}"
@@ -182,7 +183,7 @@ class ChatService:
             ])
             context_parts.append(f"=== Period Summaries (Contextual Overview) ===\n{summary_text}")
             
-        # 3-2. 일기 Context (세부 레벨)
+        # 3-2. 일기 Context
         if related_diaries:
             diary_text = "\n".join([
                 f"- [{d.created_at.strftime('%Y-%m-%d')}] {d.title}: {d.decrypt_content()} (Emotion: {d.emotion})"
@@ -192,7 +193,7 @@ class ChatService:
             
         diary_context = "\n\n".join(context_parts)
 
-        # 2-2. 대화 히스토리 포맷팅 (최근 10개만 유지)
+        # 2-2. 대화 히스토리
         chat_history_text = ""
         if history:
             recent_history = history[-10:]
@@ -217,21 +218,30 @@ class ChatService:
         {chat_history_text}
         """
         
-        # 3. Gemini API 호출
+        # 3. Gemini API 호출 (Streaming)
         if not settings.GEMINI_API_KEY:
-            return "Gemini API Key is not configured."
+            yield "Gemini API Key is not configured."
+            return
 
         genai.configure(api_key=settings.GEMINI_API_KEY)
         model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
         
         try:
-            response = model.generate_content([
-                {'role': 'user', 'parts': [system_prompt.strip() + f"\n\nCurrent Question: {message}"]}
-            ])
-            return response.text
+            # stream=True 활성화
+            response = model.generate_content(
+                [
+                    {'role': 'user', 'parts': [system_prompt.strip() + f"\n\nCurrent Question: {message}"]}
+                ],
+                stream=True 
+            )
+            
+            for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+                    
         except Exception as e:
             logger.error(f"Gemini API Error: {e}")
-            return "Sorry, I'm having trouble thinking right now."
+            yield "Sorry, I'm having trouble thinking right now."
 
     @staticmethod
     def generate_reflection_question(diary):

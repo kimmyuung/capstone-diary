@@ -61,7 +61,11 @@ class Diary(models.Model):
     )
     latitude = models.FloatField(null=True, blank=True, verbose_name='위도')
     latitude = models.FloatField(null=True, blank=True, verbose_name='위도')
+    latitude = models.FloatField(null=True, blank=True, verbose_name='위도')
     longitude = models.FloatField(null=True, blank=True, verbose_name='경도')
+
+    # 검색용 키워드 (Feature: Option A - Exact Match)
+    search_keywords = models.TextField(null=True, blank=True, verbose_name='검색 키워드 (암호화 X)')
 
     # AI 회고 질문 및 답변 (Feature 1)
     reflection_question = models.TextField(null=True, blank=True, verbose_name='회고 질문')

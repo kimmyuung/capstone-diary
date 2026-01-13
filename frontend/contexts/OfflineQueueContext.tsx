@@ -204,6 +204,10 @@ export const OfflineQueueProvider: React.FC<OfflineQueueProviderProps> = ({ chil
         }
     }, [isSyncing, isOnline]);
 
+    import * as FileSystem from 'expo-file-system'; // Add import
+
+    // ... (existing code)
+
     /**
      * 개별 요청 처리
      */
@@ -227,17 +231,33 @@ export const OfflineQueueProvider: React.FC<OfflineQueueProviderProps> = ({ chil
 
         switch (type) {
             case 'CREATE_DIARY': {
-                const data = payload as any; // Allow flexible access to potential local ID and other fields
+                const data = payload as any;
 
                 // 이미지 업로드 처리 (FormData)
                 if (data.images && data.images.length > 0) {
+                    // [Fail Fast] 파일 존재 여부 확인 (Lenient Policy)
+                    const validImages: string[] = [];
+                    for (const uri of data.images) {
+                        try {
+                            const fileInfo = await FileSystem.getInfoAsync(uri);
+                            if (fileInfo.exists) {
+                                validImages.push(uri);
+                            } else {
+                                console.warn(`[FailFast] Missing file detected, skipping: ${uri}`);
+                            }
+                        } catch (e) {
+                            console.warn(`[FailFast] Error checking file ${uri}:`, e);
+                        }
+                    }
+
                     const formData = new FormData();
                     formData.append('title', data.title);
                     formData.append('content', data.content);
                     if (data.emotion) formData.append('emotion', data.emotion);
                     if (data.weather) formData.append('weather', data.weather);
 
-                    data.images.forEach((imageUri: string) => {
+                    // 유효한 이미지만 업로드
+                    validImages.forEach((imageUri: string) => {
                         const filename = imageUri.split('/').pop() || 'image.jpg';
                         const match = /\.(\w+)$/.exec(filename);
                         const type = match ? `image/${match[1]}` : 'image/jpeg';
@@ -245,6 +265,10 @@ export const OfflineQueueProvider: React.FC<OfflineQueueProviderProps> = ({ chil
                         // React Native FormData format
                         formData.append('images', { uri: imageUri, name: filename, type } as any);
                     });
+
+                    if (__DEV__ && data.images.length !== validImages.length) {
+                        console.log(`[OfflineQueue] Partial upload: ${validImages.length}/${data.images.length} images`);
+                    }
 
                     const response = await api.post('/api/diaries/', formData, {
                         headers: { 'Content-Type': 'multipart/form-data' }

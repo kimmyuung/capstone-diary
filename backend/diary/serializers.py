@@ -202,11 +202,22 @@ class DiarySerializer(serializers.ModelSerializer):
         return data
     
     def create(self, validated_data):
-        """생성 시 내용 암호화 + 감정 분석 + 태그 연결"""
+        """생성 시 내용 암호화 + 감정 분석 + 태그 연결 + [New] 검색 키워드 추출"""
         tag_ids = validated_data.pop('tag_ids', [])
         plain_content = validated_data.pop('content', '')
         instance = Diary(**validated_data)
         instance.encrypt_content(plain_content)
+        
+        # [Option A] 검색용 키워드 추출
+        try:
+            from .services.analysis_service import NounExtractor
+            extractor = NounExtractor()
+            instance.search_keywords = extractor.extract_nouns(plain_content)
+        except Exception as e:
+            # 키워드 추출 실패해도 일기 저장은 진행
+            import logging
+            logging.getLogger('diary').error(f"Keyword extraction failed: {e}")
+        
         instance.save()
         
         # 태그 연결
@@ -223,7 +234,7 @@ class DiarySerializer(serializers.ModelSerializer):
         return instance
     
     def update(self, instance, validated_data):
-        """수정 시 내용 암호화 + 감정 재분석 + 태그 업데이트"""
+        """수정 시 내용 암호화 + 감정 재분석 + 태그 업데이트 + [New] 검색 키워드 재추출"""
         tag_ids = validated_data.pop('tag_ids', None)
         content_changed = False
         
@@ -231,6 +242,15 @@ class DiarySerializer(serializers.ModelSerializer):
             plain_content = validated_data.pop('content')
             instance.encrypt_content(plain_content)
             content_changed = True
+            
+            # [Option A] 검색용 키워드 재추출
+            try:
+                from .services.analysis_service import NounExtractor
+                extractor = NounExtractor()
+                instance.search_keywords = extractor.extract_nouns(plain_content)
+            except Exception as e:
+                import logging
+                logging.getLogger('diary').error(f"Keyword extraction failed (update): {e}")
         
         for attr, value in validated_data.items():
             if attr == 'version':
