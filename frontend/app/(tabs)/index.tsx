@@ -8,9 +8,13 @@ import {
     RefreshControl,
     Alert,
     Dimensions,
+    Platform,
+    LayoutAnimation,
+    UIManager,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { diaryService, Diary } from '@/services/api';
@@ -18,13 +22,20 @@ import { DiaryCard } from '@/components/diary/DiaryCard';
 import { DiaryListSkeleton } from '@/components/Skeleton';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { useToast } from '@/contexts/ToastContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Android에서 LayoutAnimation 활성화
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function DiaryListScreen() {
     const router = useRouter();
     const { isAuthenticated, logout } = useAuth();
     const { colors, isDark } = useTheme();
+    const { showToast } = useToast();
     const [diaries, setDiaries] = useState<Diary[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -50,11 +61,13 @@ export default function DiaryListScreen() {
 
     const onRefresh = async () => {
         setRefreshing(true);
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         await fetchDiaries();
         setRefreshing(false);
     };
 
     const handleDelete = async (id: number) => {
+        await Haptics.selectionAsync();
         Alert.alert('일기 삭제', '정말로 이 일기를 삭제하시겠습니까?', [
             { text: '취소', style: 'cancel' },
             {
@@ -63,9 +76,16 @@ export default function DiaryListScreen() {
                 onPress: async () => {
                     try {
                         await diaryService.delete(id);
+
+                        // Layout Animation 적용
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                         setDiaries((prev) => prev.filter((d) => d.id !== id));
+
+                        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        showToast('일기가 삭제되었습니다');
                     } catch (err) {
-                        Alert.alert('오류', '삭제에 실패했습니다');
+                        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                        showToast('삭제에 실패했습니다', 'error');
                     }
                 },
             },
@@ -206,7 +226,10 @@ export default function DiaryListScreen() {
             {/* FAB 버튼 */}
             <TouchableOpacity
                 style={styles.fab}
-                onPress={() => router.push('/diary/create' as any)}
+                onPress={() => {
+                    Haptics.selectionAsync();
+                    router.push('/diary/create' as any);
+                }}
                 activeOpacity={0.85}
             >
                 <LinearGradient

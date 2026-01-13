@@ -103,3 +103,130 @@ class SummaryService:
         except Exception as e:
             logger.error(f"Gemini Summary Generation failed: {e}")
             return None
+
+    @staticmethod
+    def summarize_diary(content: str, style: str = 'default') -> dict:
+        """
+        단일 일기 내용을 요약합니다.
+        """
+        logger.debug(f"Summarizing diary content with style: {style}")
+        
+        if not content or len(content.strip()) < 10:
+            return {
+                'summary': content,
+                'original_length': len(content),
+                'summary_length': len(content),
+                'style': style,
+                'error': '요약하기에 내용이 너무 짧습니다.'
+            }
+        
+        # 스타일별 프롬프트 설정
+        style_prompts = {
+            'default': """다음 일기 내용을 3줄로 간결하게 요약해주세요.
+- 핵심 내용과 감정을 포함해주세요.
+- 일기의 분위기를 유지해주세요.
+- 요약만 반환하고 다른 설명은 하지 마세요.""",
+            
+            'short': """다음 일기 내용을 한 문장으로 아주 간결하게 요약해주세요.
+- 가장 중요한 핵심만 포함해주세요.
+- 요약만 반환하세요.""",
+            
+            'bullet': """다음 일기 내용의 핵심 포인트를 불릿 형식으로 정리해주세요.
+- 3-5개의 핵심 포인트
+- 각 포인트는 간결하게
+- "• " 기호로 시작하세요."""
+        }
+        
+        prompt_instruction = style_prompts.get(style, style_prompts['default'])
+        
+        if not settings.GEMINI_API_KEY:
+            return {'error': 'Configuration Error'}
+
+        try:
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
+            
+            response = model.generate_content([
+                {'role': 'user', 'parts': [f"{prompt_instruction}\n\n일기 내용:\n{content}"]}
+            ])
+            
+            summary = response.text.strip()
+            return {
+                'summary': summary,
+                'original_length': len(content),
+                'summary_length': len(summary),
+                'style': style
+            }
+            
+        except Exception as e:
+            logger.error(f"Gemini API error during summarization: {e}")
+            return {'error': str(e)}
+
+    @staticmethod
+    def suggest_title(content: str) -> str:
+        """
+        일기 내용을 기반으로 제목을 제안합니다.
+        """
+        if not content or len(content.strip()) < 10:
+            return "오늘의 일기"
+        
+        try:
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
+            
+            prompt = f"""일기 내용을 보고 적절한 제목을 제안해주세요. 
+내용: {content[:500]}
+규칙: 제목만 반환하세요. 15자 이내로 작성하세요. 다른 말은 하지 마세요."""
+            
+            response = model.generate_content(prompt)
+            title = response.text.strip()
+            return title.strip('"\'')
+            
+        except Exception as e:
+            logger.error(f"Error suggesting title: {e}")
+            return "오늘의 일기"
+
+    @staticmethod
+    def generate_report_insight(diaries, period_label):
+        """
+        일기 데이터를 바탕으로 종합 감정 리포트(인사이트)를 생성합니다.
+        """
+        if not diaries:
+            return f"이번 {period_label} 기록된 일기가 없어서 분석해드릴 내용이 없어요. 😢"
+
+        if not settings.GEMINI_API_KEY:
+            return "AI 분석 기능을 사용할 수 없습니다. (API Key Missing)"
+
+        # 1. 일기 데이터 텍스트화
+        diary_summaries = []
+        for d in diaries:
+            try:
+                emotion = d.emotion if d.emotion else "Unknown"
+                date = d.created_at.strftime("%Y-%m-%d")
+                content_snippet = d.decrypt_content()[:200]
+                diary_summaries.append(f"[{date}] (Emotion: {emotion}) {content_snippet}")
+            except:
+                pass
+        
+        prompt_context = "\n".join(diary_summaries)
+        
+        system_prompt = f"""
+You are a professional counselor and warm-hearted listener.
+Analyze the user's diary entries for the past {period_label}.
+Provide a summary of their emotional flow and a helpful, empathetic piece of advice.
+Write in Korean, using a gentle and polite tone (해요체).
+Keep the response under 300 characters.
+
+User's Diaries:
+{prompt_context}
+"""
+        
+        try:
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
+            response = model.generate_content(system_prompt)
+            return response.text.strip()
+            
+        except Exception as e:
+            logger.error(f"Generate Report Insight Error: {e}")
+            return f"이번 {period_label}의 감정 흐름을 분석하는 데 문제가 발생했어요."

@@ -22,7 +22,9 @@ from datetime import timedelta, datetime
 
 from ..models import Diary, DiaryEmbedding
 from ..serializers import DiarySerializer, DiaryImageSerializer
-from ..ai_service import ImageGenerator, DiarySummarizer, KeywordExtractor
+from ..services.image_service import ImageGenerator
+from ..services.summary_service import SummaryService
+from ..services.analysis_service import KeywordExtractor
 
 from ..paginations import StandardResultsSetPagination
 from ..messages import ERROR_INVALID_YEAR, ERROR_INVALID_YEAR_MONTH

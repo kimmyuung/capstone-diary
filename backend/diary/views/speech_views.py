@@ -10,7 +10,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from ..ai_service import SpeechToText, DiarySummarizer
+from ..services.stt_service import STTService
+from ..services.summary_service import SummaryService
 from config.throttling import TranscriptionRateThrottle
 
 

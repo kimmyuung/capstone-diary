@@ -264,7 +264,7 @@ def cleanup_old_exports(days: int = 7):
 def generate_image_task(diary_id: int):
     """일기 이미지 생성 태스크"""
     from .models import Diary
-    from .ai_service import ImageGenerator
+    from .services.image_service import ImageGenerator
     
     try:
         diary = Diary.objects.get(id=diary_id)
@@ -273,7 +273,8 @@ def generate_image_task(diary_id: int):
             return "Image already exists"
             
         generator = ImageGenerator()
-        image_url = generator.generate(diary)
+        image_url = generator.generate(diary.decrypt_content(), emotion=diary.emotion)['url']
+        # Note: generator.generate now returns dict {'url': ..., 'prompt': ...}
         
         if image_url:
             return f"Image generated for diary {diary_id}"
@@ -286,7 +287,7 @@ def generate_image_task(diary_id: int):
 def extract_keywords_task(diary_id: int):
     """키워드 추출 및 태그 저장 태스크 (Auto-tagging)"""
     from .models import Diary, Tag, DiaryTag
-    from .ai_service import KeywordExtractor
+    from .services.analysis_service import KeywordExtractor
     
     try:
         diary = Diary.objects.get(id=diary_id)

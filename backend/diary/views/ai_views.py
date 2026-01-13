@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from ..ai_service import DiarySummarizer
+from ..services.summary_service import SummaryService
 from config.throttling import AIImageGenerationThrottle
 
 
@@ -68,8 +68,7 @@ class SummarizeView(APIView):
             style = 'default'
         
         try:
-            summarizer = DiarySummarizer()
-            result = summarizer.summarize(content, style)
+            result = SummaryService.summarize_diary(content, style)
             
             return Response({
                 'original_content': content,
@@ -120,8 +119,7 @@ class SuggestTitleView(APIView):
             )
         
         try:
-            summarizer = DiarySummarizer()
-            title = summarizer.suggest_title(content)
+            title = SummaryService.suggest_title(content)
             
             return Response({
                 'suggested_title': title

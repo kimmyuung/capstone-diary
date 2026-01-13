@@ -180,7 +180,7 @@ class DiaryTemplateViewSet(viewsets.ModelViewSet):
                 "message": "템플릿이 생성되었습니다."
             }
         """
-        from ..ai_service import TemplateGenerator
+        from ..services.analysis_service import TemplateGenerator
         from config.throttling import AIImageGenerationThrottle
         
         topic = request.data.get('topic', '').strip()

@@ -60,11 +60,10 @@ class ReportService:
                 'label': top['label'],
             }
             
-            # AI 인사이트 생성 (DiarySummarizer 활용)
+            # AI 인사이트 생성 (SummaryService 활용)
             try:
-                from ..ai_service import DiarySummarizer
-                summarizer = DiarySummarizer()
-                insight = summarizer.generate_report_insight(diaries, period_label)
+                from ..services.summary_service import SummaryService
+                insight = SummaryService.generate_report_insight(diaries, period_label)
             except Exception:
                 # AI 분석 실패 시 기본 멘트
                 insight = f"이번 {period_label} 가장 많이 느낀 감정은 {top['label']}이에요."

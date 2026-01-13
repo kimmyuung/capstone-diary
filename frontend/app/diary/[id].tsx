@@ -12,14 +12,20 @@ import {
     Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { diaryService, Diary } from '@/services/api';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import ReflectionCard from '@/components/ReflectionCard';
 import VoiceRecorder from '@/components/VoiceRecorder';
+import { DiaryDetailSkeleton } from '@/components/Skeleton';
+import { FadeInView } from '@/components/animations/FadeInView';
+import { useToast } from '@/contexts/ToastContext';
+import { Shadows } from '@/constants/theme';
 
 export default function DiaryDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
+    const { showToast } = useToast();
     const [diary, setDiary] = useState<Diary | null>(null);
     const [loading, setLoading] = useState(true);
     const [generatingImage, setGeneratingImage] = useState(false);
@@ -56,8 +62,9 @@ export default function DiaryDetailScreen() {
         }
     };
 
-    const handleUpdate = (updatedDiary: Diary) => {
+    const handleUpdate = async (updatedDiary: Diary) => {
         setDiary(updatedDiary);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
     const handleGenerateImage = async () => {
@@ -75,21 +82,25 @@ export default function DiaryDetailScreen() {
 
         // 최대 3장 제한
         if (diary.images.length >= 3) {
-            Alert.alert('알림', 'AI 이미지는 일기당 최대 3장까지 생성할 수 있습니다.');
+            showToast('AI 이미지는 최대 3장까지 생성 가능합니다.', 'info');
             return;
         }
 
         setGeneratingImage(true);
+        await Haptics.selectionAsync();
+
         try {
             const newImage = await diaryService.generateImage(diary.id);
             setDiary({
                 ...diary,
                 images: [...diary.images, newImage],
             });
-            Alert.alert('성공', 'AI 이미지가 생성되었습니다!');
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            showToast('AI 이미지가 생성되었습니다!');
         } catch (err) {
             console.error('Failed to generate image:', err);
-            Alert.alert('오류', '이미지 생성에 실패했습니다');
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            showToast('이미지 생성에 실패했습니다', 'error');
         } finally {
             setGeneratingImage(false);
         }
@@ -104,11 +115,12 @@ export default function DiaryDetailScreen() {
                 onPress: async () => {
                     try {
                         await diaryService.delete(Number(id));
-                        Alert.alert('성공', '일기가 삭제되었습니다', [
-                            { text: '확인', onPress: () => router.back() },
-                        ]);
+                        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        showToast('일기가 삭제되었습니다');
+                        router.back();
                     } catch (err) {
-                        Alert.alert('오류', '일기 삭제에 실패했습니다');
+                        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                        showToast('삭제에 실패했습니다', 'error');
                     }
                 },
             },
@@ -126,11 +138,7 @@ export default function DiaryDetailScreen() {
     };
 
     if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#6C63FF" />
-            </View>
-        );
+        return <DiaryDetailSkeleton />;
     }
 
     if (!diary) {
@@ -142,7 +150,7 @@ export default function DiaryDetailScreen() {
     }
 
     return (
-        <>
+        <FadeInView style={{ flex: 1 }}>
             <Stack.Screen
                 options={{
                     title: '',
@@ -303,7 +311,7 @@ export default function DiaryDetailScreen() {
                     </View>
                 )}
             </ScrollView>
-        </>
+        </FadeInView>
     );
 }
 
@@ -342,6 +350,7 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         padding: 20,
+        minHeight: 120, // 본문 영역 최소 높이 확보
     },
     content: {
         fontSize: 16,
@@ -398,6 +407,7 @@ const styles = StyleSheet.create({
     },
     imageWrapper: {
         marginRight: 12,
+        ...Shadows.sm, // 이미지 그림자 추가
     },
     image: {
         width: 200,

@@ -47,7 +47,7 @@ class ChatService:
         from datetime import datetime
         import math
         from django.db.models import Q
-        from ..ai_service import KeywordExtractor
+        from ..services.analysis_service import KeywordExtractor
         
         # 1. 임베딩 생성 및 키워드 추출
         query_vector = ChatService.get_embedding(query)

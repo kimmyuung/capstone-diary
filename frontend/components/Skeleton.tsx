@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Dimensions, ViewStyle, DimensionValue } from 'react-native';
-import { Palette, BorderRadius } from '@/constants/theme';
+import { Palette, BorderRadius, Shadows } from '@/constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -170,6 +170,33 @@ export function CalendarSkeleton() {
                     ))}
                 </View>
             ))}
+        </View>
+    );
+}
+
+/**
+ * 일기 상세 스켈레톤
+ */
+export function DiaryDetailSkeleton() {
+    return (
+        <View style={{ flex: 1, backgroundColor: '#fff' }}>
+            <View style={{ padding: 20 }}>
+                {/* 제목 */}
+                <Skeleton width="80%" height={32} style={{ marginBottom: 12 }} />
+                {/* 날짜 */}
+                <Skeleton width="40%" height={16} style={{ marginBottom: 20 }} />
+
+                {/* 본문 */}
+                <Skeleton width="100%" height={16} style={{ marginBottom: 8 }} />
+                <Skeleton width="100%" height={16} style={{ marginBottom: 8 }} />
+                <Skeleton width="100%" height={16} style={{ marginBottom: 8 }} />
+                <Skeleton width="90%" height={16} style={{ marginBottom: 8 }} />
+                <Skeleton width="60%" height={16} style={{ marginBottom: 24 }} />
+
+                {/* 섹션 카드 (AI, 음성 등) */}
+                <Skeleton width="100%" height={100} borderRadius={16} style={{ marginBottom: 16 }} />
+                <Skeleton width="100%" height={80} borderRadius={16} style={{ marginBottom: 16 }} />
+            </View>
         </View>
     );
 }

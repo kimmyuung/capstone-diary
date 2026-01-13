@@ -41,12 +41,11 @@ class TestSummarizeAPI:
         })
         assert response.status_code == status.HTTP_400_BAD_REQUEST
     
-    @patch('diary.views.ai_views.DiarySummarizer')
-    def test_summarize_success(self, mock_summarizer_class, authenticated_client):
+    @patch('diary.services.summary_service.SummaryService.summarize_diary')
+    def test_summarize_success(self, mock_summarize, authenticated_client):
         """요약 성공 테스트"""
         # Mock setup
-        mock_instance = mock_summarizer_class.return_value
-        mock_instance.summarize.return_value = {
+        mock_summarize.return_value = {
             'summary': "요약된 내용입니다.",
             'original_length': 500,
             'summary_length': 20,
@@ -75,11 +74,10 @@ class TestSuggestTitleAPI:
         response = authenticated_client.post('/api/suggest-title/', {})
         assert response.status_code == status.HTTP_400_BAD_REQUEST
     
-    @patch('diary.views.ai_views.DiarySummarizer')
-    def test_suggest_title_success(self, mock_summarizer_class, authenticated_client):
+    @patch('diary.services.summary_service.SummaryService.suggest_title')
+    def test_suggest_title_success(self, mock_suggest_title, authenticated_client):
         """제목 제안 성공 테스트"""
-        mock_instance = mock_summarizer_class.return_value
-        mock_instance.suggest_title.return_value = "행복한 하루"
+        mock_suggest_title.return_value = "행복한 하루"
         
         response = authenticated_client.post('/api/suggest-title/', {
             'content': '오늘은 정말 행복한 하루였습니다. 친구들과 맛있는 음식도 먹었습니다.'
@@ -109,7 +107,7 @@ class TestTemplateGenerate:
     # TemplateGenerator is imported locally inside the view method:
     # `from ..ai_service import TemplateGenerator`
     # We should patch the source class directly.
-    @patch('diary.ai_service.TemplateGenerator')
+    @patch('diary.services.analysis_service.TemplateGenerator')
     def test_generate_success(self, mock_generator_class, authenticated_client):
         """템플릿 생성 성공 테스트"""
         mock_generator = mock_generator_class.return_value

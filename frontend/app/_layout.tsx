@@ -9,6 +9,7 @@ import { OfflineQueueProvider } from '@/contexts/OfflineQueueContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { BiometricProvider } from '@/contexts/BiometricContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -62,7 +63,11 @@ export default function RootLayout() {
       <ThemeProvider>
         <AuthProvider>
           <OfflineQueueProvider>
-            <RootLayoutContent />
+            <BiometricProvider>
+              <ToastProvider>
+                <RootLayoutContent />
+              </ToastProvider>
+            </BiometricProvider>
           </OfflineQueueProvider>
         </AuthProvider>
       </ThemeProvider>
