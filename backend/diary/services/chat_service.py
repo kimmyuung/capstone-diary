@@ -66,8 +66,9 @@ class ChatService:
         if keywords:
             keyword_q = Q()
             for k in keywords:
-                # 제목이나 내용에 키워드가 포함된 경우
-                keyword_q |= Q(diary__title__icontains=k) | Q(diary__content__icontains=k)
+                # 제목이나 태그(자동생성된 키워드)에 키워드가 포함된 경우
+                # content는 암호화되어 있어 검색 불가 -> diary_tags 활용
+                keyword_q |= Q(diary__title__icontains=k) | Q(diary__diary_tags__tag__name__icontains=k)
             
             keyword_candidate_ids = list(DiaryEmbedding.objects.filter(diary__user=user) \
                 .filter(keyword_q) \

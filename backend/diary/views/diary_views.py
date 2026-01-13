@@ -163,49 +163,24 @@ class DiaryViewSet(viewsets.ModelViewSet):
         """
         queryset = self.filter_queryset(self.get_queryset())
         
-        # 본문 검색 (암호화된 내용을 복호화 후 검색)
+        # [Optimized] 본문 검색 (태그 기반)
+        # 기존: O(N) 복호화 -> 변경: DiaryTag Join 검색 (Index)
         content_search = request.query_params.get('content_search', None)
         if content_search:
-            search_lower = content_search.lower()
-            filtered_ids = []
-            
-            # 성능 최적화: 날짜 필터가 없으면 최근 100개만 검색
-            candidate_queryset = queryset
-            if not (request.query_params.get('start_date') or request.query_params.get('end_date')):
-                candidate_queryset = queryset[:100]
-
-            for diary in candidate_queryset:
-                try:
-                    decrypted = diary.decrypt_content()
-                    if decrypted and search_lower in decrypted.lower():
-                        filtered_ids.append(diary.id)
-                except Exception:
-                    pass
-            queryset = queryset.filter(id__in=filtered_ids)
+            # 태그 이름에 검색어가 포함된 일기 검색
+            queryset = queryset.filter(diary_tags__tag__name__icontains=content_search).distinct()
         
-        # 통합 검색 (제목 + 본문) - 'q' 파라미터
+        # [Optimized] 통합 검색 (제목 + 본문(태그))
         q = request.query_params.get('q', None)
         if q:
-            q_lower = q.lower()
-            title_matched_ids = list(
-                queryset.filter(title__icontains=q).values_list('id', flat=True)
-            )
-            content_matched_ids = []
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(title__icontains=q) | 
+                Q(diary_tags__tag__name__icontains=q)
+            ).distinct()
             
-            # 성능 최적화: 날짜 필터가 없으면 최근 100개만 검색 (제목 매칭 제외)
-            candidate_queryset = queryset.exclude(id__in=title_matched_ids)
-            if not (request.query_params.get('start_date') or request.query_params.get('end_date')):
-                candidate_queryset = candidate_queryset[:100]
-                
-            for diary in candidate_queryset:
-                try:
-                    decrypted = diary.decrypt_content()
-                    if decrypted and q_lower in decrypted.lower():
-                        content_matched_ids.append(diary.id)
-                except Exception:
-                    pass
-            all_matched_ids = title_matched_ids + content_matched_ids
-            queryset = Diary.objects.filter(id__in=all_matched_ids).order_by('-created_at').select_related('user').prefetch_related('images', 'diary_tags__tag')
+        # 정렬 및 최적화
+        queryset = queryset.order_by('-created_at').select_related('user').prefetch_related('images', 'diary_tags__tag')
         
         page = self.paginate_queryset(queryset)
         if page is not None:

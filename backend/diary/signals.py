@@ -57,9 +57,61 @@ def trigger_stt(sender, instance, created, **kwargs):
                 instance.is_transcribing = False
                 instance.save(update_fields=['is_transcribing'])
 
-        # 테스트 환경 체크
-        from django.conf import settings
-        if getattr(settings, 'IS_TESTING', False):
-            _transcribe()
         else:
             threading.Thread(target=_transcribe).start()
+
+@receiver(post_save, sender=Diary)
+def auto_generate_tags(sender, instance, created, **kwargs):
+    """
+    일기 저장 시 자동으로 키워드를 추출하여 태그로 저장
+    (검색 성능 최적화를 위한 Plaintext Index 역할)
+    """
+    # 1. 내용이 없거나 암호화되지 않은 경우(별도 처리 필요 시) 체크
+    # decrypt_content()는 내부적으로 복호화 캐싱을 하지 않으므로, 
+    # 여기서 호출하면 매번 복호화 연산이 발생하지만, 비동기 스레드이므로 괜찮음.
+    
+    def _update_tags():
+        try:
+            from .ai_service import KeywordExtractor
+            from .models import Tag, DiaryTag
+            
+            # 복호화된 내용 가져오기
+            content = instance.decrypt_content()
+            if not content or len(content) < 10:
+                return
+
+            # 키워드 추출
+            extractor = KeywordExtractor()
+            keywords = extractor.extract_keywords(content, top_n=5)
+            
+            if not keywords:
+                return
+                
+            # 기존 자동 생성 태그 정리 (선택 사항: 사용자가 수동으로 단 태그와 구분이 필요할 수 있음)
+            # 여기서는 단순히 기존 태그를 유지하고 추가하거나, 
+            # 중복 방지 로직만 넣음. 
+            # (만약 '자동 태그'만 리셋하고 싶다면 별도 플래그가 필요하지만, 
+            # 현재는 단순하게 키워드가 있으면 태그로 등록하는 로직만 수행)
+            
+            for keyword in keywords:
+                # 태그 생성 또는 조회
+                tag, _ = Tag.objects.get_or_create(
+                    user=instance.user,
+                    name=keyword,
+                    defaults={'color': '#6366F1'} # 기본 색상
+                )
+                
+                # 일기-태그 연결
+                DiaryTag.objects.get_or_create(diary=instance, tag=tag)
+                
+            print(f"DEBUG: Auto-tagged diary {instance.id} with {keywords}")
+
+        except Exception as e:
+            print(f"Error auto-tagging diary {instance.id}: {e}")
+
+    # Main Thread 블로킹 방지
+    from django.conf import settings
+    if getattr(settings, 'IS_TESTING', False):
+        _update_tags()
+    else:
+        threading.Thread(target=_update_tags).start()
