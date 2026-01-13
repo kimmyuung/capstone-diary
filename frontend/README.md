@@ -105,7 +105,7 @@ diary-frontend/
 │   └── chatbot/           # 챗봇 UI 컴포넌트
 ├── constants/              # 상수 정의
 │   ├── Colors.ts          # 색상 테마
-│   ├── Config.ts          # API URL 등 설정
+│   ├── Colors.ts          # 색상 테마
 │   └── Types.ts           # TypeScript 타입 정의
 ├── hooks/                  # 커스텀 Hooks
 │   ├── useDiary.ts        # 일기 관련 로직
@@ -152,8 +152,8 @@ yarn install
 cp .env.example .env
 
 # API 엔드포인트 설정
-EXPO_PUBLIC_API_URL=https://your-backend-api.com
-EXPO_PUBLIC_AI_API_URL=https://your-ai-service.com
+# API 엔드포인트 설정 (예시)
+EXPO_PUBLIC_API_URL=http://localhost:8000
 ```
 
 4. **개발 서버 실행**
@@ -227,13 +227,13 @@ npx expo run:android
            ↓
 ┌─────────────────────┐
 │   Backend API       │
-│   (Spring Boot)     │
+│   (Django REST)     │
 └──────────┬──────────┘
            │
            ↓
 ┌─────────────────────┐
 │   AI/ML Service     │
-│   (Python/PyTorch)  │
+│   (Gemini/OpenAI)   │
 └─────────────────────┘
 ```
 

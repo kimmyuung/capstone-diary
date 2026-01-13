@@ -175,7 +175,7 @@ class DiarySerializer(serializers.ModelSerializer):
             'tags', 'tag_ids',
             'reflection_question', 'reflection_answer', 'voice_file', 
             'transcription', 'is_transcribing',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'version'
         ]
         read_only_fields = ['user', 'updated_at', 'emotion', 'emotion_score', 'emotion_analyzed_at']
     
@@ -233,8 +233,23 @@ class DiarySerializer(serializers.ModelSerializer):
             content_changed = True
         
         for attr, value in validated_data.items():
+            if attr == 'version':
+                continue # 버전은 수동으로 처리
             setattr(instance, attr, value)
         
+        # Optimistic Locking (버전 체크)
+        request_version = validated_data.get('version')
+        if request_version is not None:
+            if instance.version != request_version:
+                from rest_framework.exceptions import APIException
+                class Conflict(APIException):
+                    status_code = 409
+                    default_detail = '데이터가 다른 곳에서 수정되었습니다. 최신 데이터를 확인해주세요.'
+                    default_code = 'conflict'
+                raise Conflict()
+        
+        # 버전 증가
+        instance.version += 1
         instance.save()
         
         # 태그 업데이트 (tag_ids가 전달된 경우에만)

@@ -11,6 +11,12 @@
 
 ---
 
+## 🎬 앱 데모
+![App Demo](https://via.placeholder.com/800x450?text=App+Demo+GIF)
+*(실제 앱 구동 영상이 여기에 들어갑니다)*
+
+---
+
 ## 📸 앱 스크린샷
 
 | 로그인 | 홈 화면 | 캘린더 |
@@ -26,12 +32,12 @@
 ## ✨ 주요 기능
 
 ### 🧠 AI 감정 분석
-- **GPT-4o-mini**를 활용하여 8가지 핵심 감정(행복, 슬픔, 화남, 불안, 평온, 신남, 피곤, 사랑)을 분석
+- **Gemini 1.5 Flash**를 활용하여 8가지 핵심 감정(행복, 슬픔, 화남, 불안, 평온, 신남, 피곤, 사랑)을 분석
 - 문맥을 이해하여 정확한 감정 파악
 - 감정 점수(0-100) 제공
 
 ### 🎨 AI 그림 생성
-- **Gemini Imagen 4.0 Fast**를 기본으로 사용하여 감성적인 이미지 생성
+- **Gemini Imagen 3**를 기본으로 사용하여 감성적인 이미지 생성
 - 결제/오류 발생 시 **DALL-E 3**로 자동 전환 (Fallback)
 - 생성된 이미지는 서버에 안전하게 저장 (`media/ai_images/`)
 
@@ -76,7 +82,13 @@
 ### 📱 크로스 플랫폼
 - **React Native (Expo)** 기반으로 웹, iOS, Android 지원
 - 다크 모드 / 라이트 모드 / 시스템 모드 지원
-- 오프라인 모드 지원 (큐 시스템)
+- 다크 모드 / 라이트 모드 / 시스템 모드 지원
+
+### 📶 오프라인 우선 설계 (Offline-First)
+- **끊기지 않는 경험**: 네트워크 연결이 없어도 일기 작성, 수정, 조회가 가능합니다.
+- **동기화 큐**: 변경 사항은 로컬에 저장되었다가 온라인 상태가 되면 자동으로 서버와 동기화됩니다.
+- **충돌 해결**: 서버 데이터와 버전 충돌 시 스마트한 병합 전략을 사용합니다.
+- > 자세한 동기화 전략은 [OFFLINE_SYNC_STRATEGY.md](docs/OFFLINE_SYNC_STRATEGY.md)에서 확인할 수 있습니다.
 
 ---
 
@@ -91,9 +103,9 @@
 | | Django REST Framework | 3.x | RESTful API |
 | | SQLite (개발) / PostgreSQL (배포) | - | 데이터베이스 |
 | | pgvector | - | 벡터 유사도 검색 |
-| **AI Models** | GPT-4o-mini | - | 감정 분석, 템플릿 생성 |
+| **AI Models** | Gemini 1.5 Flash | - | 감정 분석, 템플릿 생성, 일기 요약 |
 | | Gemini 1.5 Flash | - | 일기 요약 |
-| | Imagen 4.0 Fast | - | 이미지 생성 (Primary) |
+| | Imagen 3 | - | 이미지 생성 (Primary) |
 | | DALL-E 3 | - | 이미지 생성 (Fallback) |
 | | Whisper-1 | - | 음성 인식 (100+ 언어) |
 | **Security** | AES-256 (Fernet) | - | 일기 내용 암호화 |
@@ -106,12 +118,25 @@
 
 ---
 
+## 🏗️ 시스템 아키텍처 (System Architecture)
+
+이 프로젝트는 확장성과 유지보수성을 고려한 모던 아키텍처로 설계되었습니다.
+
+> 상세 설계 문서는 [SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md)에서 확인할 수 있습니다.
+
+- **Frontend**: React Native (Expo) + Offline Queue + Optimistic UI
+- **Backend**: Django REST Framework (Layered Architecture)
+- **Async Processing**: Celery + Redis (AI 분석 및 이메일 전송 비동기 처리)
+- **Data Layer**: PostgreSQL + pgvector (벡터 검색을 통한 유사 일기 추천)
+
+---
+
 ## 🚀 시작하기
 
 ### 사전 요구사항
 - Node.js (v18 이상)
 - Python (3.12 이상)
-- OpenAI API Key (AI 기능 사용 시)
+- OpenAI API Key (음성 녹음 및 Fallback 사용 시)
 
 ### 1. 저장소 클론
 ```bash
@@ -349,7 +374,7 @@ npx playwright test
 ## 📊 개발 로드맵
 
 - [x] **Phase 1**: MVP (일기 CRUD, 기본 감정 분석)
-- [x] **Phase 2**: AI 고도화 (GPT-4o-mini, DALL-E 3, Whisper)
+- [x] **Phase 2**: AI 고도화 (Gemini 1.5 Flash, Imagen 3, Whisper)
 - [x] **Phase 3**: 사용자 경험 (리포트, 음성 입력, UI 개선)
 - [x] **Phase 4**: 태그, 템플릿, AI 생성
 - [x] **Phase 5**: 히트맵, 설정 동기화, Rate Limiting
@@ -357,6 +382,19 @@ npx playwright test
 - [x] **Phase 7**: 이메일 인증, 소셜 로그인, 보안 강화
 - [x] **Phase 8**: 위치 기반 기능, 오프라인 모드
 - [x] **Phase 9**: 배포 (Docker, AWS/GCP, CI/CD)
+
+---
+
+### 5. 배포 (Deployment)
+
+AWS EC2 및 Docker 기반의 실서비스 배포를 완벽하게 지원합니다.
+
+> 자세한 배포 가이드는 [DEPLOYMENT.md](backend/docs/DEPLOYMENT.md)를 참고하세요.
+
+- **Docker Compose**: 원클릭 컨테이너 실행 및 관리
+- **SSL/TLS**: Let's Encrypt를 통한 HTTPS 자동 인증서 발급 및 갱신
+- **CI/CD**: GitHub Actions를 통한 자동 테스트 및 배포 파이프라인
+- **Monitoring**: Sentry 연동을 통한 실시간 에러 추적
 
 ---
 
@@ -386,6 +424,22 @@ EMAIL_HOST_PASSWORD=your-app-password
 # Sentry (선택)
 SENTRY_DSN=your-sentry-dsn
 ```
+
+---
+
+## ❓ 자주 묻는 질문 (FAQ) & 문제 해결
+
+**Q. 서버 실행 시 'GEMINI_API_KEY' 에러가 발생해요.**
+A. `.env` 파일에 Google Gemini API 키가 설정되어 있는지 확인하세요. 무료 키는 [Google AI Studio](https://aistudio.google.com/)에서 발급받을 수 있습니다.
+
+**Q. 앱에서 API 통신이 안 돼요 (Network Error).**
+A. 다음을 확인해보세요:
+1. 백엔드 서버가 실행 중인가요? (`python manage.py runserver`)
+2. `frontend/.env` 파일의 `EXPO_PUBLIC_API_URL`이 올바른 IP 주소인가요? (에뮬레이터 사용 시 `localhost` 대신 `10.0.2.2`(Android) 사용 권장, 실제 기기 사용 시 내 PC의 로컬 IP 사용)
+3. 같은 와이파이 네트워크에 연결되어 있나요?
+
+**Q. AI 이미지 생성이 안 돼요.**
+A. `frontend/services/core.ts`의 타임아웃 설정을 확인하거나, 백엔드 로그(`backend/debug.log`)에서 Gemini API 오류 메시지를 확인하세요.
 
 ---
 

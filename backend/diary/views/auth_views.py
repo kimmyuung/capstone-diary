@@ -40,6 +40,12 @@ from config.throttling import (
     PasswordResetRateThrottle,
     EmailResendRateThrottle,
 )
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+from ..schema_examples import (
+    EXAMPLE_400_BAD_REQUEST, EXAMPLE_400_INVALID_PARAM,
+    EXAMPLE_401_UNAUTHORIZED, EXAMPLE_429_THROTTLED,
+    EXAMPLE_500_SERVER_ERROR
+)
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -75,6 +81,15 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """
     throttle_classes = [LoginRateThrottle]
     
+    @extend_schema(
+        summary="로그인",
+        description="사용자명과 비밀번호로 로그인하여 Access/Refresh Token을 발급받습니다.",
+        responses={
+            200: OpenApiResponse(description="로그인 성공"),
+            401: OpenApiResponse(description="인증 실패 (아이디/비번 불일치 또는 이메일 미인증)", examples=[EXAMPLE_401_UNAUTHORIZED]),
+            429: OpenApiResponse(description="요청 한도 초과", examples=[EXAMPLE_429_THROTTLED]),
+        }
+    )
     def post(self, request, *args, **kwargs):
         from django.contrib.auth.models import User
         
@@ -144,6 +159,15 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     throttle_classes = [RegisterRateThrottle]  # 시간당 5회 제한
 
+    @extend_schema(
+        summary="회원가입",
+        description="새로운 사용자 계정을 생성하고 이메일 인증 코드를 전송합니다.",
+        responses={
+            201: OpenApiResponse(description="회원가입 성공 (인증 메일 전송)"),
+            400: OpenApiResponse(description="유효성 검사 실패", examples=[EXAMPLE_400_BAD_REQUEST]),
+            429: OpenApiResponse(description="요청 한도 초과", examples=[EXAMPLE_429_THROTTLED]),
+        }
+    )
     def create(self, request, *args, **kwargs):
         from ..models import EmailVerificationToken
         from ..email_service import send_email_verification
@@ -187,6 +211,15 @@ class EmailVerifyView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [LoginRateThrottle]  # 분당 5회 제한 (브루트포스 방지)
 
+    @extend_schema(
+        summary="이메일 인증 확인",
+        description="이메일로 전송된 인증 코드를 확인하여 계정을 활성화합니다.",
+        responses={
+            200: OpenApiResponse(description="인증 성공"),
+            400: OpenApiResponse(description="잘못된 코드 또는 만료된 코드", examples=[EXAMPLE_400_INVALID_PARAM]),
+            429: OpenApiResponse(description="요청 한도 초과", examples=[EXAMPLE_429_THROTTLED]),
+        }
+    )
     def post(self, request):
         from django.contrib.auth.models import User
         from ..models import EmailVerificationToken
@@ -261,6 +294,15 @@ class ResendVerificationView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [EmailResendRateThrottle]  # 10분당 3회 제한 (이메일 남용 방지)
 
+    @extend_schema(
+        summary="인증 코드 재전송",
+        description="이메일 인증 코드를 재전송합니다.",
+        responses={
+            200: OpenApiResponse(description="재전송 성공"),
+            400: OpenApiResponse(description="잘못된 요청", examples=[EXAMPLE_400_BAD_REQUEST]),
+            429: OpenApiResponse(description="요청 한도 초과", examples=[EXAMPLE_429_THROTTLED]),
+        }
+    )
     def post(self, request):
         from django.contrib.auth.models import User
         from ..models import EmailVerificationToken
@@ -317,6 +359,16 @@ class PasswordResetRequestView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [PasswordResetRateThrottle]  # 시간당 3회 제한 (이메일 폭탄 방지)
 
+    @extend_schema(
+        summary="비밀번호 재설정 요청",
+        description="가입된 이메일로 비밀번호 재설정 인증 코드를 전송합니다.",
+        responses={
+            200: OpenApiResponse(description="인증 코드 전송 성공"),
+            400: OpenApiResponse(description="잘못된 요청", examples=[EXAMPLE_400_BAD_REQUEST]),
+            429: OpenApiResponse(description="요청 한도 초과", examples=[EXAMPLE_429_THROTTLED]),
+            500: OpenApiResponse(description="이메일 전송 실패", examples=[EXAMPLE_500_SERVER_ERROR]),
+        }
+    )
     def post(self, request):
         from django.contrib.auth.models import User
         from ..models import PasswordResetToken
@@ -375,6 +427,15 @@ class PasswordResetConfirmView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [PasswordResetRateThrottle]  # 시간당 3회 제한
 
+    @extend_schema(
+        summary="비밀번호 재설정 확인",
+        description="인증 코드와 새 비밀번호를 받아 비밀번호를 변경합니다.",
+        responses={
+            200: OpenApiResponse(description="비밀번호 변경 성공"),
+            400: OpenApiResponse(description="잘못된 코드 또는 유효성 검사 실패", examples=[EXAMPLE_400_BAD_REQUEST]),
+            429: OpenApiResponse(description="요청 한도 초과", examples=[EXAMPLE_429_THROTTLED]),
+        }
+    )
     def post(self, request):
         from django.contrib.auth.models import User
         from ..models import PasswordResetToken
@@ -460,6 +521,16 @@ class FindUsernameView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [PasswordResetRateThrottle]  # 시간당 3회 제한
 
+    @extend_schema(
+        summary="아이디 찾기",
+        description="가입된 이메일로 아이디(username) 정보를 전송합니다.",
+        responses={
+            200: OpenApiResponse(description="전송 성공"),
+            400: OpenApiResponse(description="잘못된 요청", examples=[EXAMPLE_400_BAD_REQUEST]),
+            429: OpenApiResponse(description="요청 한도 초과", examples=[EXAMPLE_429_THROTTLED]),
+            500: OpenApiResponse(description="이메일 전송 실패", examples=[EXAMPLE_500_SERVER_ERROR]),
+        }
+    )
     def post(self, request):
         from django.contrib.auth.models import User
         from ..email_service import send_username_email

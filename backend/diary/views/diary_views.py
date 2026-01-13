@@ -26,10 +26,76 @@ from ..ai_service import ImageGenerator, DiarySummarizer, KeywordExtractor
 
 from ..paginations import StandardResultsSetPagination
 from ..messages import ERROR_INVALID_YEAR, ERROR_INVALID_YEAR_MONTH
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiResponse
+from ..schema_examples import (
+    EXAMPLE_400_BAD_REQUEST, EXAMPLE_401_UNAUTHORIZED,
+    EXAMPLE_403_FORBIDDEN, EXAMPLE_404_NOT_FOUND,
+    EXAMPLE_409_CONFLICT, EXAMPLE_429_THROTTLED,
+    EXAMPLE_500_SERVER_ERROR
+)
 
 logger = logging.getLogger(__name__)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="일기 목록 조회",
+        description="사용자의 일기 목록을 조회합니다. 검색, 필터링, 페이징을 지원합니다.",
+        responses={
+            200: DiarySerializer,
+            400: OpenApiResponse(description="잘못된 파라미터", examples=[EXAMPLE_400_BAD_REQUEST]),
+            401: OpenApiResponse(description="인증 실패", examples=[EXAMPLE_401_UNAUTHORIZED]),
+            429: OpenApiResponse(description="요청 한도 초과", examples=[EXAMPLE_429_THROTTLED]),
+            500: OpenApiResponse(description="서버 오류", examples=[EXAMPLE_500_SERVER_ERROR]),
+        }
+    ),
+    create=extend_schema(
+        summary="일기 작성",
+        description="새로운 일기를 작성합니다. 감정 분석과 태그 생성이 자동으로 수행됩니다.",
+        responses={
+            201: DiarySerializer,
+            400: OpenApiResponse(description="유효성 검사 실패", examples=[EXAMPLE_400_BAD_REQUEST]),
+            401: OpenApiResponse(description="인증 실패", examples=[EXAMPLE_401_UNAUTHORIZED]),
+            429: OpenApiResponse(description="요청 한도 초과", examples=[EXAMPLE_429_THROTTLED]),
+            500: OpenApiResponse(description="서버 오류", examples=[EXAMPLE_500_SERVER_ERROR]),
+        }
+    ),
+    retrieve=extend_schema(
+        summary="일기 상세 조회",
+        description="일기 상세 내용을 조회합니다. 암호화된 내용은 자동으로 복호화됩니다.",
+        responses={
+            200: DiarySerializer,
+            401: OpenApiResponse(description="인증 실패", examples=[EXAMPLE_401_UNAUTHORIZED]),
+            403: OpenApiResponse(description="권한 없음", examples=[EXAMPLE_403_FORBIDDEN]),
+            404: OpenApiResponse(description="찾을 수 없음", examples=[EXAMPLE_404_NOT_FOUND]),
+             500: OpenApiResponse(description="서버 오류", examples=[EXAMPLE_500_SERVER_ERROR]),
+        }
+    ),
+    update=extend_schema(
+        summary="일기 수정",
+        description="일기 내용을 수정합니다. 버전 충돌 시 409 에러를 반환합니다.",
+        responses={
+            200: DiarySerializer,
+            400: OpenApiResponse(description="유효성 검사 실패", examples=[EXAMPLE_400_BAD_REQUEST]),
+            401: OpenApiResponse(description="인증 실패", examples=[EXAMPLE_401_UNAUTHORIZED]),
+            403: OpenApiResponse(description="권한 없음", examples=[EXAMPLE_403_FORBIDDEN]),
+            404: OpenApiResponse(description="찾을 수 없음", examples=[EXAMPLE_404_NOT_FOUND]),
+            409: OpenApiResponse(description="버전 충돌", examples=[EXAMPLE_409_CONFLICT]),
+            500: OpenApiResponse(description="서버 오류", examples=[EXAMPLE_500_SERVER_ERROR]),
+        }
+    ),
+    destroy=extend_schema(
+        summary="일기 삭제",
+        description="일기를 삭제합니다.",
+        responses={
+            204: None,
+            401: OpenApiResponse(description="인증 실패", examples=[EXAMPLE_401_UNAUTHORIZED]),
+            403: OpenApiResponse(description="권한 없음", examples=[EXAMPLE_403_FORBIDDEN]),
+            404: OpenApiResponse(description="찾을 수 없음", examples=[EXAMPLE_404_NOT_FOUND]),
+            500: OpenApiResponse(description="서버 오류", examples=[EXAMPLE_500_SERVER_ERROR]),
+        }
+    ),
+)
 class DiaryViewSet(viewsets.ModelViewSet):
     """
     일기(Diary) 항목에 대한 CRUD 및 AI 기능을 제공하는 ViewSet.

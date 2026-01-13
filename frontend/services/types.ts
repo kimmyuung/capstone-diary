@@ -20,6 +20,7 @@ export interface Diary {
     transcription?: string | null;
     is_transcribing?: boolean;
     keywords?: string[]; // 핵심 키워드
+    version?: number; // Optimistic Locking
 }
 
 export interface DiaryImage {
@@ -103,6 +104,7 @@ export interface UpdateDiaryRequest {
     longitude?: number | null;
     tag_ids?: number[];
     reflection_answer?: string;
+    version?: number; // Optimistic Locking
 }
 
 export interface EmotionStat {

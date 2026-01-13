@@ -75,6 +75,9 @@ class Diary(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # 동기화 충돌 방지를 위한 버전 (Optimistic Locking)
+    version = models.IntegerField(default=1, verbose_name='버전')
 
     class Meta:
         ordering = ['-created_at']

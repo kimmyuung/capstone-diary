@@ -113,8 +113,22 @@ export const OfflineQueueProvider: React.FC<OfflineQueueProviderProps> = ({ chil
                 await processRequest(request);
                 await offlineStorage.removeRequest(request.id);
                 successCount++;
-            } catch (error) {
+            } catch (error: any) {
                 console.error(`[OfflineQueue] Failed to sync request:`, request.id, error);
+
+                // 409 Conflict 처리 (Optimistic Locking)
+                if (error.response && error.response.status === 409) {
+                    Alert.alert(
+                        '동기화 충돌',
+                        '서버에 더 최신 데이터가 있어 일부 변경사항이 적용되지 않았습니다. 데이터를 새로고침 해주세요.',
+                        [{ text: '확인' }]
+                    );
+                    // 충돌난 요청은 큐에서 제거 (계속 실패하므로)
+                    await offlineStorage.removeRequest(request.id);
+                    failCount++;
+                    continue;
+                }
+
                 await offlineStorage.incrementRetry(request.id);
                 failCount++;
             }

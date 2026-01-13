@@ -12,11 +12,11 @@
 ## ✨ 주요 기능
 
 ### 1. 🧠 AI 감정 분석 (Emotion Analysis)
-- **GPT-4o-mini**를 활용하여 일기 내용에서 8가지 핵심 감정(행복, 슬픔, 화남, 불안, 평온, 신남, 피곤, 사랑)을 분석합니다.
+- **Gemini 1.5 Flash**를 활용하여 일기 내용에서 8가지 핵심 감정(행복, 슬픔, 화남, 불안, 평온, 신남, 피곤, 사랑)을 분석합니다.
 - 단순한 키워드 매칭이 아닌, 문맥을 이해하여 정확한 감정을 파악합니다.
 
 ### 2. 🎨 AI 그림 생성 (Image Generation)
-- **DALL-E 3**를 사용하여 일기 내용에 어울리는 감성적인 이미지를 자동으로 생성합니다.
+- **Gemini Imagen 3**를 사용하여 일기 내용에 어울리는 감성적인 이미지 생성 (DALL-E 3는 Fallback)
 - (무료: 주 3회 / 프리미엄: 무제한)
 
 ### 3. 🎙️ 음성 일기 (Voice to Text)
@@ -48,8 +48,8 @@
 | **Backend** | Django 5.1 | 강력한 Python 웹 프레임워크 |
 | | Django REST Framework | RESTful API 구축 |
 | | SQLite / PostgreSQL | 데이터베이스 (개발/배포) |
-| **AI Models** | GPT-4o-mini | 고성능/저비용 감정 분석 |
-| | DALL-E 3 | 고품질 이미지 생성 |
+| **AI Models** | Gemini 1.5 Flash | 고성능/저비용 감정 분석 및 요약 |
+| | Gemini Imagen 3 | 고품질 이미지 생성 |
 | | Whisper-1 | 음성 인식 (STT) |
 | **Security** | AES Encryption | 데이터 암호화 (Django Cryptography) |
 | | JWT | 안전한 사용자 인증 |
@@ -63,7 +63,7 @@
 ### 사전 요구사항 (Prerequisites)
 - Node.js (v18 이상)
 - Python (3.12 이상)
-- OpenAI API Key
+- OpenAI API Key (선택 - 음성/Fallback)
 
 ### 1. 저장소 클론
 ```bash
@@ -87,7 +87,7 @@ pip install -r requirements.txt
 
 # .env 설정 (루트 디렉토리)
 cp .env.example .env
-# .env 파일에 OPENAI_API_KEY 및 SECRET_KEY 입력
+# .env 파일에 GEMINI_API_KEY (필수), OPENAI_API_KEY (선택) 및 SECRET_KEY 입력
 
 # DB 마이그레이션 및 실행
 python manage.py migrate
@@ -132,7 +132,7 @@ npm run android
 ## 📊 개발 로드맵 (Roadmap)
 
 - [x] **Phase 1: MVP** (일기 CRUD, 기본 감정 분석)
-- [x] **Phase 2: AI 고도화** (GPT-4o-mini, DALL-E 3, Whisper 적용)
+- [x] **Phase 2: AI 고도화** (Gemini 1.5 Flash, Imagen 3, Whisper 적용)
 - [x] **Phase 3: 사용자 경험 개선** (리포트 화면, 음성 입력, SNS 스타일 UI)
 - [x] **Phase 4: 웹/앱 호환성** (SecureStore/localStorage 분기 처리)
 - [ ] **Phase 5: 배포 및 운영** (Docker, AWS EC2, CI/CD)
