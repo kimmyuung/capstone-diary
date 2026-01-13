@@ -196,15 +196,12 @@ class DiaryViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance)
         data = serializer.data
         
-        # 키워드 추출 (캐싱 고려 가능, 현재는 실시간)
-        try:
-            if instance.content and len(instance.content) > 20:
-                extractor = KeywordExtractor()
-                keywords = extractor.extract_keywords(instance.content)
-                data['keywords'] = keywords
-        except Exception as e:
-            logger.error(f"Keyword extraction error in view: {e}")
-            data['keywords'] = []
+        # [Optimized] 키워드 조회 (DB 태그 활용)
+        # 기존: 실시간 AI 모델 로딩 (매우 느림) -> 변경: 저장된 태그 조회 (O(1))
+        # KeywordExtractor 초기화 제거
+        tags = instance.diary_tags.all().select_related('tag')
+        keywords = [dt.tag.name for dt in tags]
+        data['keywords'] = keywords
             
         return Response(data)
 
