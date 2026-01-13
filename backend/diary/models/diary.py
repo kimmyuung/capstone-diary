@@ -30,6 +30,7 @@ class Diary(models.Model):
     title = models.CharField(max_length=200)
     content = models.TextField()  # 암호화된 상태로 저장
     is_encrypted = models.BooleanField(default=True)
+    encryption_version = models.IntegerField(default=1, verbose_name='암호화 버전') # Feature: Explicit Versioning
     
     # 감정 분석 필드
     emotion = models.CharField(

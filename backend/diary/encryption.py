@@ -74,9 +74,13 @@ class DiaryEncryptionService:
             logger.error(f"Encryption failed: {e}")
             raise EncryptionError(f"Failed to encrypt content: {e}")
     
+    
     def decrypt(self, encrypted_content: str) -> str:
         """
         암호화된 일기 내용을 복호화합니다.
+        
+        주의: 이 메서드는 입력값이 암호화되어 있다고 가정하고 무조건 복호화를 시도합니다.
+        암호화 여부(`is_encrypted`)는 호출자(Model)가 책임지고 확인해야 합니다.
         
         Args:
             encrypted_content: 암호화된 텍스트
@@ -88,10 +92,8 @@ class DiaryEncryptionService:
             logger.debug("Encryption disabled, returning content as-is")
             return encrypted_content
         
-        # 암호화되지 않은 텍스트인지 확인 (레거시 데이터 지원)
-        if not self._looks_encrypted(encrypted_content):
-            logger.debug("Content appears to be unencrypted, returning as-is")
-            return encrypted_content
+        if not encrypted_content:
+            return ""
         
         try:
             decrypted_bytes = self._cipher.decrypt(encrypted_content.encode('utf-8'))
@@ -104,14 +106,6 @@ class DiaryEncryptionService:
         except Exception as e:
             logger.error(f"Decryption failed: {e}")
             raise EncryptionError(f"Failed to decrypt content: {e}")
-    
-    def _looks_encrypted(self, text: str) -> bool:
-        """텍스트가 암호화된 것처럼 보이는지 확인"""
-        if not text:
-            return False
-        
-        # Fernet 암호화 텍스트는 'gAAAAA'로 시작
-        return text.startswith('gAAAAA')
 
 
 class EncryptionError(Exception):

@@ -40,16 +40,13 @@ class Command(BaseCommand):
         for diary in diaries:
             try:
                 # 2. Decrypt with OLD key
-                if not diary.content:
+                if not diary.content or not diary.is_encrypted:
+                    self.stdout.write(f"Diary {diary.id}: Content is empty or not encrypted. Skipping.")
                     skip_count += 1
                     continue
                     
-                # Check if it looks encrypted (starts with gAAAAA)
-                # If not sure, try decrypting anyway.
-                if not diary.content.startswith('gAAAAA'):
-                    self.stdout.write(f"Diary {diary.id}: Content seems unencrypted. Skipping.")
-                    skip_count += 1
-                    continue
+                # [Changed] Explicit version check (Optional, for now just trusting is_encrypted)
+                # if diary.encryption_version != 1: ...
 
                 try:
                     decrypted_text = fernet_old.decrypt(diary.content.encode('utf-8')).decode('utf-8')
@@ -63,13 +60,14 @@ class Command(BaseCommand):
 
                 # 4. Save (if not dry run)
                 if not dry_run:
-                    # Update directly to avoid calling 'save()' logic (signals etc) if we want pure data migration
-                    # But here we just update the content field.
-                    # We use update() on queryset to avoid signals? 
-                    # No, we are looping. save() might modify 'updated_at' or trigger embeddings.
-                    # Triggering embedding update is fine, but unnecessary since content didn't change logically.
-                    # Use queryset update to be safe and fast.
-                    Diary.objects.filter(id=diary.id).update(content=encrypted_text)
+                    # Update content AND increment version (if we were moving to version 2)
+                    # For now keep version at 1 as we are just rotating the key, not the algo
+                    # But it's good practice to set encryption_version explicitly.
+                    Diary.objects.filter(id=diary.id).update(
+                        content=encrypted_text,
+                        is_encrypted=True,
+                        encryption_version=1  # or new version
+                    )
                 
                 success_count += 1
                 if success_count % 100 == 0:

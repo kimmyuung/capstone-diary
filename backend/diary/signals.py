@@ -57,6 +57,10 @@ def trigger_stt(sender, instance, created, **kwargs):
                 instance.is_transcribing = False
                 instance.save(update_fields=['is_transcribing'])
 
+        # 테스트 환경 체크
+        from django.conf import settings
+        if getattr(settings, 'IS_TESTING', False):
+            _transcribe()
         else:
             threading.Thread(target=_transcribe).start()
 
