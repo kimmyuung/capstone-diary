@@ -15,12 +15,20 @@
 
 프로젝트의 주요 기능을 시연하는 데모 영상입니다:
 
-https://github.com/user-attachments/assets/capstone_diary_demo_1768306661087.webp
+![데모 영상](docs/demo/app_demo.webp)
 
 > **데모 시연 내용:**
 > - ✅ 초기 화면: 빈 일기 목록 상태
 > - ✅ 일기 작성: "최종 데모 일기" 제목과 내용 입력
 > - ✅ 작성 완료: 목록에 새로운 일기가 정상 표시
+
+**Before** (빈 상태):
+
+![초기 화면](docs/demo/before_create.png)
+
+**After** (일기 작성 후):
+
+![일기 작성 완료](docs/demo/after_create.png)
 
 ---
 
