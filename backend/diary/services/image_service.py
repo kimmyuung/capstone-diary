@@ -148,11 +148,48 @@ class ImageGenerator:
             temp_path = os.path.join(settings.MEDIA_ROOT, filename)
             os.makedirs(os.path.dirname(temp_path), exist_ok=True)
             
-            with open(temp_path, "wb") as f:
-                f.write(image_data)
+            # [Optimization] 이미지 압축 및 리사이징
+            try:
+                from PIL import Image
+                import io
+                
+                img = Image.open(io.BytesIO(image_data))
+                
+                # 1. 리사이징 (최대 1024px)
+                max_size = (1024, 1024)
+                img.thumbnail(max_size, Image.Resampling.LANCZOS)
+                
+                # 2. 포맷 변환 및 압축 (WebP가 효율적이나 호환성 위해 JPEG/PNG 유지하되 최적화)
+                # 여기서는 용량 절감을 위해 WebP로 변환하거나 JPEG 품질 조절
+                # 사용자가 "압축"을 요청했으므로 JPEG Quality 85로 저장 (또는 PNG 최적화)
+                
+                # 투명도(RGBA)가 섞여있을 수 있으므로 처리
+                if img.mode in ('RGBA', 'LA'):
+                    background = Image.new(img.mode[:-1], img.size, (255, 255, 255))
+                    background.paste(img, img.split()[-1])
+                    img = background
+                
+                img = img.convert('RGB')
+                
+                # 원래 확장자 유지 (.png) 하되 저장은 JPEG 형식으로 압축 (용량 대폭 감소)
+                # 파일 확장자를 .jpg로 변경하는 것이 좋으나, 
+                # 위에서 이미 filename을 uuid.png로 생성했으므로 .jpg로 변경
+                filename = filename.replace('.png', '.jpg')
+                temp_path = temp_path.replace('.png', '.jpg')
+                image_url_ext = '.jpg'
+                
+                img.save(temp_path, 'JPEG', quality=85, optimize=True)
+                logger.info(f"Image compressed and saved: {temp_path}")
+                
+            except Exception as compress_err:
+                logger.warning(f"Image compression failed, saving original: {compress_err}")
+                with open(temp_path, "wb") as f:
+                    f.write(image_data)
+                image_url_ext = '.png'
             
             # URL 생성
             image_url = settings.MEDIA_URL + filename
+
             image_url = image_url.replace('\\', '/')
             
             logger.info(f"Image generated and saved successfully: {image_url}")

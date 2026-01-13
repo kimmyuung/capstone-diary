@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     StyleSheet,
     Modal,
+    Image, // Added Image
 } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
@@ -17,6 +18,7 @@ interface PreviewModalProps {
     onEdit: () => void;
     onCancel: () => void;
     isLoading?: boolean;
+    images?: string[]; // Added images prop
 }
 
 export const PreviewModal: React.FC<PreviewModalProps> = ({
@@ -27,6 +29,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
     onEdit,
     onCancel,
     isLoading = false,
+    images = [],
 }) => {
     return (
         <Modal
@@ -61,6 +64,17 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
                                 {content || '(내용 없음)'}
                             </Text>
                         </View>
+
+                        {images && images.length > 0 && (
+                            <View style={styles.imageSection}>
+                                <Text style={styles.label}>첨부된 사진 ({images.length})</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagePreviewContainer}>
+                                    {images.map((uri, index) => (
+                                        <Image key={index} source={{ uri }} style={styles.imagePreview} />
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
                     </ScrollView>
 
                     {/* 안내 메시지 */}
@@ -213,6 +227,20 @@ const styles = StyleSheet.create({
     confirmButtonText: {
         color: '#fff',
         fontWeight: '600',
+    },
+    imageSection: {
+        marginTop: 16,
+    },
+    imagePreviewContainer: {
+        flexDirection: 'row',
+        marginTop: 8,
+    },
+    imagePreview: {
+        width: 100,
+        height: 100,
+        borderRadius: 8,
+        marginRight: 8,
+        backgroundColor: '#f0f0f0',
     },
 });
 

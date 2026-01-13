@@ -24,7 +24,8 @@ except Exception:
     load_dotenv() # Fallback to default
 
 # Testing Mode (Overridden in conftest.py)
-IS_TESTING = False
+import sys
+IS_TESTING = 'test' in sys.argv
 
 # =============================================================================
 # Sentry 모니터링 설정 (에러 추적)
@@ -101,6 +102,7 @@ INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
+    'django.contrib.postgres', # for pgvector HNSW index
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
@@ -111,9 +113,28 @@ INSTALLED_APPS = [
     'drf_spectacular',  # OpenAPI 3.0 문서
     # Local apps
     'diary',
+    # Monitoring
+    'django_prometheus',
 ]
 
+if IS_TESTING:
+    # Disable migrations during tests to allow SQLite to handle pgvector models
+    MIGRATION_MODULES = {
+        'diary': None,
+    }
+    # Remove Postgres-specific apps for SQLite tests
+    INSTALLED_APPS = [app for app in INSTALLED_APPS if app != 'django.contrib.postgres']
+    
+    # Force LocMemCache for tests to avoid Redis dependency
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
+    }
+
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware', # 모니터링 시작
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -122,6 +143,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_prometheus.middleware.PrometheusAfterMiddleware', # 모니터링 종료
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -218,6 +240,43 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# =============================================================================
+# 스토리지 설정 (Cloudflare R2 / S3)
+# =============================================================================
+# 환경 변수에 R2/S3 정보가 있으면 클라우드 스토리지 사용
+if os.environ.get('AWS_ACCESS_KEY_ID'):
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": {
+                "access_key": os.environ.get('AWS_ACCESS_KEY_ID'),
+                "secret_key": os.environ.get('AWS_SECRET_ACCESS_KEY'),
+                "bucket_name": os.environ.get('AWS_STORAGE_BUCKET_NAME'),
+                "endpoint_url": os.environ.get('AWS_S3_ENDPOINT_URL'), # Cloudflare R2 Endpoint
+                "custom_domain": os.environ.get('AWS_S3_CUSTOM_DOMAIN'), # Public Domain
+                "region_name": "auto", # R2는 region 무관 (auto)
+                "file_overwrite": False,
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    
+    # 미디어 URL을 R2 도메인으로 설정
+    if os.environ.get('AWS_S3_CUSTOM_DOMAIN'):
+        MEDIA_URL = f"https://{os.environ.get('AWS_S3_CUSTOM_DOMAIN')}/"
+else:
+    # 로컬 스토리지 (기본)
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+
 
 # OpenAI API Key
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
@@ -307,7 +366,7 @@ REST_FRAMEWORK = {
         'register': '5/hour',         # 회원가입: 시간당 5회 (스팸 계정 방지)
         'password_reset': '3/hour',   # 비밀번호 재설정: 시간당 3회 (이메일 폭탄 방지)
         'email_resend': '3/10min',    # 이메일 재전송: 10분당 3회
-        'ai_image': '20/day',         # AI 이미지 생성: 일당 20회 (비용 관리)
+        'ai_image': '3/day',          # AI 이미지 생성: 일당 3회 (무료 유저 기준, 비용 관리)
         'transcription': '30/hour',   # 음성 인식: 시간당 30회 (비용 관리)
         
         # DDoS 기본 방어
@@ -444,6 +503,34 @@ CELERY_TASK_ROUTES = {
 
 # 동시 실행 워커 수 제한
 CELERY_WORKER_CONCURRENCY = 4
+
+# =============================================================================
+# Celery Beat 스케줄 (주기적 작업)
+# =============================================================================
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    # 1. 벡터 인덱스 재빌드 (새벽 2시 30분)
+    # 검색 성능 유지를 위해 HNSW 인덱스 최적화
+    'reindex-vectors-daily': {
+        'task': 'diary.tasks.reindex_vectors',
+        'schedule': crontab(hour=2, minute=30),
+    },
+    
+    # 2. 고아 이미지 정리 (새벽 3시 00분)
+    # 스토리지 비용 절감을 위해 쓰지 않는 이미지 삭제
+    'cleanup-unused-images-daily': {
+        'task': 'diary.tasks.cleanup_unused_images',
+        'schedule': crontab(hour=3, minute=0),
+    },
+    
+    # 3. 오래된 백업 파일 정리 (새벽 4시 00분)
+    'cleanup-old-exports-daily': {
+        'task': 'diary.tasks.cleanup_old_exports',
+        'schedule': crontab(hour=4, minute=0),
+        'args': (7,), # 7일 지난 파일 삭제
+    },
+}
 
 # =============================================================================
 # drf-spectacular 설정 (OpenAPI 3.0)

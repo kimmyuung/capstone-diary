@@ -1,6 +1,19 @@
 from django.db import models
-from pgvector.django import VectorField
+from django.conf import settings
 from . import Diary
+
+# Handle VectorField and HnswIndex for SQLite (Testing) vs Postgres (Production)
+if 'postgresql' in settings.DATABASES['default']['ENGINE']:
+    from pgvector.django import VectorField, HnswIndex
+else:
+    # Fallback for SQLite to allow tests to run
+    class VectorField(models.TextField):
+        def __init__(self, *args, **kwargs):
+            if 'dimensions' in kwargs:
+                del kwargs['dimensions']
+            super().__init__(*args, **kwargs)
+    
+    HnswIndex = None
 
 class DiaryEmbedding(models.Model):
     """
@@ -14,6 +27,19 @@ class DiaryEmbedding(models.Model):
     vector = VectorField(dimensions=384)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = []
+        if HnswIndex:
+            indexes.append(
+                HnswIndex(
+                    name='diary_vector_idx',
+                    fields=['vector'],
+                    m=16,
+                    ef_construction=64,
+                    opclasses=['vector_l2_ops']
+                )
+            )
 
     def __str__(self):
         return f"Embedding for Diary {self.diary_id}"

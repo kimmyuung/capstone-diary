@@ -131,8 +131,59 @@ class DiaryAPITest(APITestCase):
         response = self.client.delete(url)
         
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Diary.objects.count(), 0)
+
+    def test_update_diary_optimistic_locking(self):
+        """일기 수정 시 낙관적 락(Optimistic Locking) 테스트"""
+        diary = Diary.objects.create(
+            user=self.user,
+            title='원본 제목',
+            content='원본 내용',
+            version=1
+        )
+        url = reverse('diary-detail', kwargs={'pk': diary.pk})
+        
+        # 1. 정상 업데이트 (버전 일치)
+        # version=1을 보내면 성공하고 version이 2가 되어야 함
+        data = {
+            'title': '수정된 제목',
+            'content': '수정된 내용',
+            'version': 1
+        }
+        response = self.client.put(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        diary.refresh_from_db()
+        self.assertEqual(diary.title, '수정된 제목')
+        self.assertEqual(diary.version, 2)
+        
+        # 2. 충돌 테스트 (잘못된 버전)
+        # 이미 version=2인데 version=1로 요청하면 409 Conflict
+        data_conflict = {
+            'title': '충돌 시도',
+            'content': '충돌 내용',
+            'version': 1
+        }
+        response_conflict = self.client.put(url, data_conflict, format='json')
+        self.assertEqual(response_conflict.status_code, status.HTTP_409_CONFLICT)
+        
+        # DB 변경 없음 확인
+        diary.refresh_from_db()
+        self.assertEqual(diary.title, '수정된 제목')
+        self.assertEqual(diary.version, 2)
+        
+        # 3. 버전 미포함 (하위 호환성 - 강제 업데이트 허용 여부에 따라 다름)
+        # 현재 구현상 version이 없으면 체크 안함 -> 성공하고 버전 증가
+        data_no_version = {
+            'title': '강제 수정',
+            'content': '강제 내용'
+        }
+        response_force = self.client.put(url, data_no_version, format='json')
+        self.assertEqual(response_force.status_code, status.HTTP_200_OK)
+        
+        diary.refresh_from_db()
+        self.assertEqual(diary.title, '강제 수정')
+        self.assertEqual(diary.version, 3)
 
     def test_upload_voice_file(self):
         """음성 파일 업로드 테스트"""

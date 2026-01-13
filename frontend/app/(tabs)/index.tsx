@@ -23,6 +23,8 @@ import { DiaryListSkeleton } from '@/components/Skeleton';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { useToast } from '@/contexts/ToastContext';
+import { useOptimisticDiaries } from '@/hooks/useOptimisticDiaries';
+import { useOfflineQueue } from '@/contexts/OfflineQueueContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -36,35 +38,22 @@ export default function DiaryListScreen() {
     const { isAuthenticated, logout } = useAuth();
     const { colors, isDark } = useTheme();
     const { showToast } = useToast();
-    const [diaries, setDiaries] = useState<Diary[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
+    // Optimistic UI Hook
+    const {
+        diaries,
+        isLoading: loading,
+        isRefreshing,
+        refresh
+    } = useOptimisticDiaries();
 
-    const fetchDiaries = useCallback(async () => {
-        try {
-            const data = await diaryService.getAll();
-            setDiaries(data);
-        } catch (err) {
-            console.error('Failed to fetch diaries:', err);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (isAuthenticated) {
-            fetchDiaries();
-        } else {
-            setLoading(false);
-        }
-    }, [isAuthenticated, fetchDiaries]);
+    // Remove local state and effects as they are handled inside the hook
 
     const onRefresh = async () => {
-        setRefreshing(true);
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        await fetchDiaries();
-        setRefreshing(false);
+        await refresh();
     };
+
+    const { queueDeleteDiary } = useOfflineQueue();
 
     const handleDelete = async (id: number) => {
         await Haptics.selectionAsync();
@@ -75,12 +64,11 @@ export default function DiaryListScreen() {
                 style: 'destructive',
                 onPress: async () => {
                     try {
-                        await diaryService.delete(id);
+                        // Optimistic Delete via Offline Queue
+                        await queueDeleteDiary(id);
 
                         // Layout Animation 적용
                         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                        setDiaries((prev) => prev.filter((d) => d.id !== id));
-
                         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         showToast('일기가 삭제되었습니다');
                     } catch (err) {
@@ -216,7 +204,7 @@ export default function DiaryListScreen() {
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
-                        refreshing={refreshing}
+                        refreshing={isRefreshing}
                         onRefresh={onRefresh}
                         tintColor={Palette.primary[500]}
                     />

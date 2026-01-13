@@ -60,6 +60,9 @@ urlpatterns = [
     
     # 일기 API
     path('api/', include('diary.urls')),
+    
+    # Prometheus Metrics (모니터링)
+    path('', include('django_prometheus.urls')),
 ]
 
 from django.conf import settings

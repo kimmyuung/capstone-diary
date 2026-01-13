@@ -5,28 +5,47 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+# Global variable for singleton model
+_SENTENCE_TRANSFORMER_MODEL = None
+
+def get_sentence_transformer_model():
+    """
+    SentenceTransformer 모델을 싱글톤으로 로드하여 반환
+    """
+    global _SENTENCE_TRANSFORMER_MODEL
+    if _SENTENCE_TRANSFORMER_MODEL is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+            logger.info("Loading SentenceTransformer model... (This should happen once per worker)")
+            _SENTENCE_TRANSFORMER_MODEL = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+        except ImportError:
+            logger.warning("sentence-transformers not installed. Keyword extraction disabled.")
+            _SENTENCE_TRANSFORMER_MODEL = None
+        except Exception as e:
+            logger.error(f"Failed to load SentenceTransformer model: {e}")
+            _SENTENCE_TRANSFORMER_MODEL = None
+            
+    return _SENTENCE_TRANSFORMER_MODEL
+
 class KeywordExtractor:
     """
-    KeyBERT 방식의 키워드 추출기
+    KeyBERT 방식의 키워드 추출기 (Singleton Model 사용)
     - 문서를 n-gram으로 분할
     - 문서와 n-gram의 임베딩 유사도 계산
     - 가장 유사도가 높은 키워드(구) 추출
     """
     
     def __init__(self):
-        try:
-            from sentence_transformers import SentenceTransformer
-            # ChatService와 동일한 모델 사용 (메모리 효율)
-            self.model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-        except ImportError:
-            logger.warning("sentence-transformers not installed. Keyword extraction disabled.")
-            self.model = None
+        # 생성자에서는 모델을 직접 로드하지 않고, 메서드 호출 시 get_model() 사용
+        pass
 
     def extract_keywords(self, text, top_n=5, keyphrase_ngram_range=(1, 2)):
         """
         텍스트에서 핵심 키워드/구 추출
         """
-        if not self.model or not text or len(text) < 10:
+        model = get_sentence_transformer_model()
+        
+        if not model or not text or len(text) < 10:
             return []
             
         try:
@@ -38,8 +57,8 @@ class KeywordExtractor:
             candidates = count.get_feature_names_out()
 
             # 2. 문서 및 후보 임베딩
-            doc_embedding = self.model.encode([text])
-            candidate_embeddings = self.model.encode(candidates)
+            doc_embedding = model.encode([text])
+            candidate_embeddings = model.encode(candidates)
 
             # 3. 코사인 유사도 계산
             distances = cosine_similarity(doc_embedding, candidate_embeddings)

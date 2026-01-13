@@ -9,10 +9,13 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    Image, // Added Image
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Stack } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker'; // Added ImagePicker
 import { diaryService } from '@/services/api';
+import { saveImageToOfflineStorage, cleanupUploadedImages } from '@/utils/imageStorage'; // Added Utils
 import { VoiceRecorder } from '@/components/diary/VoiceRecorder';
 import { PreviewModal } from '@/components/diary/PreviewModal';
 import { LocationPicker, LocationPickerValue } from '@/components/diary/LocationPicker';
@@ -29,6 +32,7 @@ export default function CreateDiaryScreen() {
     const { isOffline, queueCreateDiary } = useOfflineQueue();
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
+    const [images, setImages] = useState<string[]>([]); // Added images state
     const [isRecording, setIsRecording] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -48,6 +52,39 @@ export default function CreateDiaryScreen() {
         latitude: null,
         longitude: null,
     });
+
+    // Image Picker Logic
+    const pickImage = async () => {
+        // Permission check
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('권한 필요', '사진을 첨부하려면 갤러리 접근 권한이 필요합니다.');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true, // Optional: crop
+            aspect: [4, 3],
+            quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets[0].uri) {
+            const uri = result.assets[0].uri;
+            // Immediate persistence: Save to offline storage right away
+            try {
+                const persistentUri = await saveImageToOfflineStorage(uri);
+                setImages((prev) => [...prev, persistentUri]);
+            } catch (error) {
+                console.error('Failed to save image:', error);
+                Alert.alert('오류', '이미지를 저장하는 데 실패했습니다.');
+            }
+        }
+    };
+
+    const removeImage = (index: number) => {
+        setImages((prev) => prev.filter((_, i) => i !== index));
+    };
 
     const handleTranscription = useCallback((text: string, summary?: string) => {
         setContent((prev) => {
@@ -93,6 +130,7 @@ export default function CreateDiaryScreen() {
             location_name: locationData.locationName || null,
             latitude: locationData.latitude || null,
             longitude: locationData.longitude || null,
+            images: images, // Pass persistent URIs
         };
 
         try {
@@ -105,6 +143,11 @@ export default function CreateDiaryScreen() {
             }
 
             await diaryService.create(diaryData);
+
+            // Cleanup: If uploaded successfully, we could clean up local files.
+            // But we might want to keep them just in case or for cache.
+            // For now, let's just leave them or handle cleanup later.
+
             setShowPreview(false);
             Alert.alert('저장 완료 ✨', '일기가 안전하게 저장되었습니다', [
                 { text: '확인', onPress: () => router.back() },
@@ -206,6 +249,29 @@ export default function CreateDiaryScreen() {
                         <FormFieldError error={errors.title} />
                     </View>
 
+
+                    {/* 이미지 섹션 */}
+                    <View style={styles.imageSection}>
+                        <Text style={styles.imageSectionLabel}>사진 첨부</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagePreviewContainer}>
+                            {images.map((uri, index) => (
+                                <View key={index} style={styles.imagePreviewWrapper}>
+                                    <Image source={{ uri }} style={styles.imagePreview} />
+                                    <TouchableOpacity
+                                        style={styles.removeImageButton}
+                                        onPress={() => removeImage(index)}
+                                    >
+                                        <IconSymbol name="xmark" size={14} color="#fff" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </ScrollView>
+                        <TouchableOpacity style={styles.addImageButton} onPress={pickImage} disabled={isRecording}>
+                            <IconSymbol name="photo.on.rectangle" size={20} color={Palette.neutral[600]} />
+                            <Text style={styles.addImageText}>사진 추가하기</Text>
+                        </TouchableOpacity>
+                    </View>
+
                     {/* 내용 입력 */}
                     <View style={styles.inputGroup}>
                         <TextInput
@@ -261,6 +327,7 @@ export default function CreateDiaryScreen() {
                     visible={showPreview}
                     title={title}
                     content={content}
+                    images={images}
                     onConfirm={handleConfirmSave}
                     onEdit={handleEdit}
                     onCancel={handleCancelPreview}
@@ -355,6 +422,60 @@ const styles = StyleSheet.create({
         marginTop: Spacing.xs,
     },
 
+    // 이미지 섹션
+    imageSection: {
+        marginBottom: Spacing.xl,
+    },
+    imageSectionLabel: {
+        fontSize: FontSize.sm,
+        color: Palette.neutral[500],
+        marginBottom: Spacing.sm,
+    },
+    imagePreviewContainer: {
+        flexDirection: 'row',
+        gap: Spacing.md,
+        marginBottom: Spacing.md,
+    },
+    imagePreviewWrapper: {
+        position: 'relative',
+        borderRadius: BorderRadius.md,
+        overflow: 'hidden',
+        ...Shadows.sm,
+    },
+    imagePreview: {
+        width: 100,
+        height: 100,
+        backgroundColor: Palette.neutral[100],
+    },
+    removeImageButton: {
+        position: 'absolute',
+        top: 4,
+        right: 4,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    addImageButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: Spacing.xs,
+        paddingVertical: Spacing.md,
+        borderRadius: BorderRadius.md,
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: Palette.neutral[200],
+        ...Shadows.sm,
+    },
+    addImageText: {
+        fontSize: FontSize.md,
+        color: Palette.neutral[600],
+        fontWeight: FontWeight.medium,
+    },
+
     // 저장 버튼
     saveButton: {
         marginTop: Spacing.xl,
@@ -390,59 +511,5 @@ const styles = StyleSheet.create({
     securityText: {
         fontSize: FontSize.sm,
         color: Palette.secondary[500],
-    },
-
-    // 위치 선택
-    locationSection: {
-        marginBottom: Spacing.xl,
-    },
-    locationOptions: {
-        gap: Spacing.sm,
-        paddingVertical: Spacing.xs,
-    },
-    locationButton: {
-        paddingHorizontal: Spacing.md,
-        paddingVertical: Spacing.sm,
-        borderRadius: BorderRadius.full,
-        backgroundColor: '#fff',
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.xs,
-        ...Shadows.sm,
-    },
-    locationButtonActive: {
-        backgroundColor: Palette.primary[500],
-    },
-    locationEmoji: {
-        fontSize: 16,
-    },
-    locationLabel: {
-        fontSize: FontSize.sm,
-        color: Palette.neutral[700],
-    },
-    locationLabelActive: {
-        color: '#fff',
-    },
-    locationInput: {
-        marginTop: Spacing.md,
-        backgroundColor: '#fff',
-        borderRadius: BorderRadius.md,
-        padding: Spacing.md,
-        fontSize: FontSize.md,
-        color: Palette.neutral[900],
-        borderWidth: 1,
-        borderColor: Palette.neutral[200],
-    },
-    selectedLocationBadge: {
-        marginTop: Spacing.sm,
-        paddingHorizontal: Spacing.md,
-        paddingVertical: Spacing.xs,
-        backgroundColor: Palette.primary[50],
-        borderRadius: BorderRadius.full,
-        alignSelf: 'flex-start',
-    },
-    selectedLocationText: {
-        fontSize: FontSize.sm,
-        color: Palette.primary[600],
     },
 });

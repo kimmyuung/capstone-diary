@@ -63,9 +63,16 @@ export const DiaryCard: React.FC<DiaryCardProps> = ({ diary, onDelete }) => {
                     <Text style={styles.avatarEmoji}>📔</Text>
                 </View>
                 <View style={styles.headerInfo}>
-                    <Text style={styles.title} numberOfLines={1}>
-                        {diary.title || '제목 없음'}
-                    </Text>
+                    <View style={styles.titleRow}>
+                        <Text style={styles.title} numberOfLines={1}>
+                            {diary.title || '제목 없음'}
+                        </Text>
+                        {diary.isSyncing && (
+                            <View style={styles.syncBadge}>
+                                <Text style={styles.syncText}>저장 중...</Text>
+                            </View>
+                        )}
+                    </View>
                     <View style={styles.metaRow}>
                         <Text style={styles.date}>{formatDate(diary.created_at)}</Text>
                         {diary.location_name && (
@@ -237,6 +244,23 @@ const styles = StyleSheet.create({
     locationText: {
         fontSize: FontSize.xs,
         color: Palette.primary[600],
+    },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        marginBottom: 2,
+    },
+    syncBadge: {
+        backgroundColor: Palette.neutral[200],
+        paddingHorizontal: Spacing.xs,
+        paddingVertical: 2,
+        borderRadius: BorderRadius.sm,
+    },
+    syncText: {
+        fontSize: 10,
+        color: Palette.neutral[600],
+        fontWeight: FontWeight.bold,
     },
 });
 

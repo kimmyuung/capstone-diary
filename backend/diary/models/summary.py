@@ -1,6 +1,19 @@
 from django.db import models
+from django.conf import settings
 from django.contrib.auth.models import User
-from pgvector.django import VectorField
+
+# Handle VectorField and HnswIndex for SQLite (Testing) vs Postgres (Production)
+if 'postgresql' in settings.DATABASES['default']['ENGINE']:
+    from pgvector.django import VectorField, HnswIndex
+else:
+    # Fallback for SQLite to allow tests to run
+    class VectorField(models.TextField):
+        def __init__(self, *args, **kwargs):
+            if 'dimensions' in kwargs:
+                del kwargs['dimensions']
+            super().__init__(*args, **kwargs)
+            
+    HnswIndex = None
 
 class DiarySummary(models.Model):
     """
@@ -29,6 +42,16 @@ class DiarySummary(models.Model):
         indexes = [
             models.Index(fields=['user', 'period_type', '-start_date']),
         ]
+        if HnswIndex:
+            indexes.append(
+                HnswIndex(
+                    name='summary_vector_idx',
+                    fields=['vector'],
+                    m=16,
+                    ef_construction=64,
+                    opclasses=['vector_l2_ops']
+                )
+            )
         unique_together = ['user', 'period_type', 'start_date']
         verbose_name = '요약'
         verbose_name_plural = '요약들'

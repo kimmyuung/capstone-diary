@@ -315,3 +315,36 @@ def extract_keywords_task(diary_id: int):
         logger.error(f"[Celery] Auto-tagging failed: {e}")
         return str(e)
 
+
+@shared_task
+def reindex_vectors():
+    """
+    주기적 벡터 인덱스 재빌드 (Reindexing)
+    - pgvector HNSW 인덱스는 데이터 추가/삭제가 반복되면 효율이 떨어질 수 있음
+    - 저부하 시간대(새벽)에 수행 권장
+    """
+    from django.db import connection, transaction
+    
+    logger.info("[Celery] Starting incremental vector reindexing...")
+    
+    # SQLite에서는 HnswIndex가 없거나 동작이 다르므로 스킵
+    if connection.vendor != 'postgresql':
+        logger.info("[Celery] Skipping reindexing (Not PostgreSQL)")
+        return "Skipped (Not PostgreSQL)"
+        
+    try:
+        with connection.cursor() as cursor:
+            # 1. DiaryEmbedding 인덱스 재빌드
+            # CONCURRENTLY 옵션은 인덱스 종류에 따라 지원 여부가 다름 (pgvector 0.5+ 지원 시도)
+            # 여기서는 안전하게 일반 REINDEX 사용 (락 걸릴 수 있으므로 새벽 실행 필수)
+            cursor.execute("REINDEX INDEX CONCURRENTLY diary_vector_idx;")
+            logger.info("[Celery] Reindexed diary_vector_idx")
+            
+            # 2. DiarySummary 인덱스 재빌드
+            cursor.execute("REINDEX INDEX CONCURRENTLY summary_vector_idx;")
+            logger.info("[Celery] Reindexed summary_vector_idx")
+            
+        return "Reindexing completed"
+    except Exception as e:
+        logger.error(f"[Celery] Reindexing failed: {e}")
+        return str(e)

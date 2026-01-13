@@ -253,14 +253,51 @@ class DiaryViewSet(viewsets.ModelViewSet):
         self._generate_reflection_if_needed(instance)
         invalidate_user_cache(self.request.user.id)
     
+    def update(self, request, *args, **kwargs):
+        """
+        일기 수정 (Optimistic Locking 적용)
+        클라이언트가 보낸 version과 DB의 version이 일치해야만 수정 가능.
+        """
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        
+        # 1. 버전 검증
+        request_version = request.data.get('version')
+        
+        # version이 제공된 경우에만 검증 (하위 호환성 위해 optional로 처리할 수도 있으나, 
+        # 강력한 제어를 위해 필수값으로 간주하거나, 없으면 검증 패스 등의 정책 필요.
+        # 여기서는 request에 version이 있으면 검증하는 방식으로 구현)
+        if request_version is not None:
+            if int(request_version) != instance.version:
+                return Response(
+                    {"detail": "Data has been modified by another process.", "code": "conflict"},
+                    status=status.HTTP_409_CONFLICT
+                )
+
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
+
     def perform_update(self, serializer):
         """
-        일기 수정 시 관련 캐시를 무효화합니다.
+        일기 수정 시 관련 캐시를 무효화하고 버전을 증가시킵니다.
         """
         from ..cache_utils import invalidate_user_cache
+        from django.db.models import F
         
-        serializer.save()
+        # Atomic Version Increment
         instance = serializer.instance
+        instance.version = F('version') + 1
+        serializer.save()
+        
+        # 갱신된 값 다시 로드 (F 객체 표현식 결과를 값으로 변환)
+        instance.refresh_from_db()
+        
         self._generate_reflection_if_needed(instance)
         invalidate_user_cache(self.request.user.id)
     

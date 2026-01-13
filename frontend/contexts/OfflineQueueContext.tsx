@@ -20,6 +20,8 @@ interface OfflineQueueContextType {
     queueCreateDiary: (data: CreateDiaryRequest) => Promise<void>;
     /** 일기 수정 요청 큐에 추가 (오프라인용) */
     queueUpdateDiary: (id: number, data: UpdateDiaryRequest) => Promise<void>;
+    /** 일기 삭제 요청 큐에 추가 (오프라인용) */
+    queueDeleteDiary: (id: number) => Promise<void>;
     /** 수동으로 큐 동기화 */
     syncQueue: () => Promise<void>;
     /** 큐에서 요청 제거 */
@@ -121,15 +123,66 @@ export const OfflineQueueProvider: React.FC<OfflineQueueProviderProps> = ({ chil
 
                 // 409 Conflict 처리 (Optimistic Locking)
                 if (error.response && error.response.status === 409) {
-                    Alert.alert(
-                        '동기화 충돌',
-                        '서버에 더 최신 데이터가 있어 일부 변경사항이 적용되지 않았습니다. 데이터를 새로고침 해주세요.',
-                        [{ text: '확인' }]
-                    );
-                    // 충돌난 요청은 큐에서 제거 (계속 실패하므로)
-                    await offlineStorage.removeRequest(request.id);
-                    failCount++;
-                    continue;
+                    console.log(`[OfflineQueue] Conflict detected for ${request.id}. Attempting auto-resolution...`);
+
+                    try {
+                        // 1. 최신 데이터 조회 (GET)
+                        // UPDATE_DIARY인 경우에만 병합 가능. CREATE는 409가 날 수 없음(일반적으로), DELETE는 이미 삭제됨.
+                        if (request.type === 'UPDATE_DIARY') {
+                            let diaryId;
+                            // ID 매핑 또는 payload ID 확인
+                            const payloadObj = request.payload as any;
+                            diaryId = payloadObj.id;
+
+                            // 만약 payload id가 string이고 map에 있다면 변환 (이미 processRequest 진입 전/중 로직이 섞여있어서 복잡할 수 있음)
+                            // 여기서는 processRequest 호출 전이므로 raw payload임.
+                            // 하지만 위 loop 안에서 processRequest를 호출했으므로, 
+                            // 이미 실패한 시점.
+
+                            // 간단하게: 실제 ID가 필요함.
+                            if (idMap.has(String(diaryId))) {
+                                diaryId = idMap.get(String(diaryId));
+                            }
+
+                            // 최신 데이터 가져오기
+                            const { data: latestDiary } = await api.get(`/api/diaries/${diaryId}/`);
+
+                            // 2. 버전 업데이트 (Merge)
+                            // 서버의 최신 버전을 가져와서 내 요청의 버전을 갱신 (덮어쓰기 전략)
+                            const newPayload = { ...payloadObj, version: latestDiary.version };
+
+                            // 3. 큐 아이템 업데이트 및 즉시 재시도
+                            // (여기서는 retryCount 증가 없이 바로 재시도를 위해 큐만 수정하고 다음 턴에 맡기거나, 
+                            //  바로 processRequest를 다시 부를 수도 있음. 안전하게 큐 업데이트만 하고 루프 진행)
+
+                            // 큐에 있는 요청을 수정해서 다시 저장해야 함.
+                            // 하지만 현재 구조상 offlineStorage.updateRequest 같은게 없음.
+                            // remove -> add 방식으로 교체.
+
+                            await offlineStorage.removeRequest(request.id);
+                            // 기존 타임스탬프 등 유지하면서 payload만 교체하여 다시 추가
+                            // 단, addRequest는 새 ID를 만드므로, 수동으로 구성해서 저장하거나
+                            // 그냥 새 요청으로 취급 (순서가 뒤로 밀릴 수 있음. 근데 큐 맨 뒤로 가면 나중에 처리됨. 괜찮음)
+
+                            await offlineStorage.addRequest(request.type, newPayload);
+
+                            console.log(`[OfflineQueue] Conflict resolved. Re-queued with version ${latestDiary.version}`);
+                            // 현재 루프에서는 건너뛰고 다음 sync때 처리됨 (또는 큐 끝에 붙었으므로 이번 루프 끝에서 처리될 수도?)
+                            // queue는 getQueue()로 가져온 스냅샷이므로 이번 루프에선 처리 안됨. 다음 sync때 처리.
+                            continue;
+                        }
+                    } catch (resolveError) {
+                        console.error(`[OfflineQueue] Auto-resolution failed:`, resolveError);
+                        // 해결 실패 시 사용자 알림 후 제거
+                        Alert.alert(
+                            '동기화 충돌',
+                            '서버 데이터와 충돌하여 저장을 완료하지 못했습니다.',
+                            [{ text: '확인' }]
+                        );
+                        await offlineStorage.removeRequest(request.id);
+                        failCount++;
+                        continue;
+                    }
                 }
 
                 await offlineStorage.incrementRetry(request.id);
@@ -174,7 +227,7 @@ export const OfflineQueueProvider: React.FC<OfflineQueueProviderProps> = ({ chil
 
         switch (type) {
             case 'CREATE_DIARY': {
-                const data = payload as CreateDiaryRequest & { id?: string }; // 로컬 임시 ID 포함 가능성
+                const data = payload as any; // Allow flexible access to potential local ID and other fields
 
                 // 이미지 업로드 처리 (FormData)
                 if (data.images && data.images.length > 0) {
@@ -212,7 +265,7 @@ export const OfflineQueueProvider: React.FC<OfflineQueueProviderProps> = ({ chil
                 break;
             }
             case 'UPDATE_DIARY': {
-                const { id, ...data } = payload as UpdateDiaryRequest & { id: number };
+                const { id, ...data } = payload as any;
 
                 // 이미지 업로드 처리 (FormData) - 수정 시에도 이미지가 있을 수 있음
                 if (data.images && data.images.length > 0) {
@@ -258,6 +311,7 @@ export const OfflineQueueProvider: React.FC<OfflineQueueProviderProps> = ({ chil
                 isSyncing,
                 queueCreateDiary,
                 queueUpdateDiary,
+                queueDeleteDiary,
                 syncQueue,
                 removeFromQueue,
             }}

@@ -21,6 +21,7 @@ export interface Diary {
     is_transcribing?: boolean;
     keywords?: string[]; // 핵심 키워드
     version?: number; // Optimistic Locking
+    isSyncing?: boolean; // Optimistic UI state
 }
 
 export interface DiaryImage {
