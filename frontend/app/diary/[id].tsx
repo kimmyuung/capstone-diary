@@ -63,6 +63,16 @@ export default function DiaryDetailScreen() {
     const handleGenerateImage = async () => {
         if (!diary) return;
 
+        // [최적화] 일기 내용이 너무 짧으면 이미지 생성을 제한합니다 (50자 기준)
+        if (diary.content.length < 50) {
+            Alert.alert(
+                '알림',
+                '일기 내용이 너무 짧습니다.\n더 풍성한 그림을 위해 50자 이상 작성해주세요!',
+                [{ text: '확인' }]
+            );
+            return;
+        }
+
         // 최대 3장 제한
         if (diary.images.length >= 3) {
             Alert.alert('알림', 'AI 이미지는 일기당 최대 3장까지 생성할 수 있습니다.');

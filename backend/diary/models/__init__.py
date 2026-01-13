@@ -25,6 +25,9 @@ from .preference import UserPreference
 # 채팅 임베딩 관련
 from .chat_models import DiaryEmbedding
 
+# 요약 관련
+from .summary import DiarySummary
+
 
 __all__ = [
     # Diary
@@ -44,4 +47,6 @@ __all__ = [
     'UserPreference',
     # Chat
     'DiaryEmbedding',
+    # Summary
+    'DiarySummary',
 ]

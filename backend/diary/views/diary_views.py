@@ -836,9 +836,14 @@ class DiaryViewSet(viewsets.ModelViewSet):
         
         return response
 
+    @action(detail=True, methods=['post'], url_path='generate-image')
     def generate_image(self, request, pk=None):
         """
         특정 일기 항목에 대한 AI 이미지를 생성합니다.
+        
+        [정책]
+        - 일기 본문이 50자 미만인 경우 생성을 제한합니다.
+        - 이는 테스트성 생성으로 인한 비용 낭비를 막고, 품질을 보장하기 위함입니다.
         """
         diary = self.get_object()
         
@@ -850,8 +855,16 @@ class DiaryViewSet(viewsets.ModelViewSet):
             )
             
         try:
+            # 본문 길이 검증 (복호화 후 확인)
+            content = diary.decrypt_content()
+            if not content or len(content.strip()) < 50:
+                return Response(
+                    {'error': '일기 내용이 너무 짧습니다. 50자 이상 작성해주세요.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             generator = ImageGenerator()
-            result = generator.generate(diary.content, emotion=diary.emotion)
+            result = generator.generate(content, emotion=diary.emotion)
             
             diary_image = DiaryImage.objects.create(
                 diary=diary,

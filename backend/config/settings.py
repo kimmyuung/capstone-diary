@@ -69,14 +69,27 @@ if SENTRY_DSN:
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+from django.core.exceptions import ImproperlyConfigured
+
+def get_env_variable(var_name, default=None):
+    """환경 변수를 가져오거나 예외를 발생시킵니다."""
+    try:
+        return os.environ[var_name]
+    except KeyError:
+        if default is not None:
+            return default
+        error_msg = f"Set the {var_name} environment variable"
+        raise ImproperlyConfigured(error_msg)
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-!6195=+z#=!sdqa5=9ec$hab=$tj0g69y0mba+j#c9vl51hqjw')
+# Phase 1: Remove insecure fallback. Must be set in env.
+SECRET_KEY = get_env_variable('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 # 허용 호스트 (프로덕션에서는 환경 변수로 설정)
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
@@ -221,7 +234,7 @@ GEMINI_TEXT_MODEL = os.environ.get('GEMINI_TEXT_MODEL', 'gemini-3-flash-preview'
 # 일기 내용 암호화 키 (32바이트 Base64 인코딩)
 # 프로덕션에서는 반드시 환경 변수로 설정할 것!
 # 생성 방법: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-DIARY_ENCRYPTION_KEY = os.environ.get('DIARY_ENCRYPTION_KEY', '')
+DIARY_ENCRYPTION_KEY = get_env_variable('DIARY_ENCRYPTION_KEY')
 
 # =============================================================================
 # 이메일 설정 (비밀번호 재설정용)
