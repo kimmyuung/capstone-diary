@@ -1,0 +1,315 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.12, pytest-7.4.3, pluggy-1.6.0
+django: version: 6.0.1, settings: config.settings (from ini)
+rootdir: /app
+configfile: pytest.ini
+plugins: cov-4.1.0, Faker-20.1.0, django-4.7.0, anyio-4.12.1
+collected 27 items
+
+diary/tests/test_views.py Error updating embedding for diary 1: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(1) is not present in table "diary_diary".
+F......FError updating embedding for diary 9: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+....Error updating embedding for diary 12: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+..                                 [ 51%]
+diary/tests/test_models.py ....Error updating embedding for diary 18: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it......                                     [ 85%]
+diary/tests/test_chat_service.py FF..                                    [100%]
+
+=================================== FAILURES ===================================
+________________________ DiaryAPITest.test_create_diary ________________________
+
+self = <diary.tests.test_views.DiaryAPITest testMethod=test_create_diary>
+
+    def test_create_diary(self):
+        """일기 작성 API 테스트"""
+        url = reverse('diary-list')
+        data = {
+            'title': '오늘의 일기',
+            'content': '오늘은 즐거운 하루였다.'
+        }
+        response = self.client.post(url, data, format='json')
+    
+>       self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+E       AssertionError: 500 != 201
+
+diary/tests/test_views.py:45: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Error updating embedding for diary 1: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(1) is not present in table "diary_diary".
+----------------------------- Captured stderr call -----------------------------
+DIARY_ENCRYPTION_KEY not set. Encryption disabled.
+Emotion analysis raw response: {"emotion": "happy", "score": 95, "reason": "사용자가 하루를 '즐겁다'고 직접적으로 표현하며 긍정적인 만족감을 나타냈기 때문입니다."}
+Failed to generate reflection question: Aggregate functions are not allowed in this query (reflection_question=<MagicMock name='mock.GenerativeModel().generate_content().text.strip().resolve_expression().resolve_expression()' id='130156374401120'>).
+Unhandled exception: TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block. | {'view': 'DiaryViewSet', 'method': 'POST', 'path': '/api/diaries/', 'user': 'testuser'}
+------------------------------ Captured log call -------------------------------
+WARNING  diary:encryption.py:33 DIARY_ENCRYPTION_KEY not set. Encryption disabled.
+DEBUG    diary:emotion_service.py:108 Emotion analysis raw response: {"emotion": "happy", "score": 95, "reason": "사용자가 하루를 '즐겁다'고 직접적으로 표현하며 긍정적인 만족감을 나타냈기 때문입니다."}
+ERROR    diary.views.diary_views:diary_views.py:240 Failed to generate reflection question: Aggregate functions are not allowed in this query (reflection_question=<MagicMock name='mock.GenerativeModel().generate_content().text.strip().resolve_expression().resolve_expression()' id='130156374401120'>).
+ERROR    diary:exception_handler.py:90 Unhandled exception: TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block. | {'view': 'DiaryViewSet', 'method': 'POST', 'path': '/api/diaries/', 'user': 'testuser'}
+ERROR    django.request:log.py:249 Internal Server Error: /api/diaries/
+_____________________ DiaryAPITest.test_upload_voice_file ______________________
+
+self = <diary.tests.test_views.DiaryAPITest testMethod=test_upload_voice_file>
+
+    def test_upload_voice_file(self):
+        """음성 파일 업로드 테스트"""
+        diary = Diary.objects.create(
+            user=self.user,
+            title='음성 일기',
+            content='녹음'
+        )
+    
+        url = reverse('diary-detail', kwargs={'pk': diary.pk})
+    
+        # 가짜 오디오 파일 생성
+        voice_content = b'fake-audio-content'
+        voice_file = SimpleUploadedFile('test.m4a', voice_content, content_type='audio/m4a')
+    
+        # Multipart upload requires specific format in test client (usually PUT/PATCH with encode_multipart is tricky,
+        # but Django test client handles it if data is dict and format is multipart)
+        # However, DRF test client handles 'multipart' format automatically if passed
+        data = {'voice_file': voice_file}
+        response = self.client.patch(url, data, format='multipart')
+    
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    
+        diary.refresh_from_db()
+        self.assertTrue(bool(diary.voice_file))
+>       self.assertIn('test.m4a', diary.voice_file.name)
+E       AssertionError: 'test.m4a' not found in 'voice/test_nTMozOV.m4a'
+
+diary/tests/test_views.py:154: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Error updating embedding for diary 8: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(8) is not present in table "diary_diary".
+Error updating embedding for diary 9: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(9) is not present in table "diary_diary".
+----------------------------- Captured stderr call -----------------------------
+Encryption disabled, returning content as-is
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:encryption.py:88 Encryption disabled, returning content as-is
+_____________ TestChatService.test_generate_chat_response_success ______________
+
+self = <django.db.models.fields.AutoField: id>, value = []
+
+    def get_prep_value(self, value):
+        value = super().get_prep_value(value)
+        if value is None:
+            return None
+        try:
+>           return int(value)
+E           TypeError: int() argument must be a string, a bytes-like object or a real number, not 'list'
+
+/usr/local/lib/python3.12/site-packages/django/db/models/fields/__init__.py:2128: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = <diary.tests.test_chat_service.TestChatService object at 0x7660805e7020>
+mock_transformer = <MagicMock name='SentenceTransformer' id='130156372531472'>
+mock_genai = <MagicMock name='genai' id='130156372599264'>
+
+    @patch('diary.services.chat_service.genai')
+    @patch('diary.services.chat_service.SentenceTransformer')
+    def test_generate_chat_response_success(self, mock_transformer, mock_genai):
+        """채팅 응답 생성 성공 케이스"""
+        # Mocking Models
+        mock_model = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "네, 그랬군요."
+        mock_model.generate_content.return_value = mock_response
+        mock_genai.GenerativeModel.return_value = mock_model
+    
+        # Mock Embedding
+        mock_encoder = MagicMock()
+        mock_encoder.encode.return_value = [0.1] * 384
+        mock_transformer.return_value = mock_encoder
+    
+        # Mock Database Search (pgvector 관련 로직은 실제 DB 대신 Mocking)
+        with patch('diary.models.DiaryEmbedding.objects.annotate') as mock_search:
+            mock_search.return_value.order_by.return_value = []
+    
+            service = ChatService()
+            user = MagicMock()
+            history = [{'role': 'user', 'text': '안녕'}, {'role': 'model', 'text': '반가워요'}]
+    
+            with patch('diary.services.chat_service.settings') as mock_settings:
+                mock_settings.GEMINI_API_KEY = 'test-key'
+                mock_settings.GEMINI_TEXT_MODEL = 'gemini-pro'
+    
+>               response = service.generate_chat_response(user, "오늘 기분이 어때?", history)
+
+diary/tests/test_chat_service.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+diary/services/chat_service.py:56: in generate_chat_response
+    related_diaries = ChatService.search_similar_diaries(user, message)
+diary/services/chat_service.py:47: in search_similar_diaries
+    embeddings = DiaryEmbedding.objects.filter(diary__user=user) \
+/usr/local/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+/usr/local/lib/python3.12/site-packages/django/db/models/query.py:1542: in filter
+    return self._filter_or_exclude(False, args, kwargs)
+/usr/local/lib/python3.12/site-packages/django/db/models/query.py:1560: in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+/usr/local/lib/python3.12/site-packages/django/db/models/query.py:1570: in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1671: in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1703: in _add_q
+    child_clause, needed_inner = self.build_filter(
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1613: in build_filter
+    condition = self.build_lookup(lookups, col, value)
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1440: in build_lookup
+    lookup = lookup_class(lhs, rhs)
+/usr/local/lib/python3.12/site-packages/django/db/models/lookups.py:35: in __init__
+    self.rhs = self.get_prep_lookup()
+/usr/local/lib/python3.12/site-packages/django/db/models/fields/related_lookups.py:113: in get_prep_lookup
+    self.rhs = target_field.get_prep_value(self.rhs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.models.fields.AutoField: id>, value = []
+
+    def get_prep_value(self, value):
+        value = super().get_prep_value(value)
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError) as e:
+>           raise e.__class__(
+                "Field '%s' expected a number but got %r." % (self.name, value),
+            ) from e
+E           TypeError: Field 'id' expected a number but got [].
+
+/usr/local/lib/python3.12/site-packages/django/db/models/fields/__init__.py:2130: TypeError
+----------------------------- Captured stdout call -----------------------------
+Error updating embedding for diary 22: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+____________ TestChatService.test_generate_chat_response_api_error _____________
+
+self = <django.db.models.fields.AutoField: id>, value = []
+
+    def get_prep_value(self, value):
+        value = super().get_prep_value(value)
+        if value is None:
+            return None
+        try:
+>           return int(value)
+E           TypeError: int() argument must be a string, a bytes-like object or a real number, not 'list'
+
+/usr/local/lib/python3.12/site-packages/django/db/models/fields/__init__.py:2128: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = <diary.tests.test_chat_service.TestChatService object at 0x7660805e7b30>
+mock_genai = <MagicMock name='genai' id='130156372205760'>
+
+    @patch('diary.services.chat_service.genai')
+    def test_generate_chat_response_api_error(self, mock_genai):
+        """API 에러 발생 시 예외 처리"""
+        with patch('diary.services.chat_service.SentenceTransformer'):
+            mock_genai.GenerativeModel.side_effect = Exception("API Error")
+    
+            service = ChatService()
+            user = MagicMock()
+    
+            with patch('diary.services.chat_service.settings') as mock_settings:
+                mock_settings.GEMINI_API_KEY = 'test-key'
+    
+>               response = service.generate_chat_response(user, "테스트")
+
+diary/tests/test_chat_service.py:61: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+diary/services/chat_service.py:56: in generate_chat_response
+    related_diaries = ChatService.search_similar_diaries(user, message)
+diary/services/chat_service.py:47: in search_similar_diaries
+    embeddings = DiaryEmbedding.objects.filter(diary__user=user) \
+/usr/local/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+/usr/local/lib/python3.12/site-packages/django/db/models/query.py:1542: in filter
+    return self._filter_or_exclude(False, args, kwargs)
+/usr/local/lib/python3.12/site-packages/django/db/models/query.py:1560: in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+/usr/local/lib/python3.12/site-packages/django/db/models/query.py:1570: in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1671: in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1703: in _add_q
+    child_clause, needed_inner = self.build_filter(
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1613: in build_filter
+    condition = self.build_lookup(lookups, col, value)
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1440: in build_lookup
+    lookup = lookup_class(lhs, rhs)
+/usr/local/lib/python3.12/site-packages/django/db/models/lookups.py:35: in __init__
+    self.rhs = self.get_prep_lookup()
+/usr/local/lib/python3.12/site-packages/django/db/models/fields/related_lookups.py:113: in get_prep_lookup
+    self.rhs = target_field.get_prep_value(self.rhs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.models.fields.AutoField: id>, value = []
+
+    def get_prep_value(self, value):
+        value = super().get_prep_value(value)
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError) as e:
+>           raise e.__class__(
+                "Field '%s' expected a number but got %r." % (self.name, value),
+            ) from e
+E           TypeError: Field 'id' expected a number but got [].
+
+/usr/local/lib/python3.12/site-packages/django/db/models/fields/__init__.py:2130: TypeError
+=============================== warnings summary ===============================
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:19
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:19: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    token = pp.Word(tchar).setName("token")
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:20
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:20: DeprecationWarning: 'leaveWhitespace' deprecated - use 'leave_whitespace'
+    token68 = pp.Combine(pp.Word("-._~+/" + pp.nums + pp.alphas) + pp.Optional(pp.Word("=").leaveWhitespace())).setName(
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:20
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:20: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    token68 = pp.Combine(pp.Word("-._~+/" + pp.nums + pp.alphas) + pp.Optional(pp.Word("=").leaveWhitespace())).setName(
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:24
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:24: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    quoted_string = pp.dblQuotedString.copy().setName("quoted-string").setParseAction(unquote)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:24
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:24: DeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    quoted_string = pp.dblQuotedString.copy().setName("quoted-string").setParseAction(unquote)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:25
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:25: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    auth_param_name = token.copy().setName("auth-param-name").addParseAction(downcaseTokens)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:25
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:25: DeprecationWarning: 'addParseAction' deprecated - use 'add_parse_action'
+    auth_param_name = token.copy().setName("auth-param-name").addParseAction(downcaseTokens)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:27
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:27: DeprecationWarning: 'delimitedList' deprecated - use 'DelimitedList'
+    params = pp.Dict(pp.delimitedList(pp.Group(auth_param)))
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:33
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:33: DeprecationWarning: 'delimitedList' deprecated - use 'DelimitedList'
+    www_authenticate = pp.delimitedList(pp.Group(challenge))
+
+diary/services/chat_service.py:1
+  /app/diary/services/chat_service.py:1: FutureWarning: 
+  
+  All support for the `google.generativeai` package has ended. It will no longer be receiving 
+  updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+  See README for more details:
+  
+  https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+  
+    import google.generativeai as genai
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED diary/tests/test_views.py::DiaryAPITest::test_create_diary - Assertion...
+FAILED diary/tests/test_views.py::DiaryAPITest::test_upload_voice_file - Asse...
+FAILED diary/tests/test_chat_service.py::TestChatService::test_generate_chat_response_success
+FAILED diary/tests/test_chat_service.py::TestChatService::test_generate_chat_response_api_error
+================== 4 failed, 23 passed, 10 warnings in 27.47s ==================

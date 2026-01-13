@@ -158,10 +158,26 @@ class ImageGenerator:
                 raise e
             
             try:
-            # DALL-E Fallback (OpenAI v1.x)
-            import openai
-            import requests
-            client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+                # DALL-E Fallback (OpenAI v1.x)
+                import openai
+                client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+                
+                response = client.images.generate(
+                    model="dall-e-3",
+                    prompt=prompt or content[:500],
+                    size="1024x1024",
+                    quality="standard",
+                    n=1,
+                )
+                
+                image_url = response.data[0].url
+                return {
+                    'url': image_url,
+                    'prompt': prompt
+                }
+            except Exception as e2:
+                logger.error(f"DALL-E Fallback failed: {e2}")
+                raise e
 
 
 class KeywordExtractor:
@@ -216,41 +232,8 @@ class KeywordExtractor:
             return []
 
             
-            response = client.images.generate(
-                model="dall-e-3",
-                prompt=prompt,
-                size="1024x1024",
-                quality="standard",
-                n=1,
-            )
-            
-            dall_e_url = response.data[0].url
-            
-            # Download DALL-E image to save locally (to keep architecture consistent)
-            img_data = requests.get(dall_e_url).content
-                
-                filename = f"ai_images/{datetime.now().strftime('%Y/%m/%d')}/{uuid.uuid4()}.png"
-                temp_path = os.path.join(settings.MEDIA_ROOT, filename)
-                os.makedirs(os.path.dirname(temp_path), exist_ok=True)
-                
-                with open(temp_path, "wb") as f:
-                    f.write(img_data)
-                
-                image_url = settings.MEDIA_URL + filename
-                image_url = image_url.replace('\\', '/')
-                
-                logger.info(f"Fallback Image generated and saved successfully: {image_url}")
-                
-                return {
-                    'url': image_url,
-                    'prompt': prompt
-                }
-                
-            except Exception as openai_error:
-                logger.error(f"OpenAI Fallback failed: {openai_error}")
-                # 원본 에러와 Fallback 에러 모두 로깅되었으므로, 원본 에러를 발생시키거나
-                # 사용자에게 명확한 메시지를 전달하기 위해 ValueError 발생
-                raise ValueError(f"Primary (Gemini) failed: {error_msg}. Fallback (OpenAI) failed: {openai_error}")
+
+
 
 class SpeechToText:
     """

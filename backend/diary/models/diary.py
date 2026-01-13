@@ -59,7 +59,19 @@ class Diary(models.Model):
         verbose_name='장소명'
     )
     latitude = models.FloatField(null=True, blank=True, verbose_name='위도')
+    latitude = models.FloatField(null=True, blank=True, verbose_name='위도')
     longitude = models.FloatField(null=True, blank=True, verbose_name='경도')
+
+    # AI 회고 질문 및 답변 (Feature 1)
+    reflection_question = models.TextField(null=True, blank=True, verbose_name='회고 질문')
+    reflection_answer = models.TextField(null=True, blank=True, verbose_name='회고 답변')
+
+    # 음성 기록 파일 (Feature 4)
+    voice_file = models.FileField(upload_to='voice/', null=True, blank=True, verbose_name='음성 파일')
+    
+    # STT (Feature 7)
+    transcription = models.TextField(null=True, blank=True, verbose_name='음성 변환 텍스트')
+    is_transcribing = models.BooleanField(default=False, verbose_name='변환 중 여부')
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

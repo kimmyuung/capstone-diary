@@ -173,6 +173,8 @@ class DiarySerializer(serializers.ModelSerializer):
             'emotion', 'emotion_score', 'emotion_emoji', 'emotion_analyzed_at',
             'location_name', 'latitude', 'longitude',
             'tags', 'tag_ids',
+            'reflection_question', 'reflection_answer', 'voice_file', 
+            'transcription', 'is_transcribing',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['user', 'updated_at', 'emotion', 'emotion_score', 'emotion_analyzed_at']

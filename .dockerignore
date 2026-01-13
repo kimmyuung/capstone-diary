@@ -13,6 +13,8 @@ env/
 venv/
 backend/venv/
 backend/.venv/
+backend/cache/
+backend/data/
 
 # Node.js
 node_modules/

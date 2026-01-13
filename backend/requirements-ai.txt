@@ -1,0 +1,6 @@
+# AI & Heavy Libraries
+sentence-transformers
+scikit-learn
+openai==1.55.0
+google-generativeai
+pgvector>=0.2.0

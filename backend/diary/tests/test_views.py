@@ -9,6 +9,8 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from unittest.mock import patch
 from diary.models import Diary, DiaryImage
 
 User = get_user_model()
@@ -39,6 +41,13 @@ class DiaryAPITest(APITestCase):
             'content': '오늘은 즐거운 하루였다.'
         }
         response = self.client.post(url, data, format='json')
+        
+        if response.status_code != status.HTTP_201_CREATED:
+            print(f"\nDEBUG: Response status: {response.status_code}")
+            try:
+                print(f"DEBUG: Response data: {response.data}")
+            except:
+                print(f"DEBUG: Response content: {response.content}")
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], data['title'])
@@ -122,7 +131,57 @@ class DiaryAPITest(APITestCase):
         response = self.client.delete(url)
         
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Diary.objects.count(), 0)
+
+    def test_upload_voice_file(self):
+        """음성 파일 업로드 테스트"""
+        diary = Diary.objects.create(
+            user=self.user,
+            title='음성 일기',
+            content='녹음'
+        )
+        
+        url = reverse('diary-detail', kwargs={'pk': diary.pk})
+        
+        # 가짜 오디오 파일 생성
+        voice_content = b'fake-audio-content'
+        voice_file = SimpleUploadedFile('test.m4a', voice_content, content_type='audio/m4a')
+        
+        # Multipart upload requires specific format in test client (usually PUT/PATCH with encode_multipart is tricky,
+        # but Django test client handles it if data is dict and format is multipart)
+        # However, DRF test client handles 'multipart' format automatically if passed
+        data = {'voice_file': voice_file}
+        response = self.client.patch(url, data, format='multipart')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        diary.refresh_from_db()
+        self.assertTrue(bool(diary.voice_file))
+        # Django appends hash to filename, so we just check if it contains the extension
+        self.assertIn('.m4a', diary.voice_file.name)
+
+    @patch('diary.services.chat_service.ChatService.generate_reflection_question')
+    def test_create_diary_triggers_reflection(self, mock_reflection):
+        """일기 작성 시 회고 질문 생성 트리거 테스트"""
+        mock_reflection.return_value = "생성된 질문"
+        
+        url = reverse('diary-list')
+        data = {
+            'title': '회고 대상 일기',
+            'content': '오늘 하루는 정말 길었다.'
+        }
+        
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['reflection_question'], "생성된 질문")
+        
+        # DB 저장 확인
+        diary = Diary.objects.get(id=response.data['id'])
+        self.assertEqual(diary.reflection_question, "생성된 질문")
+        mock_reflection.assert_called_once()
+
 
 
 class DiaryPermissionTest(APITestCase):

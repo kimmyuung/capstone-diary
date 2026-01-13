@@ -61,3 +61,41 @@ class TestChatService:
                 response = service.generate_chat_response(user, "테스트")
                 
                 assert "죄송합니다" in response
+
+    @patch('diary.services.chat_service.genai')
+    def test_generate_reflection_question_success(self, mock_genai):
+        """회고 질문 생성 성공 케이스"""
+        mock_model = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "오늘 하루는 어땠나요?"
+        mock_model.generate_content.return_value = mock_response
+        mock_genai.GenerativeModel.return_value = mock_model
+        
+        diary = MagicMock(spec=Diary)
+        diary.title = "테스트 일기"
+        diary.content = "오늘 정말 힘들었다."
+        diary.emotion = "sad"
+        
+        with patch('diary.services.chat_service.settings') as mock_settings:
+            mock_settings.GEMINI_API_KEY = 'test-key'
+            
+            question = ChatService.generate_reflection_question(diary)
+            
+            assert question == "오늘 하루는 어땠나요?"
+            mock_model.generate_content.assert_called_once()
+            args, _ = mock_model.generate_content.call_args
+            assert "테스트 일기" in args[0]
+
+    @patch('diary.services.chat_service.genai')
+    def test_generate_reflection_question_failure(self, mock_genai):
+        """회고 질문 생성 실패 시 None 반환"""
+        mock_genai.GenerativeModel.side_effect = Exception("API Error")
+        
+        diary = MagicMock(spec=Diary)
+        
+        with patch('diary.services.chat_service.settings') as mock_settings:
+            mock_settings.GEMINI_API_KEY = 'test-key'
+            
+            question = ChatService.generate_reflection_question(diary)
+            
+            assert question is None

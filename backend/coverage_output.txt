@@ -1,0 +1,2337 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.12, pytest-7.4.3, pluggy-1.6.0
+django: version: 6.0.1, settings: config.settings (from ini)
+rootdir: /app
+configfile: pytest.ini
+plugins: cov-4.1.0, Faker-20.1.0, django-4.7.0, anyio-4.12.1
+collected 206 items
+
+diary/tests/test_algorithm.py .F                                         [  0%]
+diary/tests/test_auth_api.py ............                                [  6%]
+diary/tests/test_emotion_service.py .                                    [  7%]
+diary/tests/test_encryption.py ........                                  [ 11%]
+diary/tests/test_heatmap_api.py ..Error updating embedding for diary 2: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+......Error updating embedding for diary 6: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+.                                [ 15%]
+diary/tests/test_image_generation.py FFsss                               [ 17%]
+diary/tests/test_models.py ........                                      [ 21%]
+diary/tests/test_preference_api.py ..........                            [ 26%]
+diary/tests/test_push_notification.py ......sss...                       [ 32%]
+diary/tests/test_push_service.py ......                                  [ 35%]
+diary/tests/test_report_api.py FFF.......F..                             [ 41%]
+diary/tests/test_search_optimization.py .Error updating embedding for diary 161: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(161) is not present in table "diary_diary".Error updating embedding for diary 160: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(160) is not present in table "diary_diary".
+
+.Error updating embedding for diary 283: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+                               [ 42%]
+diary/tests/test_serializers.py .....                                    [ 45%]
+diary/tests/test_speech_to_text.py Error updating embedding for diary 288: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(288) is not present in table "diary_diary".
+F.Fsss                                [ 48%]
+diary/tests/test_views.py F...........                                   [ 53%]
+diary/tests/test_ai_api.py ..s.s..s                                      [ 57%]
+diary/tests/test_email_service.py .....                                  [ 60%]
+diary/tests/test_tag_api.py ........                                     [ 64%]
+diary/tests/test_tasks.py ......                                         [ 66%]
+diary/tests/test_template_api.py ..........                              [ 71%]
+diary/tests/test_ai_service.py FFF.......F..F.F...FF..FF                 [ 83%]
+diary/tests/test_algorithm.py F                                          [ 84%]
+diary/tests/test_chat_service.py FF                                      [ 85%]
+diary/tests/test_emotion_service.py F................                    [ 93%]
+diary/tests/test_push_service.py .........                               [ 98%]
+scripts/test_image_gen.py .                                              [ 98%]
+scripts/test_nano_banana.py .                                            [ 99%]
+scripts/test_prompt.py .                                                 [ 99%]
+scripts/test_summarize.py .                                              [100%]
+
+=================================== FAILURES ===================================
+________________ TestSimilarDiaryAPI.test_similar_action_logic _________________
+
+self = <diary.tests.test_algorithm.TestSimilarDiaryAPI object at 0x779de5b597c0>
+api_client = <rest_framework.test.APIClient object at 0x779de52f0c50>
+
+    def test_similar_action_logic(self, api_client):
+        # Create user and diary
+        user = User.objects.create_user(username='testuser', password='password')
+        api_client.force_authenticate(user=user)
+    
+        diary = Diary.objects.create(user=user, title="Test Diary", content="Content")
+    
+        # Mock DiaryEmbedding.objects.get and filter
+        with patch('diary.views.diary_views.DiaryEmbedding') as MockEmbedding:
+            # Mock getting current diary embedding
+            mock_emb_instance = MagicMock()
+            MockEmbedding.objects.get.return_value = mock_emb_instance
+    
+            # Mock filter chain
+            mock_queryset = MagicMock()
+            MockEmbedding.objects.filter.return_value = mock_queryset
+            mock_queryset.exclude.return_value = mock_queryset
+            mock_queryset.order_by.return_value = mock_queryset
+    
+            # Mock query result (similar diaries)
+            similar_diary = Diary(id=2, title="Similar", content="SimContent", emotion="Happy", user=user)
+            similar_emb = MagicMock()
+            similar_emb.diary = similar_diary
+            mock_queryset.__getitem__.return_value = [similar_emb]
+    
+            url = reverse('diary-detail', args=[diary.id]) + 'similar/'
+            response = api_client.get(url)
+    
+>           assert response.status_code == status.HTTP_200_OK
+E           assert 500 == 200
+E            +  where 500 = <Response status_code=500, "application/json">.status_code
+E            +  and   200 = status.HTTP_200_OK
+
+diary/tests/test_algorithm.py:85: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception: AttributeError: 'NoneType' object has no attribute 'strftime' | {'view': 'DiaryViewSet', 'method': 'GET', 'path': '/api/diaries/1/similar/', 'user': 'testuser'}
+------------------------------ Captured log call -------------------------------
+ERROR    diary:exception_handler.py:90 Unhandled exception: AttributeError: 'NoneType' object has no attribute 'strftime' | {'view': 'DiaryViewSet', 'method': 'GET', 'path': '/api/diaries/1/similar/', 'user': 'testuser'}
+ERROR    django.request:log.py:249 Internal Server Error: /api/diaries/1/similar/
+________________ ImageGeneratorServiceTest.test_generate_image _________________
+
+self = <diary.ai_service.ImageGenerator object at 0x779de56cad20>
+diary_content = '오늘은 바닷가에서 즐거운 시간을 보냈다.', emotion = None
+
+    def generate(self, diary_content, emotion=None):
+        """
+        Gemini Imagen 3를 사용하여 일기 내용에 맞는 이미지를 생성합니다.
+    
+        Args:
+            diary_content (str): 일기 내용
+            emotion (str, optional): 일기의 감정 (happy, sad, etc.)
+    
+        Returns:
+            dict: { 'url': ..., 'prompt': ... }
+        """
+        import os
+        import uuid
+        import base64
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+    
+        logger.debug(f"Generating image for: {diary_content[:50]}...")
+    
+        if not settings.GEMINI_API_KEY:
+            logger.error("Gemini API Key is not configured for Image Generation.")
+            raise ValueError("API Key Configuration Error")
+    
+        try:
+            # 감정에 따른 스타일 선택
+            style_instruction = self.EMOTION_STYLES.get(emotion, "Artistic and emotional illustration")
+    
+            # AI가 생성할 이미지에 대한 프롬프트를 구성합니다.
+    
+            # 영어 번역이 필요할 수 있으나, 일단 단순 결합
+            prompt = (
+                f"An emotional illustration representing the following diary content. "
+                f"Style: {style_instruction}. "
+                f"Diary snippet: '{diary_content[:300]}'"
+            )
+    
+            # Gemini 모델 (예: gemini-3-pro-image-preview) 사용 시
+            if settings.GEMINI_IMAGE_MODEL.lower().startswith('gemini'):
+                import google.generativeai as genai
+                if settings.GEMINI_API_KEY:
+                    genai.configure(api_key=settings.GEMINI_API_KEY)
+    
+                gen_model = genai.GenerativeModel(settings.GEMINI_IMAGE_MODEL)
+    
+                # Gemini 3 Image Generation Prompt
+>               response = gen_model.generate_content(
+                    f"Draw the following: {prompt}",
+                    # safety_settings? generation_config?
+                )
+
+diary/ai_service.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/site-packages/google/generativeai/generative_models.py:331: in generate_content
+    response = self._client.generate_content(
+/usr/local/lib/python3.12/site-packages/google/ai/generativelanguage_v1beta/services/generative_service/client.py:835: in generate_content
+    response = rpc(
+/usr/local/lib/python3.12/site-packages/google/api_core/gapic_v1/method.py:131: in __call__
+    return wrapped_func(*args, **kwargs)
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+/usr/local/lib/python3.12/site-packages/google/api_core/timeout.py:130: in func_with_timeout
+    return func(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = (model: "models/gemini-3-pro-image-preview"
+contents {
+  parts {
+    text: "Draw the following: An emotional illustrat...ic and emotional illustration. Diary snippet: \'오늘은 바닷가에서 즐거운 시간을 보냈다.\'"
+  }
+  role: "user"
+}
+generation_config {
+}
+,)
+kwargs = {'metadata': [('x-goog-request-params', 'model=models/gemini-3-pro-image-preview'), ('x-goog-api-client', 'genai-py/0.8.6 gl-python/3.12.12 grpc/1.76.0 gax/2.29.0')], 'timeout': 600.0}
+
+    @functools.wraps(callable_)
+    def error_remapped_callable(*args, **kwargs):
+        try:
+            return callable_(*args, **kwargs)
+        except grpc.RpcError as exc:
+>           raise exceptions.from_grpc_error(exc) from exc
+E           google.api_core.exceptions.ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+E           * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro-image
+E           * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro-image
+E           * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro-image
+E           Please retry in 22.157012298s. [links {
+E             description: "Learn more about Gemini API quotas"
+E             url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+E           }
+E           , violations {
+E             quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+E             quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+E             quota_dimensions {
+E               key: "model"
+E               value: "gemini-3-pro-image"
+E             }
+E             quota_dimensions {
+E               key: "location"
+E               value: "global"
+E             }
+E           }
+E           violations {
+E             quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+E             quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+E             quota_dimensions {
+E               key: "model"
+E               value: "gemini-3-pro-image"
+E             }
+E             quota_dimensions {
+E               key: "location"
+E               value: "global"
+E             }
+E           }
+E           violations {
+E             quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+E             quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+E             quota_dimensions {
+E               key: "model"
+E               value: "gemini-3-pro-image"
+E             }
+E             quota_dimensions {
+E               key: "location"
+E               value: "global"
+E             }
+E           }
+E           , retry_delay {
+E             seconds: 22
+E           }
+E           ]
+
+/usr/local/lib/python3.12/site-packages/google/api_core/grpc_helpers.py:77: ResourceExhausted
+
+During handling of the above exception, another exception occurred:
+
+self = <diary.tests.test_image_generation.ImageGeneratorServiceTest testMethod=test_generate_image>
+mock_create = <MagicMock name='create' id='131520042168736'>
+
+    @patch('diary.ai_service.openai.Image.create')
+    def test_generate_image(self, mock_create):
+        """이미지 생성 테스트"""
+        mock_create.return_value = MagicMock(
+            data=[MagicMock(url='https://example.com/image.png')]
+        )
+    
+        generator = ImageGenerator()
+>       result = generator.generate('오늘은 바닷가에서 즐거운 시간을 보냈다.')
+
+diary/tests/test_image_generation.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <diary.ai_service.ImageGenerator object at 0x779de56cad20>
+diary_content = '오늘은 바닷가에서 즐거운 시간을 보냈다.', emotion = None
+
+    def generate(self, diary_content, emotion=None):
+        """
+        Gemini Imagen 3를 사용하여 일기 내용에 맞는 이미지를 생성합니다.
+    
+        Args:
+            diary_content (str): 일기 내용
+            emotion (str, optional): 일기의 감정 (happy, sad, etc.)
+    
+        Returns:
+            dict: { 'url': ..., 'prompt': ... }
+        """
+        import os
+        import uuid
+        import base64
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+    
+        logger.debug(f"Generating image for: {diary_content[:50]}...")
+    
+        if not settings.GEMINI_API_KEY:
+            logger.error("Gemini API Key is not configured for Image Generation.")
+            raise ValueError("API Key Configuration Error")
+    
+        try:
+            # 감정에 따른 스타일 선택
+            style_instruction = self.EMOTION_STYLES.get(emotion, "Artistic and emotional illustration")
+    
+            # AI가 생성할 이미지에 대한 프롬프트를 구성합니다.
+    
+            # 영어 번역이 필요할 수 있으나, 일단 단순 결합
+            prompt = (
+                f"An emotional illustration representing the following diary content. "
+                f"Style: {style_instruction}. "
+                f"Diary snippet: '{diary_content[:300]}'"
+            )
+    
+            # Gemini 모델 (예: gemini-3-pro-image-preview) 사용 시
+            if settings.GEMINI_IMAGE_MODEL.lower().startswith('gemini'):
+                import google.generativeai as genai
+                if settings.GEMINI_API_KEY:
+                    genai.configure(api_key=settings.GEMINI_API_KEY)
+    
+                gen_model = genai.GenerativeModel(settings.GEMINI_IMAGE_MODEL)
+    
+                # Gemini 3 Image Generation Prompt
+                response = gen_model.generate_content(
+                    f"Draw the following: {prompt}",
+                    # safety_settings? generation_config?
+                )
+    
+                # 응답에서 이미지 추출 (Gemini 3는 parts에 info가 있음)
+                # 주의: SDK 버전에 따라 다를 수 있음. 보통 response.parts[0].inline_data
+                if not response.parts:
+                     raise ValueError("No content generated")
+    
+                image_data = None
+                for part in response.parts:
+                    if part.inline_data:
+                        image_data = part.inline_data.data # bytes
+                        break
+    
+                if not image_data:
+                    raise ValueError("No image data found in Gemini response")
+    
+            else:
+                # 기존 Imagen REST API 호출 (imagen-*)
+                import requests
+    
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_IMAGE_MODEL}:predict?key={settings.GEMINI_API_KEY}"
+    
+                headers = {
+                    "Content-Type": "application/json"
+                }
+    
+                payload = {
+                    "instances": [
+                        {
+                            "prompt": prompt
+                        }
+                    ],
+                    "parameters": {
+                        "sampleCount": 1,
+                        "aspectRatio": "1:1",
+                        # "safetyFilterLevel": "block_some",
+                        # "personGeneration": "allow_adult"
+                    }
+                }
+    
+                response = requests.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+    
+                result = response.json()
+    
+                # 응답 구조: {'predictions': [{'bytesBase64Encoded': '...'}]}
+                if 'predictions' not in result or not result['predictions']:
+                    logger.error(f"Imagen API Error: {result}")
+                    raise ValueError("No images generated by Gemini (Imagen).")
+    
+                b64_image = result['predictions'][0]['bytesBase64Encoded']
+                image_data = base64.b64decode(b64_image)
+    
+            # 공통: 이미지 로컬 저장
+            filename = f"ai_images/{datetime.now().strftime('%Y/%m/%d')}/{uuid.uuid4()}.png"
+    
+            # 임시 파일 경로
+            temp_path = os.path.join(settings.MEDIA_ROOT, filename)
+            os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+    
+            with open(temp_path, "wb") as f:
+                f.write(image_data)
+    
+            # URL 생성
+            image_url = settings.MEDIA_URL + filename
+            image_url = image_url.replace('\\', '/')
+    
+            logger.info(f"Image generated and saved successfully: {image_url}")
+    
+            return {
+                'url': image_url,
+                'prompt': prompt
+            }
+    
+    
+        except Exception as e:
+            # 통합된 에러 처리 및 Fallback 로직
+            error_msg = str(e)
+>           if isinstance(e, requests.exceptions.HTTPError):
+E           UnboundLocalError: cannot access local variable 'requests' where it is not associated with a value
+
+diary/ai_service.py:150: UnboundLocalError
+----------------------------- Captured stderr call -----------------------------
+Generating image for: 오늘은 바닷가에서 즐거운 시간을 보냈다....
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:41 Generating image for: 오늘은 바닷가에서 즐거운 시간을 보냈다....
+_____________ ImageGeneratorServiceTest.test_generate_image_prompt _____________
+
+self = <diary.ai_service.ImageGenerator object at 0x779de5618470>
+diary_content = '행복한 하루', emotion = None
+
+    def generate(self, diary_content, emotion=None):
+        """
+        Gemini Imagen 3를 사용하여 일기 내용에 맞는 이미지를 생성합니다.
+    
+        Args:
+            diary_content (str): 일기 내용
+            emotion (str, optional): 일기의 감정 (happy, sad, etc.)
+    
+        Returns:
+            dict: { 'url': ..., 'prompt': ... }
+        """
+        import os
+        import uuid
+        import base64
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+    
+        logger.debug(f"Generating image for: {diary_content[:50]}...")
+    
+        if not settings.GEMINI_API_KEY:
+            logger.error("Gemini API Key is not configured for Image Generation.")
+            raise ValueError("API Key Configuration Error")
+    
+        try:
+            # 감정에 따른 스타일 선택
+            style_instruction = self.EMOTION_STYLES.get(emotion, "Artistic and emotional illustration")
+    
+            # AI가 생성할 이미지에 대한 프롬프트를 구성합니다.
+    
+            # 영어 번역이 필요할 수 있으나, 일단 단순 결합
+            prompt = (
+                f"An emotional illustration representing the following diary content. "
+                f"Style: {style_instruction}. "
+                f"Diary snippet: '{diary_content[:300]}'"
+            )
+    
+            # Gemini 모델 (예: gemini-3-pro-image-preview) 사용 시
+            if settings.GEMINI_IMAGE_MODEL.lower().startswith('gemini'):
+                import google.generativeai as genai
+                if settings.GEMINI_API_KEY:
+                    genai.configure(api_key=settings.GEMINI_API_KEY)
+    
+                gen_model = genai.GenerativeModel(settings.GEMINI_IMAGE_MODEL)
+    
+                # Gemini 3 Image Generation Prompt
+>               response = gen_model.generate_content(
+                    f"Draw the following: {prompt}",
+                    # safety_settings? generation_config?
+                )
+
+diary/ai_service.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/site-packages/google/generativeai/generative_models.py:331: in generate_content
+    response = self._client.generate_content(
+/usr/local/lib/python3.12/site-packages/google/ai/generativelanguage_v1beta/services/generative_service/client.py:835: in generate_content
+    response = rpc(
+/usr/local/lib/python3.12/site-packages/google/api_core/gapic_v1/method.py:131: in __call__
+    return wrapped_func(*args, **kwargs)
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+/usr/local/lib/python3.12/site-packages/google/api_core/timeout.py:130: in func_with_timeout
+    return func(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = (model: "models/gemini-3-pro-image-preview"
+contents {
+  parts {
+    text: "Draw the following: An emotional illustrat...t. Style: Artistic and emotional illustration. Diary snippet: \'행복한 하루\'"
+  }
+  role: "user"
+}
+generation_config {
+}
+,)
+kwargs = {'metadata': [('x-goog-request-params', 'model=models/gemini-3-pro-image-preview'), ('x-goog-api-client', 'genai-py/0.8.6 gl-python/3.12.12 grpc/1.76.0 gax/2.29.0')], 'timeout': 600.0}
+
+    @functools.wraps(callable_)
+    def error_remapped_callable(*args, **kwargs):
+        try:
+            return callable_(*args, **kwargs)
+        except grpc.RpcError as exc:
+>           raise exceptions.from_grpc_error(exc) from exc
+E           google.api_core.exceptions.ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+E           * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro-image
+E           * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro-image
+E           * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro-image
+E           Please retry in 21.632018126s. [links {
+E             description: "Learn more about Gemini API quotas"
+E             url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+E           }
+E           , violations {
+E             quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+E             quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+E             quota_dimensions {
+E               key: "model"
+E               value: "gemini-3-pro-image"
+E             }
+E             quota_dimensions {
+E               key: "location"
+E               value: "global"
+E             }
+E           }
+E           violations {
+E             quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+E             quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+E             quota_dimensions {
+E               key: "model"
+E               value: "gemini-3-pro-image"
+E             }
+E             quota_dimensions {
+E               key: "location"
+E               value: "global"
+E             }
+E           }
+E           violations {
+E             quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+E             quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+E             quota_dimensions {
+E               key: "model"
+E               value: "gemini-3-pro-image"
+E             }
+E             quota_dimensions {
+E               key: "location"
+E               value: "global"
+E             }
+E           }
+E           , retry_delay {
+E             seconds: 21
+E           }
+E           ]
+
+/usr/local/lib/python3.12/site-packages/google/api_core/grpc_helpers.py:77: ResourceExhausted
+
+During handling of the above exception, another exception occurred:
+
+self = <diary.tests.test_image_generation.ImageGeneratorServiceTest testMethod=test_generate_image_prompt>
+mock_create = <MagicMock name='create' id='131520042835632'>
+
+    @patch('diary.ai_service.openai.Image.create')
+    def test_generate_image_prompt(self, mock_create):
+        """이미지 생성 프롬프트 확인"""
+        mock_create.return_value = MagicMock(
+            data=[MagicMock(url='https://example.com/image.png')]
+        )
+    
+        generator = ImageGenerator()
+>       result = generator.generate('행복한 하루')
+
+diary/tests/test_image_generation.py:42: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <diary.ai_service.ImageGenerator object at 0x779de5618470>
+diary_content = '행복한 하루', emotion = None
+
+    def generate(self, diary_content, emotion=None):
+        """
+        Gemini Imagen 3를 사용하여 일기 내용에 맞는 이미지를 생성합니다.
+    
+        Args:
+            diary_content (str): 일기 내용
+            emotion (str, optional): 일기의 감정 (happy, sad, etc.)
+    
+        Returns:
+            dict: { 'url': ..., 'prompt': ... }
+        """
+        import os
+        import uuid
+        import base64
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+    
+        logger.debug(f"Generating image for: {diary_content[:50]}...")
+    
+        if not settings.GEMINI_API_KEY:
+            logger.error("Gemini API Key is not configured for Image Generation.")
+            raise ValueError("API Key Configuration Error")
+    
+        try:
+            # 감정에 따른 스타일 선택
+            style_instruction = self.EMOTION_STYLES.get(emotion, "Artistic and emotional illustration")
+    
+            # AI가 생성할 이미지에 대한 프롬프트를 구성합니다.
+    
+            # 영어 번역이 필요할 수 있으나, 일단 단순 결합
+            prompt = (
+                f"An emotional illustration representing the following diary content. "
+                f"Style: {style_instruction}. "
+                f"Diary snippet: '{diary_content[:300]}'"
+            )
+    
+            # Gemini 모델 (예: gemini-3-pro-image-preview) 사용 시
+            if settings.GEMINI_IMAGE_MODEL.lower().startswith('gemini'):
+                import google.generativeai as genai
+                if settings.GEMINI_API_KEY:
+                    genai.configure(api_key=settings.GEMINI_API_KEY)
+    
+                gen_model = genai.GenerativeModel(settings.GEMINI_IMAGE_MODEL)
+    
+                # Gemini 3 Image Generation Prompt
+                response = gen_model.generate_content(
+                    f"Draw the following: {prompt}",
+                    # safety_settings? generation_config?
+                )
+    
+                # 응답에서 이미지 추출 (Gemini 3는 parts에 info가 있음)
+                # 주의: SDK 버전에 따라 다를 수 있음. 보통 response.parts[0].inline_data
+                if not response.parts:
+                     raise ValueError("No content generated")
+    
+                image_data = None
+                for part in response.parts:
+                    if part.inline_data:
+                        image_data = part.inline_data.data # bytes
+                        break
+    
+                if not image_data:
+                    raise ValueError("No image data found in Gemini response")
+    
+            else:
+                # 기존 Imagen REST API 호출 (imagen-*)
+                import requests
+    
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_IMAGE_MODEL}:predict?key={settings.GEMINI_API_KEY}"
+    
+                headers = {
+                    "Content-Type": "application/json"
+                }
+    
+                payload = {
+                    "instances": [
+                        {
+                            "prompt": prompt
+                        }
+                    ],
+                    "parameters": {
+                        "sampleCount": 1,
+                        "aspectRatio": "1:1",
+                        # "safetyFilterLevel": "block_some",
+                        # "personGeneration": "allow_adult"
+                    }
+                }
+    
+                response = requests.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+    
+                result = response.json()
+    
+                # 응답 구조: {'predictions': [{'bytesBase64Encoded': '...'}]}
+                if 'predictions' not in result or not result['predictions']:
+                    logger.error(f"Imagen API Error: {result}")
+                    raise ValueError("No images generated by Gemini (Imagen).")
+    
+                b64_image = result['predictions'][0]['bytesBase64Encoded']
+                image_data = base64.b64decode(b64_image)
+    
+            # 공통: 이미지 로컬 저장
+            filename = f"ai_images/{datetime.now().strftime('%Y/%m/%d')}/{uuid.uuid4()}.png"
+    
+            # 임시 파일 경로
+            temp_path = os.path.join(settings.MEDIA_ROOT, filename)
+            os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+    
+            with open(temp_path, "wb") as f:
+                f.write(image_data)
+    
+            # URL 생성
+            image_url = settings.MEDIA_URL + filename
+            image_url = image_url.replace('\\', '/')
+    
+            logger.info(f"Image generated and saved successfully: {image_url}")
+    
+            return {
+                'url': image_url,
+                'prompt': prompt
+            }
+    
+    
+        except Exception as e:
+            # 통합된 에러 처리 및 Fallback 로직
+            error_msg = str(e)
+>           if isinstance(e, requests.exceptions.HTTPError):
+E           UnboundLocalError: cannot access local variable 'requests' where it is not associated with a value
+
+diary/ai_service.py:150: UnboundLocalError
+----------------------------- Captured stderr call -----------------------------
+Generating image for: 행복한 하루...
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:41 Generating image for: 행복한 하루...
+__________________ ReportAPITestCase.test_get_monthly_report ___________________
+
+self = <diary.tests.test_report_api.ReportAPITestCase testMethod=test_get_monthly_report>
+
+    def test_get_monthly_report(self):
+        """월간 리포트 조회 테스트"""
+        response = self.client.get('/api/diaries/report/?period=month')
+    
+>       self.assertEqual(response.status_code, status.HTTP_200_OK)
+E       AssertionError: 500 != 200
+
+diary/tests/test_report_api.py:48: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception: PicklingError: Can't pickle <class 'unittest.mock.MagicMock'>: it's not the same object as unittest.mock.MagicMock | {'view': 'DiaryViewSet', 'method': 'GET', 'path': '/api/diaries/report/', 'user': 'testuser'}
+------------------------------ Captured log call -------------------------------
+ERROR    diary:exception_handler.py:90 Unhandled exception: PicklingError: Can't pickle <class 'unittest.mock.MagicMock'>: it's not the same object as unittest.mock.MagicMock | {'view': 'DiaryViewSet', 'method': 'GET', 'path': '/api/diaries/report/', 'user': 'testuser'}
+ERROR    django.request:log.py:249 Internal Server Error: /api/diaries/report/
+___________________ ReportAPITestCase.test_get_weekly_report ___________________
+
+self = <diary.tests.test_report_api.ReportAPITestCase testMethod=test_get_weekly_report>
+
+    def test_get_weekly_report(self):
+        """주간 리포트 조회 테스트"""
+        response = self.client.get('/api/diaries/report/?period=week')
+    
+>       self.assertEqual(response.status_code, status.HTTP_200_OK)
+E       AssertionError: 500 != 200
+
+diary/tests/test_report_api.py:39: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Error updating embedding for diary 15: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(15) is not present in table "diary_diary".
+Error updating embedding for diary 17: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(17) is not present in table "diary_diary".
+Error updating embedding for diary 16: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(16) is not present in table "diary_diary".
+Error updating embedding for diary 18: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(18) is not present in table "diary_diary".
+Error updating embedding for diary 19: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(19) is not present in table "diary_diary".
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception: PicklingError: Can't pickle <class 'unittest.mock.MagicMock'>: it's not the same object as unittest.mock.MagicMock | {'view': 'DiaryViewSet', 'method': 'GET', 'path': '/api/diaries/report/', 'user': 'testuser'}
+------------------------------ Captured log call -------------------------------
+ERROR    diary:exception_handler.py:90 Unhandled exception: PicklingError: Can't pickle <class 'unittest.mock.MagicMock'>: it's not the same object as unittest.mock.MagicMock | {'view': 'DiaryViewSet', 'method': 'GET', 'path': '/api/diaries/report/', 'user': 'testuser'}
+ERROR    django.request:log.py:249 Internal Server Error: /api/diaries/report/
+_________________ ReportAPITestCase.test_report_emotion_stats __________________
+
+self = <diary.tests.test_report_api.ReportAPITestCase testMethod=test_report_emotion_stats>
+
+    def test_report_emotion_stats(self):
+        """리포트 감정 통계 테스트"""
+        response = self.client.get('/api/diaries/report/?period=month')
+    
+>       self.assertEqual(response.status_code, status.HTTP_200_OK)
+E       AssertionError: 500 != 200
+
+diary/tests/test_report_api.py:55: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Error updating embedding for diary 20: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(20) is not present in table "diary_diary".
+Error updating embedding for diary 21: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(21) is not present in table "diary_diary".
+Error updating embedding for diary 22: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(22) is not present in table "diary_diary".
+Error updating embedding for diary 24: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(24) is not present in table "diary_diary".
+Error updating embedding for diary 23: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(23) is not present in table "diary_diary".
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception: PicklingError: Can't pickle <class 'unittest.mock.MagicMock'>: it's not the same object as unittest.mock.MagicMock | {'view': 'DiaryViewSet', 'method': 'GET', 'path': '/api/diaries/report/', 'user': 'testuser'}
+------------------------------ Captured log call -------------------------------
+ERROR    diary:exception_handler.py:90 Unhandled exception: PicklingError: Can't pickle <class 'unittest.mock.MagicMock'>: it's not the same object as unittest.mock.MagicMock | {'view': 'DiaryViewSet', 'method': 'GET', 'path': '/api/diaries/report/', 'user': 'testuser'}
+ERROR    django.request:log.py:249 Internal Server Error: /api/diaries/report/
+__________________ GalleryAPITestCase.test_get_gallery_empty ___________________
+
+self = <diary.tests.test_report_api.GalleryAPITestCase testMethod=test_get_gallery_empty>
+
+    def test_get_gallery_empty(self):
+        """빈 갤러리 조회 테스트"""
+        response = self.client.get('/api/diaries/gallery/')
+    
+>       self.assertEqual(response.status_code, status.HTTP_200_OK)
+E       AssertionError: 500 != 200
+
+diary/tests/test_report_api.py:191: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception: NameError: name 'DiaryImage' is not defined | {'view': 'DiaryViewSet', 'method': 'GET', 'path': '/api/diaries/gallery/', 'user': 'testuser'}
+------------------------------ Captured log call -------------------------------
+ERROR    diary:exception_handler.py:90 Unhandled exception: NameError: name 'DiaryImage' is not defined | {'view': 'DiaryViewSet', 'method': 'GET', 'path': '/api/diaries/gallery/', 'user': 'testuser'}
+ERROR    django.request:log.py:249 Internal Server Error: /api/diaries/gallery/
+_________ SpeechToTextServiceTest.test_get_supported_languages_method __________
+
+self = <diary.tests.test_speech_to_text.SpeechToTextServiceTest testMethod=test_get_supported_languages_method>
+
+    def test_get_supported_languages_method(self):
+        """get_supported_languages 메서드 테스트"""
+        stt = SpeechToText()
+        result = stt.get_supported_languages()
+    
+>       self.assertIn('languages', result)
+E       AssertionError: 'languages' not found in {'ko': '한국어', 'en': 'English', 'ja': '日本語', 'zh': '中文', 'es': 'Español', 'fr': 'Français', 'de': 'Deutsch', 'pt': 'Português', 'it': 'Italiano', 'ru': 'Русский', 'ar': 'العربية', 'hi': 'हिन्दी', 'th': 'ไทย', 'vi': 'Tiếng Việt'}
+
+diary/tests/test_speech_to_text.py:36: AssertionError
+____________ SpeechToTextServiceTest.test_transcribe_with_language _____________
+
+self = <diary.tests.test_speech_to_text.SpeechToTextServiceTest testMethod=test_transcribe_with_language>
+mock_openai = <MagicMock name='openai' id='131519085917584'>
+
+    @patch('diary.ai_service.openai')
+    def test_transcribe_with_language(self, mock_openai):
+        """언어 지정 변환 테스트"""
+        # Mock 설정
+        mock_response = MagicMock()
+        mock_response.text = '오늘은 좋은 하루였습니다.'
+        mock_openai.audio.transcriptions.create.return_value = mock_response
+    
+        stt = SpeechToText()
+    
+        # 가상의 오디오 파일 객체
+        mock_audio = MagicMock()
+        mock_audio.name = 'test.m4a'
+    
+        result = stt.transcribe(mock_audio, language='ko')
+    
+>       self.assertEqual(result['text'], '오늘은 좋은 하루였습니다.')
+E       AssertionError: <MagicMock name='openai.Audio.transcribe().text' id='131519084604032'> != '오늘은 좋은 하루였습니다.'
+
+diary/tests/test_speech_to_text.py:56: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Transcribing audio with language: ko
+Audio transcribed successfully. Length: 0 characters
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:277 Transcribing audio with language: ko
+INFO     diary:ai_service.py:295 Audio transcribed successfully. Length: 0 characters
+________________________ DiaryAPITest.test_create_diary ________________________
+
+self = <diary.tests.test_views.DiaryAPITest testMethod=test_create_diary>
+
+    def test_create_diary(self):
+        """일기 작성 API 테스트"""
+        url = reverse('diary-list')
+        data = {
+            'title': '오늘의 일기',
+            'content': '오늘은 즐거운 하루였다.'
+        }
+        response = self.client.post(url, data, format='json')
+    
+>       self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+E       AssertionError: 500 != 201
+
+diary/tests/test_views.py:43: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Error updating embedding for diary 289: insert or update on table "diary_diaryembedding" violates foreign key constraint "diary_diaryembedding_diary_id_dcec9474_fk_diary_diary_id"
+DETAIL:  Key (diary_id)=(289) is not present in table "diary_diary".
+----------------------------- Captured stderr call -----------------------------
+Emotion analysis raw response: {"emotion": "happy", "score": 95, "reason": "일기 내용에서 직접적으로 '즐거운 하루'라고 언급하며 긍정적인 만족감과 기쁨을 명확하게 표현하고 있습니다."}
+Failed to generate reflection question: Aggregate functions are not allowed in this query (reflection_question=<MagicMock name='mock.GenerativeModel().generate_content().text.strip().resolve_expression().resolve_expression()' id='131519085672688'>).
+Unhandled exception: TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block. | {'view': 'DiaryViewSet', 'method': 'POST', 'path': '/api/diaries/', 'user': 'testuser'}
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:emotion_service.py:108 Emotion analysis raw response: {"emotion": "happy", "score": 95, "reason": "일기 내용에서 직접적으로 '즐거운 하루'라고 언급하며 긍정적인 만족감과 기쁨을 명확하게 표현하고 있습니다."}
+ERROR    diary.views.diary_views:diary_views.py:240 Failed to generate reflection question: Aggregate functions are not allowed in this query (reflection_question=<MagicMock name='mock.GenerativeModel().generate_content().text.strip().resolve_expression().resolve_expression()' id='131519085672688'>).
+ERROR    diary:exception_handler.py:90 Unhandled exception: TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block. | {'view': 'DiaryViewSet', 'method': 'POST', 'path': '/api/diaries/', 'user': 'testuser'}
+ERROR    django.request:log.py:249 Internal Server Error: /api/diaries/
+________________ TestImageGenerator.test_generate_image_success ________________
+
+self = <diary.ai_service.ImageGenerator object at 0x779dac435b20>
+diary_content = '오늘은 정말 행복한 하루였다.', emotion = None
+
+    def generate(self, diary_content, emotion=None):
+        """
+        Gemini Imagen 3를 사용하여 일기 내용에 맞는 이미지를 생성합니다.
+    
+        Args:
+            diary_content (str): 일기 내용
+            emotion (str, optional): 일기의 감정 (happy, sad, etc.)
+    
+        Returns:
+            dict: { 'url': ..., 'prompt': ... }
+        """
+        import os
+        import uuid
+        import base64
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+    
+        logger.debug(f"Generating image for: {diary_content[:50]}...")
+    
+        if not settings.GEMINI_API_KEY:
+            logger.error("Gemini API Key is not configured for Image Generation.")
+            raise ValueError("API Key Configuration Error")
+    
+        try:
+            # 감정에 따른 스타일 선택
+            style_instruction = self.EMOTION_STYLES.get(emotion, "Artistic and emotional illustration")
+    
+            # AI가 생성할 이미지에 대한 프롬프트를 구성합니다.
+    
+            # 영어 번역이 필요할 수 있으나, 일단 단순 결합
+            prompt = (
+                f"An emotional illustration representing the following diary content. "
+                f"Style: {style_instruction}. "
+                f"Diary snippet: '{diary_content[:300]}'"
+            )
+    
+            # Gemini 모델 (예: gemini-3-pro-image-preview) 사용 시
+            if settings.GEMINI_IMAGE_MODEL.lower().startswith('gemini'):
+                import google.generativeai as genai
+                if settings.GEMINI_API_KEY:
+                    genai.configure(api_key=settings.GEMINI_API_KEY)
+    
+                gen_model = genai.GenerativeModel(settings.GEMINI_IMAGE_MODEL)
+    
+                # Gemini 3 Image Generation Prompt
+>               response = gen_model.generate_content(
+                    f"Draw the following: {prompt}",
+                    # safety_settings? generation_config?
+                )
+
+diary/ai_service.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/site-packages/google/generativeai/generative_models.py:331: in generate_content
+    response = self._client.generate_content(
+/usr/local/lib/python3.12/site-packages/google/ai/generativelanguage_v1beta/services/generative_service/client.py:835: in generate_content
+    response = rpc(
+/usr/local/lib/python3.12/site-packages/google/api_core/gapic_v1/method.py:131: in __call__
+    return wrapped_func(*args, **kwargs)
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+/usr/local/lib/python3.12/site-packages/google/api_core/timeout.py:130: in func_with_timeout
+    return func(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = (model: "models/gemini-3-pro-image-preview"
+contents {
+  parts {
+    text: "Draw the following: An emotional illustrat...Artistic and emotional illustration. Diary snippet: \'오늘은 정말 행복한 하루였다.\'"
+  }
+  role: "user"
+}
+generation_config {
+}
+,)
+kwargs = {'metadata': [('x-goog-request-params', 'model=models/gemini-3-pro-image-preview'), ('x-goog-api-client', 'genai-py/0.8.6 gl-python/3.12.12 grpc/1.76.0 gax/2.29.0')], 'timeout': 600.0}
+
+    @functools.wraps(callable_)
+    def error_remapped_callable(*args, **kwargs):
+        try:
+            return callable_(*args, **kwargs)
+        except grpc.RpcError as exc:
+>           raise exceptions.from_grpc_error(exc) from exc
+E           google.api_core.exceptions.ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+E           * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro-image
+E           * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro-image
+E           * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro-image
+E           Please retry in 39.497438316s. [links {
+E             description: "Learn more about Gemini API quotas"
+E             url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+E           }
+E           , violations {
+E             quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+E             quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+E             quota_dimensions {
+E               key: "model"
+E               value: "gemini-3-pro-image"
+E             }
+E             quota_dimensions {
+E               key: "location"
+E               value: "global"
+E             }
+E           }
+E           violations {
+E             quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+E             quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+E             quota_dimensions {
+E               key: "model"
+E               value: "gemini-3-pro-image"
+E             }
+E             quota_dimensions {
+E               key: "location"
+E               value: "global"
+E             }
+E           }
+E           violations {
+E             quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+E             quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+E             quota_dimensions {
+E               key: "model"
+E               value: "gemini-3-pro-image"
+E             }
+E             quota_dimensions {
+E               key: "location"
+E               value: "global"
+E             }
+E           }
+E           , retry_delay {
+E             seconds: 39
+E           }
+E           ]
+
+/usr/local/lib/python3.12/site-packages/google/api_core/grpc_helpers.py:77: ResourceExhausted
+
+During handling of the above exception, another exception occurred:
+
+self = <diary.tests.test_ai_service.TestImageGenerator object at 0x779de67ef080>
+mock_openai = <MagicMock name='openai' id='131519083157584'>
+
+    @patch('diary.ai_service.openai')
+    def test_generate_image_success(self, mock_openai):
+        """이미지 생성 성공 케이스"""
+        from diary.ai_service import ImageGenerator
+    
+        # 모의 응답 설정
+        mock_response = MagicMock()
+        mock_response.data = [MagicMock(url='https://example.com/generated-image.png')]
+        mock_openai.Image.create.return_value = mock_response
+    
+        generator = ImageGenerator()
+>       result = generator.generate("오늘은 정말 행복한 하루였다.")
+
+diary/tests/test_ai_service.py:27: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <diary.ai_service.ImageGenerator object at 0x779dac435b20>
+diary_content = '오늘은 정말 행복한 하루였다.', emotion = None
+
+    def generate(self, diary_content, emotion=None):
+        """
+        Gemini Imagen 3를 사용하여 일기 내용에 맞는 이미지를 생성합니다.
+    
+        Args:
+            diary_content (str): 일기 내용
+            emotion (str, optional): 일기의 감정 (happy, sad, etc.)
+    
+        Returns:
+            dict: { 'url': ..., 'prompt': ... }
+        """
+        import os
+        import uuid
+        import base64
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+    
+        logger.debug(f"Generating image for: {diary_content[:50]}...")
+    
+        if not settings.GEMINI_API_KEY:
+            logger.error("Gemini API Key is not configured for Image Generation.")
+            raise ValueError("API Key Configuration Error")
+    
+        try:
+            # 감정에 따른 스타일 선택
+            style_instruction = self.EMOTION_STYLES.get(emotion, "Artistic and emotional illustration")
+    
+            # AI가 생성할 이미지에 대한 프롬프트를 구성합니다.
+    
+            # 영어 번역이 필요할 수 있으나, 일단 단순 결합
+            prompt = (
+                f"An emotional illustration representing the following diary content. "
+                f"Style: {style_instruction}. "
+                f"Diary snippet: '{diary_content[:300]}'"
+            )
+    
+            # Gemini 모델 (예: gemini-3-pro-image-preview) 사용 시
+            if settings.GEMINI_IMAGE_MODEL.lower().startswith('gemini'):
+                import google.generativeai as genai
+                if settings.GEMINI_API_KEY:
+                    genai.configure(api_key=settings.GEMINI_API_KEY)
+    
+                gen_model = genai.GenerativeModel(settings.GEMINI_IMAGE_MODEL)
+    
+                # Gemini 3 Image Generation Prompt
+                response = gen_model.generate_content(
+                    f"Draw the following: {prompt}",
+                    # safety_settings? generation_config?
+                )
+    
+                # 응답에서 이미지 추출 (Gemini 3는 parts에 info가 있음)
+                # 주의: SDK 버전에 따라 다를 수 있음. 보통 response.parts[0].inline_data
+                if not response.parts:
+                     raise ValueError("No content generated")
+    
+                image_data = None
+                for part in response.parts:
+                    if part.inline_data:
+                        image_data = part.inline_data.data # bytes
+                        break
+    
+                if not image_data:
+                    raise ValueError("No image data found in Gemini response")
+    
+            else:
+                # 기존 Imagen REST API 호출 (imagen-*)
+                import requests
+    
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_IMAGE_MODEL}:predict?key={settings.GEMINI_API_KEY}"
+    
+                headers = {
+                    "Content-Type": "application/json"
+                }
+    
+                payload = {
+                    "instances": [
+                        {
+                            "prompt": prompt
+                        }
+                    ],
+                    "parameters": {
+                        "sampleCount": 1,
+                        "aspectRatio": "1:1",
+                        # "safetyFilterLevel": "block_some",
+                        # "personGeneration": "allow_adult"
+                    }
+                }
+    
+                response = requests.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+    
+                result = response.json()
+    
+                # 응답 구조: {'predictions': [{'bytesBase64Encoded': '...'}]}
+                if 'predictions' not in result or not result['predictions']:
+                    logger.error(f"Imagen API Error: {result}")
+                    raise ValueError("No images generated by Gemini (Imagen).")
+    
+                b64_image = result['predictions'][0]['bytesBase64Encoded']
+                image_data = base64.b64decode(b64_image)
+    
+            # 공통: 이미지 로컬 저장
+            filename = f"ai_images/{datetime.now().strftime('%Y/%m/%d')}/{uuid.uuid4()}.png"
+    
+            # 임시 파일 경로
+            temp_path = os.path.join(settings.MEDIA_ROOT, filename)
+            os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+    
+            with open(temp_path, "wb") as f:
+                f.write(image_data)
+    
+            # URL 생성
+            image_url = settings.MEDIA_URL + filename
+            image_url = image_url.replace('\\', '/')
+    
+            logger.info(f"Image generated and saved successfully: {image_url}")
+    
+            return {
+                'url': image_url,
+                'prompt': prompt
+            }
+    
+    
+        except Exception as e:
+            # 통합된 에러 처리 및 Fallback 로직
+            error_msg = str(e)
+>           if isinstance(e, requests.exceptions.HTTPError):
+E           UnboundLocalError: cannot access local variable 'requests' where it is not associated with a value
+
+diary/ai_service.py:150: UnboundLocalError
+----------------------------- Captured stderr call -----------------------------
+Generating image for: 오늘은 정말 행복한 하루였다....
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:41 Generating image for: 오늘은 정말 행복한 하루였다....
+_______________ TestImageGenerator.test_generate_image_api_error _______________
+
+self = <diary.tests.test_ai_service.TestImageGenerator object at 0x779de66f2450>
+mock_openai = <MagicMock name='openai' id='131519083679184'>
+
+    @patch('diary.ai_service.openai')
+    def test_generate_image_api_error(self, mock_openai):
+        """OpenAI API 에러 시 예외 발생"""
+        from diary.ai_service import ImageGenerator
+    
+        # OpenAI 에러 시뮬레이션
+        mock_openai.error.OpenAIError = Exception
+        mock_openai.Image.create.side_effect = mock_openai.error.OpenAIError("API Error")
+    
+        generator = ImageGenerator()
+    
+        with pytest.raises(Exception) as exc_info:
+            generator.generate("test content")
+    
+>       assert "API Error" in str(exc_info.value)
+E       assert 'API Error' in "cannot access local variable 'requests' where it is not associated with a value"
+E        +  where "cannot access local variable 'requests' where it is not associated with a value" = str(UnboundLocalError("cannot access local variable 'requests' where it is not associated with a value"))
+E        +    where UnboundLocalError("cannot access local variable 'requests' where it is not associated with a value") = <ExceptionInfo UnboundLocalError("cannot access local variable 'requests' where it is not associated with a value") tblen=2>.value
+
+diary/tests/test_ai_service.py:48: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Generating image for: test content...
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:41 Generating image for: test content...
+___________ TestImageGenerator.test_generate_image_with_long_content ___________
+
+self = <diary.ai_service.ImageGenerator object at 0x779dac3fb650>
+diary_content = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+emotion = None
+
+    def generate(self, diary_content, emotion=None):
+        """
+        Gemini Imagen 3를 사용하여 일기 내용에 맞는 이미지를 생성합니다.
+    
+        Args:
+            diary_content (str): 일기 내용
+            emotion (str, optional): 일기의 감정 (happy, sad, etc.)
+    
+        Returns:
+            dict: { 'url': ..., 'prompt': ... }
+        """
+        import os
+        import uuid
+        import base64
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+    
+        logger.debug(f"Generating image for: {diary_content[:50]}...")
+    
+        if not settings.GEMINI_API_KEY:
+            logger.error("Gemini API Key is not configured for Image Generation.")
+            raise ValueError("API Key Configuration Error")
+    
+        try:
+            # 감정에 따른 스타일 선택
+            style_instruction = self.EMOTION_STYLES.get(emotion, "Artistic and emotional illustration")
+    
+            # AI가 생성할 이미지에 대한 프롬프트를 구성합니다.
+    
+            # 영어 번역이 필요할 수 있으나, 일단 단순 결합
+            prompt = (
+                f"An emotional illustration representing the following diary content. "
+                f"Style: {style_instruction}. "
+                f"Diary snippet: '{diary_content[:300]}'"
+            )
+    
+            # Gemini 모델 (예: gemini-3-pro-image-preview) 사용 시
+            if settings.GEMINI_IMAGE_MODEL.lower().startswith('gemini'):
+                import google.generativeai as genai
+                if settings.GEMINI_API_KEY:
+                    genai.configure(api_key=settings.GEMINI_API_KEY)
+    
+                gen_model = genai.GenerativeModel(settings.GEMINI_IMAGE_MODEL)
+    
+                # Gemini 3 Image Generation Prompt
+>               response = gen_model.generate_content(
+                    f"Draw the following: {prompt}",
+                    # safety_settings? generation_config?
+                )
+
+diary/ai_service.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/site-packages/google/generativeai/generative_models.py:331: in generate_content
+    response = self._client.generate_content(
+/usr/local/lib/python3.12/site-packages/google/ai/generativelanguage_v1beta/services/generative_service/client.py:835: in generate_content
+    response = rpc(
+/usr/local/lib/python3.12/site-packages/google/api_core/gapic_v1/method.py:131: in __call__
+    return wrapped_func(*args, **kwargs)
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+/usr/local/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+/usr/local/lib/python3.12/site-packages/google/api_core/timeout.py:130: in func_with_timeout
+    return func(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = (model: "models/gemini-3-pro-image-preview"
+contents {
+  parts {
+    text: "Draw the following: An emotional illustrat...AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\'"
+  }
+  role: "user"
+}
+generation_config {
+}
+,)
+kwargs = {'metadata': [('x-goog-request-params', 'model=models/gemini-3-pro-image-preview'), ('x-goog-api-client', 'genai-py/0.8.6 gl-python/3.12.12 grpc/1.76.0 gax/2.29.0')], 'timeout': 600.0}
+
+    @functools.wraps(callable_)
+    def error_remapped_callable(*args, **kwargs):
+        try:
+            return callable_(*args, **kwargs)
+        except grpc.RpcError as exc:
+>           raise exceptions.from_grpc_error(exc) from exc
+E           google.api_core.exceptions.ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+E           * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-3-pro-image
+E           * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro-image
+E           * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3-pro-image
+E           Please retry in 38.652017151s. [links {
+E             description: "Learn more about Gemini API quotas"
+E             url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+E           }
+E           , violations {
+E             quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+E             quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+E             quota_dimensions {
+E               key: "model"
+E               value: "gemini-3-pro-image"
+E             }
+E             quota_dimensions {
+E               key: "location"
+E               value: "global"
+E             }
+E           }
+E           violations {
+E             quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+E             quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+E             quota_dimensions {
+E               key: "model"
+E               value: "gemini-3-pro-image"
+E             }
+E             quota_dimensions {
+E               key: "location"
+E               value: "global"
+E             }
+E           }
+E           violations {
+E             quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+E             quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+E             quota_dimensions {
+E               key: "model"
+E               value: "gemini-3-pro-image"
+E             }
+E             quota_dimensions {
+E               key: "location"
+E               value: "global"
+E             }
+E           }
+E           , retry_delay {
+E             seconds: 38
+E           }
+E           ]
+
+/usr/local/lib/python3.12/site-packages/google/api_core/grpc_helpers.py:77: ResourceExhausted
+
+During handling of the above exception, another exception occurred:
+
+self = <diary.tests.test_ai_service.TestImageGenerator object at 0x779de656c650>
+mock_openai = <MagicMock name='openai' id='131519083157584'>
+
+    @patch('diary.ai_service.openai')
+    def test_generate_image_with_long_content(self, mock_openai):
+        """긴 내용의 경우 150자로 잘림"""
+        from diary.ai_service import ImageGenerator
+    
+        mock_response = MagicMock()
+        mock_response.data = [MagicMock(url='https://example.com/image.png')]
+        mock_openai.Image.create.return_value = mock_response
+    
+        generator = ImageGenerator()
+        long_content = "A" * 200
+>       result = generator.generate(long_content)
+
+diary/tests/test_ai_service.py:61: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <diary.ai_service.ImageGenerator object at 0x779dac3fb650>
+diary_content = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+emotion = None
+
+    def generate(self, diary_content, emotion=None):
+        """
+        Gemini Imagen 3를 사용하여 일기 내용에 맞는 이미지를 생성합니다.
+    
+        Args:
+            diary_content (str): 일기 내용
+            emotion (str, optional): 일기의 감정 (happy, sad, etc.)
+    
+        Returns:
+            dict: { 'url': ..., 'prompt': ... }
+        """
+        import os
+        import uuid
+        import base64
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+    
+        logger.debug(f"Generating image for: {diary_content[:50]}...")
+    
+        if not settings.GEMINI_API_KEY:
+            logger.error("Gemini API Key is not configured for Image Generation.")
+            raise ValueError("API Key Configuration Error")
+    
+        try:
+            # 감정에 따른 스타일 선택
+            style_instruction = self.EMOTION_STYLES.get(emotion, "Artistic and emotional illustration")
+    
+            # AI가 생성할 이미지에 대한 프롬프트를 구성합니다.
+    
+            # 영어 번역이 필요할 수 있으나, 일단 단순 결합
+            prompt = (
+                f"An emotional illustration representing the following diary content. "
+                f"Style: {style_instruction}. "
+                f"Diary snippet: '{diary_content[:300]}'"
+            )
+    
+            # Gemini 모델 (예: gemini-3-pro-image-preview) 사용 시
+            if settings.GEMINI_IMAGE_MODEL.lower().startswith('gemini'):
+                import google.generativeai as genai
+                if settings.GEMINI_API_KEY:
+                    genai.configure(api_key=settings.GEMINI_API_KEY)
+    
+                gen_model = genai.GenerativeModel(settings.GEMINI_IMAGE_MODEL)
+    
+                # Gemini 3 Image Generation Prompt
+                response = gen_model.generate_content(
+                    f"Draw the following: {prompt}",
+                    # safety_settings? generation_config?
+                )
+    
+                # 응답에서 이미지 추출 (Gemini 3는 parts에 info가 있음)
+                # 주의: SDK 버전에 따라 다를 수 있음. 보통 response.parts[0].inline_data
+                if not response.parts:
+                     raise ValueError("No content generated")
+    
+                image_data = None
+                for part in response.parts:
+                    if part.inline_data:
+                        image_data = part.inline_data.data # bytes
+                        break
+    
+                if not image_data:
+                    raise ValueError("No image data found in Gemini response")
+    
+            else:
+                # 기존 Imagen REST API 호출 (imagen-*)
+                import requests
+    
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_IMAGE_MODEL}:predict?key={settings.GEMINI_API_KEY}"
+    
+                headers = {
+                    "Content-Type": "application/json"
+                }
+    
+                payload = {
+                    "instances": [
+                        {
+                            "prompt": prompt
+                        }
+                    ],
+                    "parameters": {
+                        "sampleCount": 1,
+                        "aspectRatio": "1:1",
+                        # "safetyFilterLevel": "block_some",
+                        # "personGeneration": "allow_adult"
+                    }
+                }
+    
+                response = requests.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+    
+                result = response.json()
+    
+                # 응답 구조: {'predictions': [{'bytesBase64Encoded': '...'}]}
+                if 'predictions' not in result or not result['predictions']:
+                    logger.error(f"Imagen API Error: {result}")
+                    raise ValueError("No images generated by Gemini (Imagen).")
+    
+                b64_image = result['predictions'][0]['bytesBase64Encoded']
+                image_data = base64.b64decode(b64_image)
+    
+            # 공통: 이미지 로컬 저장
+            filename = f"ai_images/{datetime.now().strftime('%Y/%m/%d')}/{uuid.uuid4()}.png"
+    
+            # 임시 파일 경로
+            temp_path = os.path.join(settings.MEDIA_ROOT, filename)
+            os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+    
+            with open(temp_path, "wb") as f:
+                f.write(image_data)
+    
+            # URL 생성
+            image_url = settings.MEDIA_URL + filename
+            image_url = image_url.replace('\\', '/')
+    
+            logger.info(f"Image generated and saved successfully: {image_url}")
+    
+            return {
+                'url': image_url,
+                'prompt': prompt
+            }
+    
+    
+        except Exception as e:
+            # 통합된 에러 처리 및 Fallback 로직
+            error_msg = str(e)
+>           if isinstance(e, requests.exceptions.HTTPError):
+E           UnboundLocalError: cannot access local variable 'requests' where it is not associated with a value
+
+diary/ai_service.py:150: UnboundLocalError
+----------------------------- Captured stderr call -----------------------------
+Generating image for: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:41 Generating image for: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...
+_______________ TestDiarySummarizer.test_summarize_bullet_style ________________
+
+self = <diary.tests.test_ai_service.TestDiarySummarizer object at 0x779de656fb60>
+mock_openai = <MagicMock name='openai' id='131519082753552'>
+
+    @patch('diary.ai_service.openai')
+    def test_summarize_bullet_style(self, mock_openai):
+        """불릿 스타일 요약 테스트"""
+        from diary.ai_service import DiarySummarizer
+    
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content="• 포인트1\n• 포인트2"))]
+        mock_openai.ChatCompletion.create.return_value = mock_response
+    
+        summarizer = DiarySummarizer()
+        result = summarizer.summarize("긴 일기 내용입니다. " * 10, style='bullet')
+    
+        assert result['style'] == 'bullet'
+>       assert '•' in result['summary']
+E       AssertionError: assert '•' in <MagicMock name='mock.GenerativeModel().generate_content().text.strip()' id='131519082871936'>
+
+diary/tests/test_ai_service.py:204: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Summarizing diary content with style: bullet
+Diary summarized successfully. Original: 120 chars, Summary: 0 chars
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:377 Summarizing diary content with style: bullet
+INFO     diary:ai_service.py:427 Diary summarized successfully. Original: 120 chars, Summary: 0 chars
+________________ TestDiarySummarizer.test_suggest_title_success ________________
+
+self = <diary.tests.test_ai_service.TestDiarySummarizer object at 0x779de6575610>
+mock_openai = <MagicMock name='openai' id='131519082654960'>
+
+    @patch('diary.ai_service.openai')
+    def test_suggest_title_success(self, mock_openai):
+        """제목 제안 성공 케이스"""
+        from diary.ai_service import DiarySummarizer
+    
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content="\"행복한 하루\""))]
+        mock_openai.ChatCompletion.create.return_value = mock_response
+    
+        summarizer = DiarySummarizer()
+        title = summarizer.suggest_title("오늘은 정말 행복한 하루였습니다. " * 5)
+    
+        # 따옴표가 제거되었는지 확인
+>       assert title == "행복한 하루"
+E       AssertionError: assert <MagicMock name='mock.GenerativeModel().generate_content().text.strip().strip()' id='131519082875744'> == '행복한 하루'
+
+diary/tests/test_ai_service.py:238: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Suggesting title for diary content
+Title suggested: <MagicMock name='mock.GenerativeModel().generate_content().text.strip().strip()' id='131519082875744'>
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:457 Suggesting title for diary content
+INFO     diary:ai_service.py:474 Title suggested: <MagicMock name='mock.GenerativeModel().generate_content().text.strip().strip()' id='131519082875744'>
+__________ TestDiarySummarizer.test_suggest_title_api_error_fallback ___________
+
+self = <diary.tests.test_ai_service.TestDiarySummarizer object at 0x779de6575d00>
+mock_openai = <MagicMock name='openai' id='131519081991584'>
+
+    @patch('diary.ai_service.openai')
+    def test_suggest_title_api_error_fallback(self, mock_openai):
+        """API 에러 시 기본 제목 반환"""
+        from diary.ai_service import DiarySummarizer
+    
+        mock_openai.ChatCompletion.create.side_effect = Exception("API Error")
+    
+        summarizer = DiarySummarizer()
+        title = summarizer.suggest_title("충분히 긴 일기 내용입니다.")
+    
+>       assert title == "오늘의 일기"
+E       AssertionError: assert <MagicMock name='mock.GenerativeModel().generate_content().text.strip().strip()' id='131519083208464'> == '오늘의 일기'
+
+diary/tests/test_ai_service.py:259: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Suggesting title for diary content
+Title suggested: <MagicMock name='mock.GenerativeModel().generate_content().text.strip().strip()' id='131519083208464'>
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:457 Suggesting title for diary content
+INFO     diary:ai_service.py:474 Title suggested: <MagicMock name='mock.GenerativeModel().generate_content().text.strip().strip()' id='131519083208464'>
+_____________ TestTemplateGenerator.test_generate_template_success _____________
+
+self = <diary.tests.test_ai_service.TestTemplateGenerator object at 0x779de6576b70>
+mock_openai = <MagicMock name='openai' id='131519082489248'>
+
+        @patch('diary.ai_service.openai')
+        def test_generate_template_success(self, mock_openai):
+            """템플릿 생성 성공 케이스"""
+            from diary.ai_service import TemplateGenerator
+    
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock(message=MagicMock(content="""
+    {
+        "name": "독서 일기",
+        "emoji": "📚",
+        "description": "읽은 책에 대한 감상을 기록합니다",
+        "content": "📖 오늘 읽은 책:\\n\\n✍️ 인상 깊은 문장:\\n\\n💭 나의 생각:\\n"
+    }
+    """))]
+            mock_openai.ChatCompletion.create.return_value = mock_response
+    
+            generator = TemplateGenerator()
+>           result = generator.generate("독서 일기")
+
+diary/tests/test_ai_service.py:343: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+diary/ai_service.py:627: in generate
+    raise e
+diary/ai_service.py:604: in generate
+    result = json.loads(content)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+s = <MagicMock name='mock.GenerativeModel().generate_content().text.strip().split().__getitem__().__getitem__().strip().__getitem__().strip()' id='131519081994032'>
+cls = None, object_hook = None, parse_float = None, parse_int = None
+parse_constant = None, object_pairs_hook = None, kw = {}
+
+    def loads(s, *, cls=None, object_hook=None, parse_float=None,
+            parse_int=None, parse_constant=None, object_pairs_hook=None, **kw):
+        """Deserialize ``s`` (a ``str``, ``bytes`` or ``bytearray`` instance
+        containing a JSON document) to a Python object.
+    
+        ``object_hook`` is an optional function that will be called with the
+        result of any object literal decode (a ``dict``). The return value of
+        ``object_hook`` will be used instead of the ``dict``. This feature
+        can be used to implement custom decoders (e.g. JSON-RPC class hinting).
+    
+        ``object_pairs_hook`` is an optional function that will be called with the
+        result of any object literal decoded with an ordered list of pairs.  The
+        return value of ``object_pairs_hook`` will be used instead of the ``dict``.
+        This feature can be used to implement custom decoders.  If ``object_hook``
+        is also defined, the ``object_pairs_hook`` takes priority.
+    
+        ``parse_float``, if specified, will be called with the string
+        of every JSON float to be decoded. By default this is equivalent to
+        float(num_str). This can be used to use another datatype or parser
+        for JSON floats (e.g. decimal.Decimal).
+    
+        ``parse_int``, if specified, will be called with the string
+        of every JSON int to be decoded. By default this is equivalent to
+        int(num_str). This can be used to use another datatype or parser
+        for JSON integers (e.g. float).
+    
+        ``parse_constant``, if specified, will be called with one of the
+        following strings: -Infinity, Infinity, NaN.
+        This can be used to raise an exception if invalid JSON numbers
+        are encountered.
+    
+        To use a custom ``JSONDecoder`` subclass, specify it with the ``cls``
+        kwarg; otherwise ``JSONDecoder`` is used.
+        """
+        if isinstance(s, str):
+            if s.startswith('\ufeff'):
+                raise JSONDecodeError("Unexpected UTF-8 BOM (decode using utf-8-sig)",
+                                      s, 0)
+        else:
+            if not isinstance(s, (bytes, bytearray)):
+>               raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+                                f'not {s.__class__.__name__}')
+E               TypeError: the JSON object must be str, bytes or bytearray, not MagicMock
+
+/usr/local/lib/python3.12/json/__init__.py:339: TypeError
+----------------------------- Captured stderr call -----------------------------
+Generating template for topic: 독서 일기, style: default
+Error generating template: the JSON object must be str, bytes or bytearray, not MagicMock
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:553 Generating template for topic: 독서 일기, style: default
+ERROR    diary:ai_service.py:626 Error generating template: the JSON object must be str, bytes or bytearray, not MagicMock
+_________ TestTemplateGenerator.test_generate_template_with_code_block _________
+
+self = <diary.tests.test_ai_service.TestTemplateGenerator object at 0x779de6576ed0>
+mock_openai = <MagicMock name='openai' id='131519082230176'>
+
+        @patch('diary.ai_service.openai')
+        def test_generate_template_with_code_block(self, mock_openai):
+            """코드 블록이 포함된 응답 처리"""
+            from diary.ai_service import TemplateGenerator
+    
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock(message=MagicMock(content="""```json
+    {
+        "name": "운동 일기",
+        "emoji": "🏃",
+        "description": "운동 기록",
+        "content": "오늘의 운동:\\n"
+    }
+    ```"""))]
+            mock_openai.ChatCompletion.create.return_value = mock_response
+    
+            generator = TemplateGenerator()
+>           result = generator.generate("운동 일기")
+
+diary/tests/test_ai_service.py:369: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+diary/ai_service.py:627: in generate
+    raise e
+diary/ai_service.py:604: in generate
+    result = json.loads(content)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+s = <MagicMock name='mock.GenerativeModel().generate_content().text.strip().split().__getitem__().__getitem__().strip().__getitem__().strip()' id='131519082635696'>
+cls = None, object_hook = None, parse_float = None, parse_int = None
+parse_constant = None, object_pairs_hook = None, kw = {}
+
+    def loads(s, *, cls=None, object_hook=None, parse_float=None,
+            parse_int=None, parse_constant=None, object_pairs_hook=None, **kw):
+        """Deserialize ``s`` (a ``str``, ``bytes`` or ``bytearray`` instance
+        containing a JSON document) to a Python object.
+    
+        ``object_hook`` is an optional function that will be called with the
+        result of any object literal decode (a ``dict``). The return value of
+        ``object_hook`` will be used instead of the ``dict``. This feature
+        can be used to implement custom decoders (e.g. JSON-RPC class hinting).
+    
+        ``object_pairs_hook`` is an optional function that will be called with the
+        result of any object literal decoded with an ordered list of pairs.  The
+        return value of ``object_pairs_hook`` will be used instead of the ``dict``.
+        This feature can be used to implement custom decoders.  If ``object_hook``
+        is also defined, the ``object_pairs_hook`` takes priority.
+    
+        ``parse_float``, if specified, will be called with the string
+        of every JSON float to be decoded. By default this is equivalent to
+        float(num_str). This can be used to use another datatype or parser
+        for JSON floats (e.g. decimal.Decimal).
+    
+        ``parse_int``, if specified, will be called with the string
+        of every JSON int to be decoded. By default this is equivalent to
+        int(num_str). This can be used to use another datatype or parser
+        for JSON integers (e.g. float).
+    
+        ``parse_constant``, if specified, will be called with one of the
+        following strings: -Infinity, Infinity, NaN.
+        This can be used to raise an exception if invalid JSON numbers
+        are encountered.
+    
+        To use a custom ``JSONDecoder`` subclass, specify it with the ``cls``
+        kwarg; otherwise ``JSONDecoder`` is used.
+        """
+        if isinstance(s, str):
+            if s.startswith('\ufeff'):
+                raise JSONDecodeError("Unexpected UTF-8 BOM (decode using utf-8-sig)",
+                                      s, 0)
+        else:
+            if not isinstance(s, (bytes, bytearray)):
+>               raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+                                f'not {s.__class__.__name__}')
+E               TypeError: the JSON object must be str, bytes or bytearray, not MagicMock
+
+/usr/local/lib/python3.12/json/__init__.py:339: TypeError
+----------------------------- Captured stderr call -----------------------------
+Generating template for topic: 운동 일기, style: default
+Error generating template: the JSON object must be str, bytes or bytearray, not MagicMock
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:553 Generating template for topic: 운동 일기, style: default
+ERROR    diary:ai_service.py:626 Error generating template: the JSON object must be str, bytes or bytearray, not MagicMock
+_______ TestTemplateGenerator.test_generate_template_json_error_fallback _______
+
+self = <diary.tests.test_ai_service.TestTemplateGenerator object at 0x779de65779b0>
+mock_openai = <MagicMock name='openai' id='131519081048992'>
+
+    @patch('diary.ai_service.openai')
+    def test_generate_template_json_error_fallback(self, mock_openai):
+        """JSON 파싱 에러 시 폴백 템플릿 반환"""
+        from diary.ai_service import TemplateGenerator
+    
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content="잘못된 JSON 응답"))]
+        mock_openai.ChatCompletion.create.return_value = mock_response
+    
+        generator = TemplateGenerator()
+>       result = generator.generate("테스트 템플릿")
+
+diary/tests/test_ai_service.py:404: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+diary/ai_service.py:627: in generate
+    raise e
+diary/ai_service.py:604: in generate
+    result = json.loads(content)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+s = <MagicMock name='mock.GenerativeModel().generate_content().text.strip().split().__getitem__().__getitem__().strip().__getitem__().strip()' id='131519081155664'>
+cls = None, object_hook = None, parse_float = None, parse_int = None
+parse_constant = None, object_pairs_hook = None, kw = {}
+
+    def loads(s, *, cls=None, object_hook=None, parse_float=None,
+            parse_int=None, parse_constant=None, object_pairs_hook=None, **kw):
+        """Deserialize ``s`` (a ``str``, ``bytes`` or ``bytearray`` instance
+        containing a JSON document) to a Python object.
+    
+        ``object_hook`` is an optional function that will be called with the
+        result of any object literal decode (a ``dict``). The return value of
+        ``object_hook`` will be used instead of the ``dict``. This feature
+        can be used to implement custom decoders (e.g. JSON-RPC class hinting).
+    
+        ``object_pairs_hook`` is an optional function that will be called with the
+        result of any object literal decoded with an ordered list of pairs.  The
+        return value of ``object_pairs_hook`` will be used instead of the ``dict``.
+        This feature can be used to implement custom decoders.  If ``object_hook``
+        is also defined, the ``object_pairs_hook`` takes priority.
+    
+        ``parse_float``, if specified, will be called with the string
+        of every JSON float to be decoded. By default this is equivalent to
+        float(num_str). This can be used to use another datatype or parser
+        for JSON floats (e.g. decimal.Decimal).
+    
+        ``parse_int``, if specified, will be called with the string
+        of every JSON int to be decoded. By default this is equivalent to
+        int(num_str). This can be used to use another datatype or parser
+        for JSON integers (e.g. float).
+    
+        ``parse_constant``, if specified, will be called with one of the
+        following strings: -Infinity, Infinity, NaN.
+        This can be used to raise an exception if invalid JSON numbers
+        are encountered.
+    
+        To use a custom ``JSONDecoder`` subclass, specify it with the ``cls``
+        kwarg; otherwise ``JSONDecoder`` is used.
+        """
+        if isinstance(s, str):
+            if s.startswith('\ufeff'):
+                raise JSONDecodeError("Unexpected UTF-8 BOM (decode using utf-8-sig)",
+                                      s, 0)
+        else:
+            if not isinstance(s, (bytes, bytearray)):
+>               raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+                                f'not {s.__class__.__name__}')
+E               TypeError: the JSON object must be str, bytes or bytearray, not MagicMock
+
+/usr/local/lib/python3.12/json/__init__.py:339: TypeError
+----------------------------- Captured stderr call -----------------------------
+Generating template for topic: 테스트 템플릿, style: default
+Error generating template: the JSON object must be str, bytes or bytearray, not MagicMock
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:553 Generating template for topic: 테스트 템플릿, style: default
+ERROR    diary:ai_service.py:626 Error generating template: the JSON object must be str, bytes or bytearray, not MagicMock
+________ TestTemplateGenerator.test_generate_template_different_styles _________
+
+self = <diary.tests.test_ai_service.TestTemplateGenerator object at 0x779de6577d70>
+mock_openai = <MagicMock name='openai' id='131519081168720'>
+
+        @patch('diary.ai_service.openai')
+        def test_generate_template_different_styles(self, mock_openai):
+            """다른 스타일 옵션 테스트"""
+            from diary.ai_service import TemplateGenerator
+    
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock(message=MagicMock(content="""
+    {
+        "name": "간단 일기",
+        "emoji": "✏️",
+        "description": "간단한 기록",
+        "content": "오늘:\\n"
+    }
+    """))]
+            mock_openai.ChatCompletion.create.return_value = mock_response
+    
+            generator = TemplateGenerator()
+    
+            # simple 스타일
+>           result = generator.generate("간단 일기", style='simple')
+
+diary/tests/test_ai_service.py:430: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+diary/ai_service.py:627: in generate
+    raise e
+diary/ai_service.py:604: in generate
+    result = json.loads(content)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+s = <MagicMock name='mock.GenerativeModel().generate_content().text.strip().split().__getitem__().__getitem__().strip().__getitem__().strip()' id='131518533460928'>
+cls = None, object_hook = None, parse_float = None, parse_int = None
+parse_constant = None, object_pairs_hook = None, kw = {}
+
+    def loads(s, *, cls=None, object_hook=None, parse_float=None,
+            parse_int=None, parse_constant=None, object_pairs_hook=None, **kw):
+        """Deserialize ``s`` (a ``str``, ``bytes`` or ``bytearray`` instance
+        containing a JSON document) to a Python object.
+    
+        ``object_hook`` is an optional function that will be called with the
+        result of any object literal decode (a ``dict``). The return value of
+        ``object_hook`` will be used instead of the ``dict``. This feature
+        can be used to implement custom decoders (e.g. JSON-RPC class hinting).
+    
+        ``object_pairs_hook`` is an optional function that will be called with the
+        result of any object literal decoded with an ordered list of pairs.  The
+        return value of ``object_pairs_hook`` will be used instead of the ``dict``.
+        This feature can be used to implement custom decoders.  If ``object_hook``
+        is also defined, the ``object_pairs_hook`` takes priority.
+    
+        ``parse_float``, if specified, will be called with the string
+        of every JSON float to be decoded. By default this is equivalent to
+        float(num_str). This can be used to use another datatype or parser
+        for JSON floats (e.g. decimal.Decimal).
+    
+        ``parse_int``, if specified, will be called with the string
+        of every JSON int to be decoded. By default this is equivalent to
+        int(num_str). This can be used to use another datatype or parser
+        for JSON integers (e.g. float).
+    
+        ``parse_constant``, if specified, will be called with one of the
+        following strings: -Infinity, Infinity, NaN.
+        This can be used to raise an exception if invalid JSON numbers
+        are encountered.
+    
+        To use a custom ``JSONDecoder`` subclass, specify it with the ``cls``
+        kwarg; otherwise ``JSONDecoder`` is used.
+        """
+        if isinstance(s, str):
+            if s.startswith('\ufeff'):
+                raise JSONDecodeError("Unexpected UTF-8 BOM (decode using utf-8-sig)",
+                                      s, 0)
+        else:
+            if not isinstance(s, (bytes, bytearray)):
+>               raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+                                f'not {s.__class__.__name__}')
+E               TypeError: the JSON object must be str, bytes or bytearray, not MagicMock
+
+/usr/local/lib/python3.12/json/__init__.py:339: TypeError
+----------------------------- Captured stderr call -----------------------------
+Generating template for topic: 간단 일기, style: simple
+Error generating template: the JSON object must be str, bytes or bytearray, not MagicMock
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:ai_service.py:553 Generating template for topic: 간단 일기, style: simple
+ERROR    diary:ai_service.py:626 Error generating template: the JSON object must be str, bytes or bytearray, not MagicMock
+__________________ TestKeywordExtractor.test_extract_keywords __________________
+
+args = (<diary.tests.test_algorithm.TestKeywordExtractor object at 0x779de5b590a0>,)
+keywargs = {}
+
+    @wraps(func)
+    def patched(*args, **keywargs):
+>       with self.decoration_helper(patched,
+                                    args,
+                                    keywargs) as (newargs, newkeywargs):
+
+/usr/local/lib/python3.12/unittest/mock.py:1393: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.12/contextlib.py:137: in __enter__
+    return next(self.gen)
+/usr/local/lib/python3.12/unittest/mock.py:1375: in decoration_helper
+    arg = exit_stack.enter_context(patching)
+/usr/local/lib/python3.12/contextlib.py:526: in enter_context
+    result = _enter(cm)
+/usr/local/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x779de5b58e90>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'diary.ai_service' from '/app/diary/ai_service.py'> does not have the attribute 'cosine_similarity'
+
+/usr/local/lib/python3.12/unittest/mock.py:1437: AttributeError
+_____________ TestChatService.test_generate_chat_response_success ______________
+
+self = <django.db.models.fields.AutoField: id>, value = []
+
+    def get_prep_value(self, value):
+        value = super().get_prep_value(value)
+        if value is None:
+            return None
+        try:
+>           return int(value)
+E           TypeError: int() argument must be a string, a bytes-like object or a real number, not 'list'
+
+/usr/local/lib/python3.12/site-packages/django/db/models/fields/__init__.py:2128: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = <diary.tests.test_chat_service.TestChatService object at 0x779de5b797c0>
+mock_transformer = <MagicMock name='SentenceTransformer' id='131518533521664'>
+mock_genai = <MagicMock name='genai' id='131518533526128'>
+
+    @patch('diary.services.chat_service.genai')
+    @patch('diary.services.chat_service.SentenceTransformer')
+    def test_generate_chat_response_success(self, mock_transformer, mock_genai):
+        """채팅 응답 생성 성공 케이스"""
+        # Mocking Models
+        mock_model = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "네, 그랬군요."
+        mock_model.generate_content.return_value = mock_response
+        mock_genai.GenerativeModel.return_value = mock_model
+    
+        # Mock Embedding
+        mock_encoder = MagicMock()
+        mock_encoder.encode.return_value = [0.1] * 384
+        mock_transformer.return_value = mock_encoder
+    
+        # Mock Database Search (pgvector 관련 로직은 실제 DB 대신 Mocking)
+        with patch('diary.models.DiaryEmbedding.objects.annotate') as mock_search:
+            mock_search.return_value.order_by.return_value = []
+    
+            service = ChatService()
+            user = MagicMock()
+            history = [{'role': 'user', 'text': '안녕'}, {'role': 'model', 'text': '반가워요'}]
+    
+            with patch('diary.services.chat_service.settings') as mock_settings:
+                mock_settings.GEMINI_API_KEY = 'test-key'
+                mock_settings.GEMINI_TEXT_MODEL = 'gemini-pro'
+    
+>               response = service.generate_chat_response(user, "오늘 기분이 어때?", history)
+
+diary/tests/test_chat_service.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+diary/services/chat_service.py:56: in generate_chat_response
+    related_diaries = ChatService.search_similar_diaries(user, message)
+diary/services/chat_service.py:47: in search_similar_diaries
+    embeddings = DiaryEmbedding.objects.filter(diary__user=user) \
+/usr/local/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+/usr/local/lib/python3.12/site-packages/django/db/models/query.py:1542: in filter
+    return self._filter_or_exclude(False, args, kwargs)
+/usr/local/lib/python3.12/site-packages/django/db/models/query.py:1560: in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+/usr/local/lib/python3.12/site-packages/django/db/models/query.py:1570: in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1671: in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1703: in _add_q
+    child_clause, needed_inner = self.build_filter(
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1613: in build_filter
+    condition = self.build_lookup(lookups, col, value)
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1440: in build_lookup
+    lookup = lookup_class(lhs, rhs)
+/usr/local/lib/python3.12/site-packages/django/db/models/lookups.py:35: in __init__
+    self.rhs = self.get_prep_lookup()
+/usr/local/lib/python3.12/site-packages/django/db/models/fields/related_lookups.py:113: in get_prep_lookup
+    self.rhs = target_field.get_prep_value(self.rhs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.models.fields.AutoField: id>, value = []
+
+    def get_prep_value(self, value):
+        value = super().get_prep_value(value)
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError) as e:
+>           raise e.__class__(
+                "Field '%s' expected a number but got %r." % (self.name, value),
+            ) from e
+E           TypeError: Field 'id' expected a number but got [].
+
+/usr/local/lib/python3.12/site-packages/django/db/models/fields/__init__.py:2130: TypeError
+____________ TestChatService.test_generate_chat_response_api_error _____________
+
+self = <django.db.models.fields.AutoField: id>, value = []
+
+    def get_prep_value(self, value):
+        value = super().get_prep_value(value)
+        if value is None:
+            return None
+        try:
+>           return int(value)
+E           TypeError: int() argument must be a string, a bytes-like object or a real number, not 'list'
+
+/usr/local/lib/python3.12/site-packages/django/db/models/fields/__init__.py:2128: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = <diary.tests.test_chat_service.TestChatService object at 0x779de5b79b80>
+mock_genai = <MagicMock name='genai' id='131518533347440'>
+
+    @patch('diary.services.chat_service.genai')
+    def test_generate_chat_response_api_error(self, mock_genai):
+        """API 에러 발생 시 예외 처리"""
+        with patch('diary.services.chat_service.SentenceTransformer'):
+            mock_genai.GenerativeModel.side_effect = Exception("API Error")
+    
+            service = ChatService()
+            user = MagicMock()
+    
+            with patch('diary.services.chat_service.settings') as mock_settings:
+                mock_settings.GEMINI_API_KEY = 'test-key'
+    
+>               response = service.generate_chat_response(user, "테스트")
+
+diary/tests/test_chat_service.py:61: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+diary/services/chat_service.py:56: in generate_chat_response
+    related_diaries = ChatService.search_similar_diaries(user, message)
+diary/services/chat_service.py:47: in search_similar_diaries
+    embeddings = DiaryEmbedding.objects.filter(diary__user=user) \
+/usr/local/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+/usr/local/lib/python3.12/site-packages/django/db/models/query.py:1542: in filter
+    return self._filter_or_exclude(False, args, kwargs)
+/usr/local/lib/python3.12/site-packages/django/db/models/query.py:1560: in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+/usr/local/lib/python3.12/site-packages/django/db/models/query.py:1570: in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1671: in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1703: in _add_q
+    child_clause, needed_inner = self.build_filter(
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1613: in build_filter
+    condition = self.build_lookup(lookups, col, value)
+/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py:1440: in build_lookup
+    lookup = lookup_class(lhs, rhs)
+/usr/local/lib/python3.12/site-packages/django/db/models/lookups.py:35: in __init__
+    self.rhs = self.get_prep_lookup()
+/usr/local/lib/python3.12/site-packages/django/db/models/fields/related_lookups.py:113: in get_prep_lookup
+    self.rhs = target_field.get_prep_value(self.rhs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.models.fields.AutoField: id>, value = []
+
+    def get_prep_value(self, value):
+        value = super().get_prep_value(value)
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError) as e:
+>           raise e.__class__(
+                "Field '%s' expected a number but got %r." % (self.name, value),
+            ) from e
+E           TypeError: Field 'id' expected a number but got [].
+
+/usr/local/lib/python3.12/site-packages/django/db/models/fields/__init__.py:2130: TypeError
+________________ TestEmotionAnalyzer.test_analyze_happy_emotion ________________
+
+self = <diary.tests.test_emotion_service.TestEmotionAnalyzer object at 0x779de5bc1670>
+mock_openai = <MagicMock id='131519081602880'>
+mock_settings = <MagicMock id='131519081608112'>
+
+    def test_analyze_happy_emotion(self, mock_openai, mock_settings):
+        """행복한 감정 분석 테스트"""
+        with patch.dict(sys.modules, {'openai': mock_openai}):
+            with patch('diary.emotion_service.settings', mock_settings):
+                import importlib
+                import diary.emotion_service as emotion_service
+                importlib.reload(emotion_service)
+    
+                mock_response = MagicMock()
+                mock_response.choices = [MagicMock(message=MagicMock(
+                    content='{"emotion": "happy", "score": 85, "reason": "긍정적인 표현이 많습니다."}'
+                ))]
+                mock_openai.chat.completions.create.return_value = mock_response
+    
+                analyzer = emotion_service.EmotionAnalyzer()
+                result = analyzer.analyze("오늘은 정말 행복한 하루였다! 친구들과 즐거운 시간을 보냈다.")
+    
+                assert result['emotion'] == 'happy'
+                assert result['emotion_label'] == '행복'
+>               assert result['score'] == 85
+E               assert 100 == 85
+
+diary/tests/test_emotion_service.py:50: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Emotion analysis raw response: {"emotion": "happy", "score": 100, "reason": "'행복한'이라는 표현을 직접 사용하였으며 친구들과 즐거운 시간을 보낸 것에 대해 매우 높은 만족감을 드러내고 있습니다."}
+------------------------------ Captured log call -------------------------------
+DEBUG    diary:emotion_service.py:108 Emotion analysis raw response: {"emotion": "happy", "score": 100, "reason": "'행복한'이라는 표현을 직접 사용하였으며 친구들과 즐거운 시간을 보낸 것에 대해 매우 높은 만족감을 드러내고 있습니다."}
+=============================== warnings summary ===============================
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:19
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:19: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    token = pp.Word(tchar).setName("token")
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:20
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:20: DeprecationWarning: 'leaveWhitespace' deprecated - use 'leave_whitespace'
+    token68 = pp.Combine(pp.Word("-._~+/" + pp.nums + pp.alphas) + pp.Optional(pp.Word("=").leaveWhitespace())).setName(
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:20
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:20: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    token68 = pp.Combine(pp.Word("-._~+/" + pp.nums + pp.alphas) + pp.Optional(pp.Word("=").leaveWhitespace())).setName(
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:24
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:24: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    quoted_string = pp.dblQuotedString.copy().setName("quoted-string").setParseAction(unquote)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:24
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:24: DeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    quoted_string = pp.dblQuotedString.copy().setName("quoted-string").setParseAction(unquote)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:25
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:25: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    auth_param_name = token.copy().setName("auth-param-name").addParseAction(downcaseTokens)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:25
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:25: DeprecationWarning: 'addParseAction' deprecated - use 'add_parse_action'
+    auth_param_name = token.copy().setName("auth-param-name").addParseAction(downcaseTokens)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:27
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:27: DeprecationWarning: 'delimitedList' deprecated - use 'DelimitedList'
+    params = pp.Dict(pp.delimitedList(pp.Group(auth_param)))
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:33
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:33: DeprecationWarning: 'delimitedList' deprecated - use 'DelimitedList'
+    www_authenticate = pp.delimitedList(pp.Group(challenge))
+
+diary/services/chat_service.py:1
+  /app/diary/services/chat_service.py:1: FutureWarning: 
+  
+  All support for the `google.generativeai` package has ended. It will no longer be receiving 
+  updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+  See README for more details:
+  
+  https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+  
+    import google.generativeai as genai
+
+scripts/test_summarize.py::test_summarize
+  /app:0: PytestWarning: Error when trying to teardown test databases: OperationalError('database "test_diary_db" is being accessed by other users\nDETAIL:  There are 34 other sessions using the database.')
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform linux, python 3.12.12-final-0 ----------
+Name                                                                                   Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------------------------------------------------------
+config/__init__.py                                                                         3      0   100%
+config/asgi.py                                                                             4      4     0%   10-16
+config/celery.py                                                                          10      1    90%   25
+config/exception_handler.py                                                               65     16    75%   78-79, 118, 136-142, 155-162, 167-172
+config/healthcheck.py                                                                     24     13    46%   28-35, 56-61
+config/settings.py                                                                        75      4    95%   23-24, 37, 378
+config/throttling.py                                                                      18      0   100%
+config/urls.py                                                                            15      1    93%   69
+config/wsgi.py                                                                             4      4     0%   10-16
+conftest.py                                                                               14      2    86%   20-21
+diary/__init__.py                                                                          0      0   100%
+diary/admin.py                                                                            50      9    82%   14-16, 28, 32-35, 45
+diary/ai_service.py                                                                      225     97    57%   44-45, 76-141, 151-180, 192-198, 204-232, 305-307, 339-344, 408-409, 436-439, 477-479, 496, 597-598, 607-613, 616-618
+diary/apps.py                                                                              5      0   100%
+diary/cache_utils.py                                                                      24     13    46%   22-23, 62, 70-76, 81-87
+diary/email_service.py                                                                    71     36    49%   16-24, 37-43, 91-97, 131-133, 145-151, 159, 191-193
+diary/emotion_service.py                                                                  61      7    89%   72-73, 101, 103, 105, 115, 119
+diary/encryption.py                                                                       68     13    81%   45-47, 73-75, 101-106, 111
+diary/management/__init__.py                                                               0      0   100%
+diary/management/commands/__init__.py                                                      0      0   100%
+diary/management/commands/create_system_templates.py                                      18     18     0%   2-206
+diary/messages.py                                                                         38      0   100%
+diary/migrations/0001_initial.py                                                           7      0   100%
+diary/migrations/0002_diary_latitude_diary_location_name_diary_longitude_and_more.py       6      0   100%
+diary/migrations/0003_add_push_token.py                                                    6      0   100%
+diary/migrations/0004_add_database_indexes.py                                              5      0   100%
+diary/migrations/0005_tag_diarytag_userpreference_tag_tag_user_name_idx_and_more.py        6      0   100%
+diary/migrations/0006_diarytemplate.py                                                     6      0   100%
+diary/migrations/0007_alter_userpreference_auto_emotion_analysis_and_more.py               4      0   100%
+diary/migrations/0008_diary_reflection_answer_diary_reflection_question_and_more.py        7      0   100%
+diary/migrations/__init__.py                                                               0      0   100%
+diary/models/__init__.py                                                                   9      0   100%
+diary/models/auth_tokens.py                                                               54      4    93%   49, 54, 87, 92
+diary/models/chat_models.py                                                               10      1    90%   19
+diary/models/diary.py                                                                     52      3    94%   102-103, 125
+diary/models/preference.py                                                                25      1    96%   78
+diary/models/push.py                                                                      19      0   100%
+diary/models/tag.py                                                                       26      2    92%   42, 67
+diary/models/template.py                                                                  36      5    86%   71, 81, 86, 91-92
+diary/paginations.py                                                                       5      0   100%
+diary/push_service.py                                                                     50      2    96%   156-157
+diary/serializers.py                                                                     156     24    85%   41-52, 63-74, 218-220, 241, 248-250, 265-266, 299
+diary/services/chat_service.py                                                            59     21    64%   50, 60-100, 106, 126-128
+diary/signals.py                                                                          13      0   100%
+diary/tasks.py                                                                           114     76    33%   42-45, 104, 144-231, 244-256
+diary/tests/__init__.py                                                                    1      0   100%
+diary/tests/test_ai_api.py                                                                65     21    68%   47-59, 75-84, 107-123
+diary/tests/test_ai_service.py                                                           255     22    91%   29-32, 64-68, 345-350, 371-372, 407-409, 431-435
+diary/tests/test_algorithm.py                                                             53     13    75%   20-48, 86-87
+diary/tests/test_auth_api.py                                                             105      0   100%
+diary/tests/test_chat_service.py                                                          41      6    85%   41-47, 63
+diary/tests/test_email_service.py                                                         61      0   100%
+diary/tests/test_emotion_service.py                                                      222      1    99%   51
+diary/tests/test_encryption.py                                                            57      0   100%
+diary/tests/test_heatmap_api.py                                                           82      0   100%
+diary/tests/test_image_generation.py                                                      52     23    56%   31-32, 44-45, 53-62, 67-78, 82-87, 91-104
+diary/tests/test_models.py                                                                54      0   100%
+diary/tests/test_preference_api.py                                                        76      0   100%
+diary/tests/test_push_notification.py                                                    102     27    74%   127-134, 144-158, 163-176, 181-195
+diary/tests/test_push_service.py                                                         207      0   100%
+diary/tests/test_report_api.py                                                           119     11    91%   40-42, 49, 57-61, 192-193
+diary/tests/test_search_optimization.py                                                   30      0   100%
+diary/tests/test_serializers.py                                                           46      0   100%
+diary/tests/test_speech_to_text.py                                                        53     16    70%   37-38, 57, 65-69, 73-77, 81-84, 88-93
+diary/tests/test_tag_api.py                                                               84      1    99%   37
+diary/tests/test_tasks.py                                                                 46      0   100%
+diary/tests/test_template_api.py                                                          82      6    93%   30-35
+diary/tests/test_views.py                                                                101      5    95%   44-45, 61, 198-199
+diary/urls.py                                                                              9      0   100%
+diary/views/__init__.py                                                                   11      0   100%
+diary/views/admin_views.py                                                                46     27    41%   39-64, 101-124, 141-159
+diary/views/ai_views.py                                                                   39     15    62%   66-83, 122-131
+diary/views/auth_views.py                                                                158     43    73%   79-113, 198, 213, 232, 265-295, 328, 350, 389, 396-397, 416, 424-425, 470, 490
+diary/views/chat_views.py                                                                 17      9    47%   16-26
+diary/views/common_views.py                                                                7      1    86%   17
+diary/views/diary_views.py                                                               406    124    69%   62, 69, 79-80, 86-87, 116-117, 123-142, 149-150, 161-166, 178-179, 202, 280, 346-351, 398-399, 408, 460-461, 533-545, 555-572, 588-624, 660-771, 777-800, 855, 928-933, 941-946
+diary/views/export_views.py                                                               30     18    40%   15-59
+diary/views/preference_views.py                                                           43      6    86%   54-60
+diary/views/push_views.py                                                                 27      1    96%   95
+diary/views/social_auth_views.py                                                          56     40    29%   43-106, 133-191
+diary/views/speech_views.py                                                               50     34    32%   41-86, 111-129, 150
+diary/views/tag_views.py                                                                  31      7    77%   40-56
+diary/views/template_views.py                                                             88     24    73%   47, 57, 62, 201-222, 242-271
+manage.py                                                                                 12     12     0%   2-22
+scripts/test_gemini_simple.py                                                             62     53    15%   9-10, 13-41, 44-74, 77
+scripts/test_image_gen.py                                                                 62     19    69%   11-12, 26, 35-40, 71-85, 93
+scripts/test_nano_banana.py                                                               18      3    83%   17-20, 25
+scripts/test_prompt.py                                                                    22      5    77%   30-31, 35-36, 39
+scripts/test_summarize.py                                                                 58     14    76%   14-15, 26-27, 33, 55-59, 76, 82-83, 86
+--------------------------------------------------------------------------------------------------------------------
+TOTAL                                                                                   4713    984    79%
+
+=========================== short test summary info ============================
+FAILED diary/tests/test_algorithm.py::TestSimilarDiaryAPI::test_similar_action_logic
+FAILED diary/tests/test_image_generation.py::ImageGeneratorServiceTest::test_generate_image
+FAILED diary/tests/test_image_generation.py::ImageGeneratorServiceTest::test_generate_image_prompt
+FAILED diary/tests/test_report_api.py::ReportAPITestCase::test_get_monthly_report
+FAILED diary/tests/test_report_api.py::ReportAPITestCase::test_get_weekly_report
+FAILED diary/tests/test_report_api.py::ReportAPITestCase::test_report_emotion_stats
+FAILED diary/tests/test_report_api.py::GalleryAPITestCase::test_get_gallery_empty
+FAILED diary/tests/test_speech_to_text.py::SpeechToTextServiceTest::test_get_supported_languages_method
+FAILED diary/tests/test_speech_to_text.py::SpeechToTextServiceTest::test_transcribe_with_language
+FAILED diary/tests/test_views.py::DiaryAPITest::test_create_diary - Assertion...
+FAILED diary/tests/test_ai_service.py::TestImageGenerator::test_generate_image_success
+FAILED diary/tests/test_ai_service.py::TestImageGenerator::test_generate_image_api_error
+FAILED diary/tests/test_ai_service.py::TestImageGenerator::test_generate_image_with_long_content
+FAILED diary/tests/test_ai_service.py::TestDiarySummarizer::test_summarize_bullet_style
+FAILED diary/tests/test_ai_service.py::TestDiarySummarizer::test_suggest_title_success
+FAILED diary/tests/test_ai_service.py::TestDiarySummarizer::test_suggest_title_api_error_fallback
+FAILED diary/tests/test_ai_service.py::TestTemplateGenerator::test_generate_template_success
+FAILED diary/tests/test_ai_service.py::TestTemplateGenerator::test_generate_template_with_code_block
+FAILED diary/tests/test_ai_service.py::TestTemplateGenerator::test_generate_template_json_error_fallback
+FAILED diary/tests/test_ai_service.py::TestTemplateGenerator::test_generate_template_different_styles
+FAILED diary/tests/test_algorithm.py::TestKeywordExtractor::test_extract_keywords
+FAILED diary/tests/test_chat_service.py::TestChatService::test_generate_chat_response_success
+FAILED diary/tests/test_chat_service.py::TestChatService::test_generate_chat_response_api_error
+FAILED diary/tests/test_emotion_service.py::TestEmotionAnalyzer::test_analyze_happy_emotion
+===== 24 failed, 170 passed, 12 skipped, 11 warnings in 150.20s (0:02:30) ======

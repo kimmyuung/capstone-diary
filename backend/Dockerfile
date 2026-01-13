@@ -12,6 +12,10 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 # 작업 디렉토리 설정
 WORKDIR /app
 
+# Hugging Face 캐시 디렉토리 설정 (빌드 오류 방지)
+ENV HF_HOME=/app/cache/huggingface
+RUN mkdir -p /app/cache/huggingface
+
 # 시스템 패키지 업데이트 및 필수 패키지 설치
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
@@ -20,9 +24,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean
 
 # Python 패키지 설치 (레이어 캐싱 최적화)
-COPY requirements.txt /app/
+# Python 패키지 설치 (레이어 캐싱 최적화)
+# 1. 무거운 AI 의존성 먼저 설치 (변경이 적음)
+COPY requirements-ai.txt /app/
 RUN pip install --upgrade pip \
-    && pip install -r requirements.txt \
+    && pip install -r requirements-ai.txt
+
+# 2. 일반 의존성 설치 (변경이 잦음)
+# 2. 일반 의존성 설치 (변경이 잦음)
+COPY requirements.txt /app/
+COPY requirements-dev.txt /app/
+RUN pip install -r requirements.txt \
+    && pip install -r requirements-dev.txt \
     && pip install gunicorn
 
 # 프로젝트 파일 복사

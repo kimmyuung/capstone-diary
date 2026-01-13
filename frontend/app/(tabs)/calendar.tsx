@@ -16,6 +16,7 @@ import { diaryService, Diary } from '@/services/api';
 import { CalendarDiaryCard } from '@/components/diary/CalendarDiaryCard';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // 한국어 설정
 LocaleConfig.locales['ko'] = {
@@ -99,7 +100,8 @@ export default function CalendarScreen() {
     };
 
     // Custom Day Component for Emoji rendering
-    const DayComponent = ({ date, state }: { date: DateData; state: string }) => {
+    const DayComponent = ({ date, state }: { date?: DateData; state?: string }) => {
+        if (!date) return <View />;
         const dateStr = date.dateString;
         const dayData = calendarData[dateStr];
         const isSelected = selectedDate === dateStr;

@@ -210,7 +210,7 @@ export default function SettingsScreen() {
                         </View>
                         <Switch
                             value={isBiometricEnabled}
-                            onValueChange={() => toggleBiometric()}
+                            onValueChange={(val) => { toggleBiometric(val); }}
                             trackColor={{ false: Palette.neutral[300], true: Palette.primary[400] }}
                             thumbColor="#fff"
                         />

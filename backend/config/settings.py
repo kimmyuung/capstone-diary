@@ -23,6 +23,9 @@ try:
 except Exception:
     load_dotenv() # Fallback to default
 
+# Testing Mode (Overridden in conftest.py)
+IS_TESTING = False
+
 # =============================================================================
 # Sentry 모니터링 설정 (에러 추적)
 # https://sentry.io 에서 프로젝트 생성 후 DSN 발급
@@ -137,6 +140,17 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Docker 환경에서 Postgres 사용
+if os.environ.get('POSTGRES_DB'):
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('POSTGRES_DB'),
+        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+        'PORT': os.environ.get('POSTGRES_PORT', 5432),
+    }
 
 
 # Password validation

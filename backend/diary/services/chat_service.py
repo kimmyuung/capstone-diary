@@ -8,13 +8,22 @@ logger = logging.getLogger(__name__)
 
 # Load local embedding model (lightweight)
 # This will download the model on first run (approx 90MB)
-EMBEDDING_MODEL = SentenceTransformer('all-MiniLM-L6-v2')
+# Load local embedding model (lightweight)
+# Lazy loading to prevent download during build
+EMBEDDING_MODEL = None
+
+def get_embedding_model():
+    global EMBEDDING_MODEL
+    if EMBEDDING_MODEL is None:
+        EMBEDDING_MODEL = SentenceTransformer('all-MiniLM-L6-v2')
+    return EMBEDDING_MODEL
 
 class ChatService:
     @staticmethod
     def get_embedding(text):
         """텍스트를 384차원 벡터로 변환"""
-        return EMBEDDING_MODEL.encode(text).tolist()
+        model = get_embedding_model()
+        return model.encode(text).tolist()
 
     @staticmethod
     def update_diary_embedding(diary):
@@ -89,3 +98,31 @@ User's Diaries:
         except Exception as e:
             logger.error(f"Gemini API Error: {e}")
             return "Sorry, I'm having trouble thinking right now."
+
+    @staticmethod
+    def generate_reflection_question(diary):
+        """일기 내용을 토대로 회고 질문 생성"""
+        if not settings.GEMINI_API_KEY:
+            return None
+
+        # 프롬프트 구성
+        # System instructions included directly to avoid dependency on global configs for now
+        prompt = f"""
+You are an empathetic counselor. Read the following diary entry and ask one single, deep question that helps the writer reflect on their emotions or situation.
+The question should be warm, short (under 2 sentences), and in Korean.
+
+Diary:
+Title: {diary.title}
+Content: {diary.content}
+Emotion: {diary.emotion}
+
+Question:
+"""
+        try:
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
+            response = model.generate_content(prompt)
+            return response.text.strip()
+        except Exception as e:
+            logger.error(f"Reflection generation failed: {e}")
+            return None

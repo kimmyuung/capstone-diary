@@ -34,18 +34,24 @@ class TestSummarizeAPI:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
     
     def test_summarize_min_length(self, authenticated_client):
-        """요약 API는 최소 50자 필요"""
+        """요약 API는 최소 10자 필요 (View 기준)"""
+        # View에서 10자 미만 체크함
         response = authenticated_client.post('/api/summarize/', {
             'content': '짧은 내용'
         })
         assert response.status_code == status.HTTP_400_BAD_REQUEST
     
-    @pytest.mark.skip(reason="AI mocking requires complex setup")
     @patch('diary.views.ai_views.DiarySummarizer')
     def test_summarize_success(self, mock_summarizer_class, authenticated_client):
         """요약 성공 테스트"""
-        mock_summarizer = mock_summarizer_class.return_value
-        mock_summarizer.summarize.return_value = "요약된 내용입니다."
+        # Mock setup
+        mock_instance = mock_summarizer_class.return_value
+        mock_instance.summarize.return_value = {
+            'summary': "요약된 내용입니다.",
+            'original_length': 500,
+            'summary_length': 20,
+            'style': 'three_lines'
+        }
         
         long_content = "오늘은 정말 좋은 하루였습니다. " * 20
         response = authenticated_client.post('/api/summarize/', {
@@ -55,8 +61,9 @@ class TestSummarizeAPI:
         
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert 'summary' in data
+        assert data['summary'] == "요약된 내용입니다."
         assert 'original_content' in data
+        assert data['original_length'] == 500
 
 
 @pytest.mark.django_db(transaction=True)
@@ -68,12 +75,11 @@ class TestSuggestTitleAPI:
         response = authenticated_client.post('/api/suggest-title/', {})
         assert response.status_code == status.HTTP_400_BAD_REQUEST
     
-    @pytest.mark.skip(reason="AI mocking requires complex setup")
     @patch('diary.views.ai_views.DiarySummarizer')
     def test_suggest_title_success(self, mock_summarizer_class, authenticated_client):
         """제목 제안 성공 테스트"""
-        mock_summarizer = mock_summarizer_class.return_value
-        mock_summarizer.suggest_title.return_value = "행복한 하루"
+        mock_instance = mock_summarizer_class.return_value
+        mock_instance.suggest_title.return_value = "행복한 하루"
         
         response = authenticated_client.post('/api/suggest-title/', {
             'content': '오늘은 정말 행복한 하루였습니다. 친구들과 맛있는 음식도 먹었습니다.'
@@ -81,7 +87,7 @@ class TestSuggestTitleAPI:
         
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert 'suggested_title' in data
+        assert data['suggested_title'] == "행복한 하루"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -100,8 +106,10 @@ class TestTemplateGenerate:
         })
         assert response.status_code == status.HTTP_400_BAD_REQUEST
     
-    @pytest.mark.skip(reason="AI mocking requires complex setup")
-    @patch('diary.views.template_views.TemplateGenerator')
+    # TemplateGenerator is imported locally inside the view method:
+    # `from ..ai_service import TemplateGenerator`
+    # We should patch the source class directly.
+    @patch('diary.ai_service.TemplateGenerator')
     def test_generate_success(self, mock_generator_class, authenticated_client):
         """템플릿 생성 성공 테스트"""
         mock_generator = mock_generator_class.return_value

@@ -21,9 +21,9 @@ from django.conf import settings
 from datetime import timedelta, datetime
 
 from ..models import Diary, DiaryEmbedding
-from ..serializers import DiarySerializer, DiaryListSerializer, ReportSerializer
+from ..serializers import DiarySerializer, DiaryImageSerializer
 from ..ai_service import ImageGenerator, DiarySummarizer, KeywordExtractor
-from ..services.report_service import ReportService
+
 from ..paginations import StandardResultsSetPagination
 from ..messages import ERROR_INVALID_YEAR, ERROR_INVALID_YEAR_MONTH
 
@@ -86,7 +86,7 @@ class DiaryViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass
         
-        return queryset.order_by('-created_at')
+        return queryset.order_by('-created_at').select_related('user').prefetch_related('images', 'diary_tags__tag')
     
     def list(self, request, *args, **kwargs):
         """
@@ -102,7 +102,13 @@ class DiaryViewSet(viewsets.ModelViewSet):
         if content_search:
             search_lower = content_search.lower()
             filtered_ids = []
-            for diary in queryset:
+            
+            # 성능 최적화: 날짜 필터가 없으면 최근 100개만 검색
+            candidate_queryset = queryset
+            if not (request.query_params.get('start_date') or request.query_params.get('end_date')):
+                candidate_queryset = queryset[:100]
+
+            for diary in candidate_queryset:
                 try:
                     decrypted = diary.decrypt_content()
                     if decrypted and search_lower in decrypted.lower():
@@ -119,7 +125,13 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 queryset.filter(title__icontains=q).values_list('id', flat=True)
             )
             content_matched_ids = []
-            for diary in queryset.exclude(id__in=title_matched_ids):
+            
+            # 성능 최적화: 날짜 필터가 없으면 최근 100개만 검색 (제목 매칭 제외)
+            candidate_queryset = queryset.exclude(id__in=title_matched_ids)
+            if not (request.query_params.get('start_date') or request.query_params.get('end_date')):
+                candidate_queryset = candidate_queryset[:100]
+                
+            for diary in candidate_queryset:
                 try:
                     decrypted = diary.decrypt_content()
                     if decrypted and q_lower in decrypted.lower():
@@ -127,7 +139,7 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 except Exception:
                     pass
             all_matched_ids = title_matched_ids + content_matched_ids
-            queryset = Diary.objects.filter(id__in=all_matched_ids).order_by('-created_at')
+            queryset = Diary.objects.filter(id__in=all_matched_ids).order_by('-created_at').select_related('user').prefetch_related('images', 'diary_tags__tag')
         
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -197,6 +209,8 @@ class DiaryViewSet(viewsets.ModelViewSet):
         from ..cache_utils import invalidate_user_cache
         
         serializer.save(user=self.request.user)
+        instance = serializer.instance
+        self._generate_reflection_if_needed(instance)
         invalidate_user_cache(self.request.user.id)
     
     def perform_update(self, serializer):
@@ -206,7 +220,24 @@ class DiaryViewSet(viewsets.ModelViewSet):
         from ..cache_utils import invalidate_user_cache
         
         serializer.save()
+        instance = serializer.instance
+        self._generate_reflection_if_needed(instance)
         invalidate_user_cache(self.request.user.id)
+    
+    def _generate_reflection_if_needed(self, instance):
+        """회고 질문이 없고 내용이 충분하면 비동기(혹은 동기)로 생성"""
+        # 이미 질문이 있거나 내용이 너무 짧으면 생성 안 함
+        if instance.reflection_question or len(instance.content) < 10:
+            return
+            
+        try:
+            from ..services.chat_service import ChatService
+            question = ChatService.generate_reflection_question(instance)
+            if question:
+                instance.reflection_question = question
+                instance.save(update_fields=['reflection_question'])
+        except Exception as e:
+            logger.error(f"Failed to generate reflection question: {e}")
     
     def perform_destroy(self, instance):
         """

@@ -1,0 +1,140 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.12, pytest-7.4.3, pluggy-1.6.0
+django: version: 6.0.1, settings: config.settings (from ini)
+rootdir: /app
+configfile: pytest.ini
+plugins: cov-4.1.0, Faker-20.1.0, django-4.7.0, anyio-4.12.1
+collected 1 item
+
+diary/tests/test_views.py DIARY_ENCRYPTION_KEY not set. Encryption disabled.
+DEBUG: Running signal synchronously
+Updated embedding for diary 1
+Emotion analysis failed: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash
+Please retry in 40.692598159s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 20
+}
+, retry_delay {
+  seconds: 40
+}
+]
+DEBUG: Running signal synchronously
+Updated embedding for diary 1
+Failed to generate reflection question: Aggregate functions are not allowed in this query (reflection_question=<MagicMock name='mock.GenerativeModel().generate_content().text.strip().resolve_expression().resolve_expression()' id='130106175486576'>).
+Unhandled exception: TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block. | {'view': 'DiaryViewSet', 'method': 'POST', 'path': '/api/diaries/', 'user': 'testuser'}
+F
+
+=================================== FAILURES ===================================
+________________________ DiaryAPITest.test_create_diary ________________________
+
+self = <diary.tests.test_views.DiaryAPITest testMethod=test_create_diary>
+
+    def test_create_diary(self):
+        """일기 작성 API 테스트"""
+        url = reverse('diary-list')
+        data = {
+            'title': '오늘의 일기',
+            'content': '오늘은 즐거운 하루였다.'
+        }
+        response = self.client.post(url, data, format='json')
+    
+>       self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+E       AssertionError: 500 != 201
+
+diary/tests/test_views.py:45: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  diary:encryption.py:33 DIARY_ENCRYPTION_KEY not set. Encryption disabled.
+INFO     diary.services.chat_service:chat_service.py:38 Updated embedding for diary 1
+ERROR    diary:emotion_service.py:129 Emotion analysis failed: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash
+Please retry in 40.692598159s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 20
+}
+, retry_delay {
+  seconds: 40
+}
+]
+INFO     diary.services.chat_service:chat_service.py:38 Updated embedding for diary 1
+ERROR    diary.views.diary_views:diary_views.py:240 Failed to generate reflection question: Aggregate functions are not allowed in this query (reflection_question=<MagicMock name='mock.GenerativeModel().generate_content().text.strip().resolve_expression().resolve_expression()' id='130106175486576'>).
+ERROR    diary:exception_handler.py:90 Unhandled exception: TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block. | {'view': 'DiaryViewSet', 'method': 'POST', 'path': '/api/diaries/', 'user': 'testuser'}
+ERROR    django.request:log.py:249 Internal Server Error: /api/diaries/
+=============================== warnings summary ===============================
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:19
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:19: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    token = pp.Word(tchar).setName("token")
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:20
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:20: DeprecationWarning: 'leaveWhitespace' deprecated - use 'leave_whitespace'
+    token68 = pp.Combine(pp.Word("-._~+/" + pp.nums + pp.alphas) + pp.Optional(pp.Word("=").leaveWhitespace())).setName(
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:20
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:20: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    token68 = pp.Combine(pp.Word("-._~+/" + pp.nums + pp.alphas) + pp.Optional(pp.Word("=").leaveWhitespace())).setName(
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:24
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:24: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    quoted_string = pp.dblQuotedString.copy().setName("quoted-string").setParseAction(unquote)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:24
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:24: DeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    quoted_string = pp.dblQuotedString.copy().setName("quoted-string").setParseAction(unquote)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:25
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:25: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    auth_param_name = token.copy().setName("auth-param-name").addParseAction(downcaseTokens)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:25
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:25: DeprecationWarning: 'addParseAction' deprecated - use 'add_parse_action'
+    auth_param_name = token.copy().setName("auth-param-name").addParseAction(downcaseTokens)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:27
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:27: DeprecationWarning: 'delimitedList' deprecated - use 'DelimitedList'
+    params = pp.Dict(pp.delimitedList(pp.Group(auth_param)))
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:33
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:33: DeprecationWarning: 'delimitedList' deprecated - use 'DelimitedList'
+    www_authenticate = pp.delimitedList(pp.Group(challenge))
+
+diary/services/chat_service.py:1
+  /app/diary/services/chat_service.py:1: FutureWarning: 
+  
+  All support for the `google.generativeai` package has ended. It will no longer be receiving 
+  updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+  See README for more details:
+  
+  https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+  
+    import google.generativeai as genai
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED diary/tests/test_views.py::DiaryAPITest::test_create_diary - Assertion...
+======================== 1 failed, 10 warnings in 6.34s ========================

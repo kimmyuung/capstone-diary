@@ -14,6 +14,8 @@ import {
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { diaryService, Diary } from '@/services/api';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import ReflectionCard from '@/components/ReflectionCard';
+import VoiceRecorder from '@/components/VoiceRecorder';
 
 export default function DiaryDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,7 +23,8 @@ export default function DiaryDetailScreen() {
     const [diary, setDiary] = useState<Diary | null>(null);
     const [loading, setLoading] = useState(true);
     const [generatingImage, setGeneratingImage] = useState(false);
-    const [similarDiaries, setSimilarDiaries] = useState<Partial<Diary>[]>([]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [similarDiaries, setSimilarDiaries] = useState<any[]>([]);
 
     useEffect(() => {
         if (id) {
@@ -51,6 +54,10 @@ export default function DiaryDetailScreen() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleUpdate = (updatedDiary: Diary) => {
+        setDiary(updatedDiary);
     };
 
     const handleGenerateImage = async () => {
@@ -164,6 +171,24 @@ export default function DiaryDetailScreen() {
 
                 <View style={styles.contentContainer}>
                     <Text style={styles.content}>{diary.content}</Text>
+                </View>
+
+                {/* AI 회고 카드 (Feature 1) */}
+                {diary.reflection_question && (
+                    <View style={styles.sectionContainer}>
+                        <ReflectionCard diary={diary} onUpdate={handleUpdate} />
+                    </View>
+                )}
+
+                {/* 음성 녹음 (Feature 4) */}
+                <View style={styles.sectionContainer}>
+                    <VoiceRecorder
+                        diaryId={diary.id}
+                        existingVoiceUrl={diary.voice_file}
+                        transcription={diary.transcription}
+                        isTranscribing={diary.is_transcribing}
+                        onUpdate={(url) => handleUpdate({ ...diary, voice_file: url })}
+                    />
                 </View>
 
                 {/* 위치 정보 섹션 */}
@@ -313,6 +338,10 @@ const styles = StyleSheet.create({
         color: '#333',
         lineHeight: 28,
     },
+    sectionContainer: {
+        paddingHorizontal: 20,
+        marginBottom: 20,
+    },
     imageSection: {
         padding: 20,
         borderTopWidth: 1,
@@ -403,11 +432,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
     },
-    mapButtonText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '500',
-    },
+
     // 키워드 스타일
     keywordContainer: {
         flexDirection: 'row',

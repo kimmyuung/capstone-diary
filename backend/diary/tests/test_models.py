@@ -63,6 +63,17 @@ class DiaryModelTest(TestCase):
         self.assertEqual(diaries[0].title, '두번째')  # 최신이 먼저
         self.assertEqual(diaries[1].title, '첫번째')
 
+    def test_voice_file_field(self):
+        """음성 파일 필드 테스트"""
+        diary = Diary.objects.create(
+            user=self.user,
+            title='음성 일기',
+            content='녹음 내용',
+            voice_file='voice/test.m4a'
+        )
+        self.assertEqual(diary.voice_file, 'voice/test.m4a')
+
+
 
 class DiaryEncryptionTest(TestCase):
     """일기 암호화 테스트"""

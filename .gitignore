@@ -161,3 +161,8 @@ celerybeat.pid
 *.tmp
 *.temp
 *.bak
+
+# AI Cache
+backend/cache/
+**/huggingface/
+

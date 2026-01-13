@@ -1,0 +1,73 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.12, pytest-7.4.3, pluggy-1.6.0
+django: version: 6.0.1, settings: config.settings (from ini)
+rootdir: /app
+configfile: pytest.ini
+plugins: cov-4.1.0, Faker-20.1.0, django-4.7.0, anyio-4.12.1
+collected 198 items / 1 error
+
+==================================== ERRORS ====================================
+_______________ ERROR collecting diary/tests/test_encryption.py ________________
+ImportError while importing test module '/app/diary/tests/test_encryption.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+diary/tests/test_encryption.py:9: in <module>
+    from diary.encryption import DiaryEncryptionService, EncryptionError, get_encryption_service
+diary/encryption.py:8: in <module>
+    from cryptography.fernet import Fernet, InvalidToken
+E   ModuleNotFoundError: No module named 'cryptography'
+=============================== warnings summary ===============================
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:19
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:19: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    token = pp.Word(tchar).setName("token")
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:20
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:20: DeprecationWarning: 'leaveWhitespace' deprecated - use 'leave_whitespace'
+    token68 = pp.Combine(pp.Word("-._~+/" + pp.nums + pp.alphas) + pp.Optional(pp.Word("=").leaveWhitespace())).setName(
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:20
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:20: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    token68 = pp.Combine(pp.Word("-._~+/" + pp.nums + pp.alphas) + pp.Optional(pp.Word("=").leaveWhitespace())).setName(
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:24
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:24: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    quoted_string = pp.dblQuotedString.copy().setName("quoted-string").setParseAction(unquote)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:24
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:24: DeprecationWarning: 'setParseAction' deprecated - use 'set_parse_action'
+    quoted_string = pp.dblQuotedString.copy().setName("quoted-string").setParseAction(unquote)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:25
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:25: DeprecationWarning: 'setName' deprecated - use 'set_name'
+    auth_param_name = token.copy().setName("auth-param-name").addParseAction(downcaseTokens)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:25
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:25: DeprecationWarning: 'addParseAction' deprecated - use 'add_parse_action'
+    auth_param_name = token.copy().setName("auth-param-name").addParseAction(downcaseTokens)
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:27
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:27: DeprecationWarning: 'delimitedList' deprecated - use 'DelimitedList'
+    params = pp.Dict(pp.delimitedList(pp.Group(auth_param)))
+
+../usr/local/lib/python3.12/site-packages/httplib2/auth.py:33
+  /usr/local/lib/python3.12/site-packages/httplib2/auth.py:33: DeprecationWarning: 'delimitedList' deprecated - use 'DelimitedList'
+    www_authenticate = pp.delimitedList(pp.Group(challenge))
+
+diary/services/chat_service.py:1
+  /app/diary/services/chat_service.py:1: FutureWarning: 
+  
+  All support for the `google.generativeai` package has ended. It will no longer be receiving 
+  updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+  See README for more details:
+  
+  https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+  
+    import google.generativeai as genai
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR diary/tests/test_encryption.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+======================== 10 warnings, 1 error in 3.45s =========================
