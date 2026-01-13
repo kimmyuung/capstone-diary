@@ -410,10 +410,12 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:8000",      # Django 개발 서버
     "http://127.0.0.1:8000",
-    "http://localhost:19006",     # Expo 웹 개발 서버
+    "http://localhost:8081",      # Expo 웹 개발 서버 (NEW)
+    "http://127.0.0.1:8081",
+    "http://localhost:19006",     # Expo 웹 개발 서버 (Legacy)
     "http://127.0.0.1:19006",
     # 모바일 앱 (Expo)
-    "exp://localhost:8081",
+   "exp://localhost:8081",
     # TODO: 배포 환경 도메인 추가
     # "https://your-production-domain.com",
 ]

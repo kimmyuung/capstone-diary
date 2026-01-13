@@ -257,8 +257,27 @@ class DiaryViewSet(viewsets.ModelViewSet):
         """
         새로운 일기 항목을 생성할 때 현재 사용자를 자동으로 할당합니다.
         생성 후 관련 캐시를 무효화합니다.
+        
+        [하루 1개 제한] 오늘 날짜에 이미 일기가 있으면 생성을 차단합니다.
         """
         from ..cache_utils import invalidate_user_cache
+        from datetime import date
+        
+        # 오늘 날짜에 이미 일기가 있는지 확인
+        today = date.today()
+        existing_diary = Diary.objects.filter(
+            user=self.request.user,
+            created_at__date=today
+        ).first()
+        
+        if existing_diary:
+            # 기존 일기가 있으면 409 Conflict 응답
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({
+                'error': 'DIARY_EXISTS_TODAY',
+                'message': '오늘 일기가 이미 작성되었습니다.',
+                'existing_diary_id': existing_diary.id
+            })
         
         serializer.save(user=self.request.user)
         instance = serializer.instance

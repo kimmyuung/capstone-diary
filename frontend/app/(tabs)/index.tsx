@@ -4,14 +4,14 @@ import {
     Text,
     FlatList,
     TouchableOpacity,
-    StyleSheet,
     RefreshControl,
-    Alert,
-    Dimensions,
+    StyleSheet,
     Platform,
     LayoutAnimation,
     UIManager,
     TextInput,
+    Alert,
+    Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -216,9 +216,51 @@ export default function DiaryListScreen() {
             {/* FAB 버튼 */}
             <TouchableOpacity
                 style={styles.fab}
-                onPress={() => {
-                    Haptics.selectionAsync();
-                    router.push('/diary/create' as any);
+                onPress={async () => {
+                    await Haptics.selectionAsync();
+
+                    // 오늘 날짜 일기가 있는지 확인
+                    const today = new Date().toDateString();
+                    const existingDiary = diaries.find(d => {
+                        const diaryDate = new Date(d.created_at).toDateString();
+                        return diaryDate === today;
+                    });
+
+                    if (existingDiary) {
+                        // 오늘 일기가 이미 있으면 Alert 표시
+                        Alert.alert(
+                            '오늘 일기가 이미 있습니다',
+                            '하루에 하나의 일기만 작성할 수 있습니다.\n기존 일기를 수정하시겠습니까?',
+                            [
+                                {
+                                    text: '취소',
+                                    style: 'cancel'
+                                },
+                                {
+                                    text: '삭제 후 새로 작성',
+                                    style: 'destructive',
+                                    onPress: async () => {
+                                        try {
+                                            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                                            await handleDelete(existingDiary.id);
+                                            router.push('/diary/create' as any);
+                                        } catch (err) {
+                                            showToast('삭제에 실패했습니다', 'error');
+                                        }
+                                    }
+                                },
+                                {
+                                    text: '수정하기',
+                                    onPress: () => {
+                                        router.push(`/diary/edit/${existingDiary.id}` as any);
+                                    }
+                                }
+                            ]
+                        );
+                    } else {
+                        // 오늘 일기가 없으면 바로 작성 화면으로
+                        router.push('/diary/create' as any);
+                    }
                 }}
                 activeOpacity={0.85}
             >
@@ -229,7 +271,7 @@ export default function DiaryListScreen() {
                     <IconSymbol name="plus" size={28} color="#fff" />
                 </LinearGradient>
             </TouchableOpacity>
-        </View>
+        </View >
     );
 }
 
