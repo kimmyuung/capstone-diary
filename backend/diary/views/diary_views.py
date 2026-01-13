@@ -116,7 +116,7 @@ class DiaryViewSet(viewsets.ModelViewSet):
         
         검색 파라미터:
             - search: 제목 검색 (DB 레벨)
-            - content_search: 본문 검색 (복호화 후 Python 레벨)
+            - content_search: 본문 검색 (DiaryTag 기반 DB 검색)
             - emotion: 감정 필터
             - start_date, end_date: 날짜 범위
         """
