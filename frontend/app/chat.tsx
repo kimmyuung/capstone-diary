@@ -99,6 +99,35 @@ export default function ChatScreen() {
                 keyExtractor={item => item.id}
                 contentContainerStyle={styles.listContent}
                 style={styles.list}
+                ListHeaderComponent={
+                    messages.length === 1 ? (
+                        <View style={styles.suggestionsContainer}>
+                            <Text style={[styles.suggestionsTitle, isDark && styles.textDark]}>
+                                💡 추천 질문
+                            </Text>
+                            <View style={styles.suggestions}>
+                                {[
+                                    '지난 주 기분은 어땠어?',
+                                    '가장 행복했던 날은?',
+                                    '최근 자주 쓴 감정은?',
+                                    '이번 달 일기 요약해줘',
+                                ].map((question, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        style={[styles.suggestionButton, isDark && styles.suggestionButtonDark]}
+                                        onPress={() => {
+                                            setInputText(question);
+                                        }}
+                                    >
+                                        <Text style={[styles.suggestionText, isDark && styles.suggestionTextDark]}>
+                                            {question}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+                    ) : null
+                }
                 ListFooterComponent={
                     isLoading ? <TypingAnimation text="AI가 응답 중입니다" /> : null
                 }
@@ -220,5 +249,38 @@ const styles = StyleSheet.create({
     },
     sendButtonDisabled: {
         backgroundColor: '#ccc',
+    },
+    // 제안 질문 스타일
+    suggestionsContainer: {
+        marginBottom: 20,
+    },
+    suggestionsTitle: {
+        fontSize: 14,
+        color: '#888',
+        marginBottom: 12,
+    },
+    suggestions: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    suggestionButton: {
+        backgroundColor: '#f0f0f0',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+    },
+    suggestionButtonDark: {
+        backgroundColor: '#333',
+        borderColor: '#444',
+    },
+    suggestionText: {
+        fontSize: 14,
+        color: '#666',
+    },
+    suggestionTextDark: {
+        color: '#aaa',
     },
 });

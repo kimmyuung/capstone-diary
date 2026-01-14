@@ -151,7 +151,7 @@ export default function DiaryListScreen() {
                         styles.filterText,
                         exactMatch && { color: Palette.primary[600], fontWeight: 'bold' }
                     ]}>
-                        " "
+                        Aa
                     </Text>
                 </TouchableOpacity>
             </View>

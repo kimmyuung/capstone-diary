@@ -21,6 +21,7 @@ import { DiaryDetailSkeleton } from '@/components/Skeleton';
 import { FadeInView } from '@/components/animations/FadeInView';
 import { useToast } from '@/contexts/ToastContext';
 import { Shadows } from '@/constants/theme';
+import { AIGenerationProgress } from '@/components/AIGenerationProgress';
 
 export default function DiaryDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -29,6 +30,7 @@ export default function DiaryDetailScreen() {
     const [diary, setDiary] = useState<Diary | null>(null);
     const [loading, setLoading] = useState(true);
     const [generatingImage, setGeneratingImage] = useState(false);
+    const [aiGenerationStep, setAiGenerationStep] = useState(0);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [similarDiaries, setSimilarDiaries] = useState<any[]>([]);
 
@@ -128,7 +130,12 @@ export default function DiaryDetailScreen() {
         }
 
         setGeneratingImage(true);
+        setAiGenerationStep(0);
         await Haptics.selectionAsync();
+
+        // 단계별 진행 상황 업데이트
+        setTimeout(() => setAiGenerationStep(1), 1500);
+        setTimeout(() => setAiGenerationStep(2), 3000);
 
         try {
             const response = await diaryService.generateImage(diary.id);
@@ -152,6 +159,7 @@ export default function DiaryDetailScreen() {
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             showToast('이미지 생성 요청 실패', 'error');
             setGeneratingImage(false);
+            setAiGenerationStep(0);
         }
     };
 
@@ -360,6 +368,12 @@ export default function DiaryDetailScreen() {
                     </View>
                 )}
             </ScrollView>
+
+            {/* AI 생성 진행 상황 오버레이 */}
+            <AIGenerationProgress
+                isVisible={generatingImage}
+                currentStep={aiGenerationStep}
+            />
         </FadeInView>
     );
 }

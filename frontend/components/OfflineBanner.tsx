@@ -53,30 +53,35 @@ const styles = StyleSheet.create({
         right: 0,
         zIndex: 1000,
         backgroundColor: Palette.status.warning,
-        paddingTop: 44, // Safe area
-        paddingBottom: Spacing.sm,
-        paddingHorizontal: Spacing.md,
+        paddingTop: 50, // Safe area 증가
+        paddingBottom: Spacing.md,
+        paddingHorizontal: Spacing.lg,
     },
     content: {
         flexDirection: 'row',
         alignItems: 'center',
+        flexWrap: 'nowrap',
     },
     icon: {
         fontSize: 20,
         marginRight: Spacing.sm,
+        flexShrink: 0,
     },
     textContainer: {
         flex: 1,
+        flexShrink: 1,
     },
     title: {
         fontSize: FontSize.sm,
         fontWeight: '600',
         color: '#000',
+        flexShrink: 1,
     },
     subtitle: {
         fontSize: FontSize.xs,
         color: 'rgba(0,0,0,0.7)',
         marginTop: 2,
+        flexShrink: 1,
     },
 });
 

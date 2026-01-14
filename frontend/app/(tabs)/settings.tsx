@@ -23,7 +23,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 export default function SettingsScreen() {
     const router = useRouter();
     const { isAuthenticated, logout } = useAuth();
-    const { themeMode, isDark, setThemeMode, toggleTheme } = useTheme();
+    const { themeMode, isDark, setThemeMode, toggleTheme, fontSizeMode, setFontSizeMode } = useTheme();
     const {
         isBiometricSupported,
         isBiometricEnabled,
@@ -38,6 +38,22 @@ export default function SettingsScreen() {
     } = usePushNotifications();
     const [exporting, setExporting] = useState(false);
     const [exportingPdf, setExportingPdf] = useState(false);
+    const [diaryCount, setDiaryCount] = useState(0);
+
+    // 일기 개수 불러오기
+    useEffect(() => {
+        const loadDiaryCount = async () => {
+            if (isAuthenticated) {
+                try {
+                    const diaries = await diaryService.getAll();
+                    setDiaryCount(diaries.length);
+                } catch (error) {
+                    console.error('Failed to load diary count:', error);
+                }
+            }
+        };
+        loadDiaryCount();
+    }, [isAuthenticated]);
 
     // 알림 권한 요청
     const handleEnableReminder = async (enabled: boolean) => {
@@ -156,6 +172,29 @@ export default function SettingsScreen() {
                 <Text style={[styles.headerTitle, isDark && styles.textDark]}>⚙️ 설정</Text>
             </View>
 
+            {/* 프로필 섹션 */}
+            {isAuthenticated && (
+                <View style={[styles.section, isDark && styles.sectionDark]}>
+                    <Text style={[styles.sectionTitle, isDark && styles.textDark]}>프로필</Text>
+                    <View style={styles.profileContainer}>
+                        <View style={styles.profileAvatar}>
+                            <Text style={styles.profileAvatarText}>👤</Text>
+                        </View>
+                        <View style={styles.profileInfo}>
+                            <Text style={[styles.profileName, isDark && styles.textDark]}>
+                                사용자
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={styles.profileStats}>
+                        <View style={styles.profileStatItem}>
+                            <Text style={[styles.profileStatNumber, isDark && styles.textDark]}>{diaryCount}</Text>
+                            <Text style={[styles.profileStatLabel, isDark && styles.textMutedDark]}>작성한 일기</Text>
+                        </View>
+                    </View>
+                </View>
+            )}
+
             {/* 테마 설정 */}
             <View style={[styles.section, isDark && styles.sectionDark]}>
                 <Text style={[styles.sectionTitle, isDark && styles.textDark]}>화면</Text>
@@ -192,31 +231,61 @@ export default function SettingsScreen() {
                         </TouchableOpacity>
                     ))}
                 </View>
+
+                {/* 글꼴 크기 설정 */}
+                <View style={[styles.settingRow, { borderBottomWidth: 0 }]}>
+                    <View style={styles.settingInfo}>
+                        <IconSymbol name="textformat.size" size={20} color={isDark ? '#fff' : Palette.neutral[600]} />
+                        <Text style={[styles.settingLabel, isDark && styles.textDark]}>글꼴 크기</Text>
+                    </View>
+                </View>
+                <View style={styles.fontSizeOptions}>
+                    {(['small', 'medium', 'large'] as const).map((size) => (
+                        <TouchableOpacity
+                            key={size}
+                            style={[
+                                styles.fontSizeOption,
+                                fontSizeMode === size && styles.fontSizeOptionActive,
+                            ]}
+                            onPress={() => setFontSizeMode(size)}
+                        >
+                            <Text style={[
+                                styles.fontSizeOptionText,
+                                fontSizeMode === size && styles.fontSizeOptionTextActive,
+                                { fontSize: size === 'small' ? 12 : size === 'medium' ? 14 : 16 }
+                            ]}>
+                                {size === 'small' ? '작게' : size === 'medium' ? '보통' : '크게'}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
             </View>
 
             {/* 보안 설정 */}
-            {isBiometricSupported && (
-                <View style={[styles.section, isDark && styles.sectionDark]}>
-                    <Text style={[styles.sectionTitle, isDark && styles.textDark]}>보안</Text>
-                    <View style={styles.settingRow}>
-                        <View style={styles.settingInfo}>
-                            <IconSymbol name="lock.fill" size={20} color={isDark ? '#fff' : Palette.neutral[600]} />
-                            <View style={styles.settingTextContainer}>
-                                <Text style={[styles.settingLabel, isDark && styles.textDark]}>생체 인식 잠금</Text>
-                                <Text style={[styles.settingDescription, isDark && styles.textMutedDark]}>
-                                    앱 실행 시 인증 요구
-                                </Text>
+            {
+                isBiometricSupported && (
+                    <View style={[styles.section, isDark && styles.sectionDark]}>
+                        <Text style={[styles.sectionTitle, isDark && styles.textDark]}>보안</Text>
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <IconSymbol name="lock.fill" size={20} color={isDark ? '#fff' : Palette.neutral[600]} />
+                                <View style={styles.settingTextContainer}>
+                                    <Text style={[styles.settingLabel, isDark && styles.textDark]}>생체 인식 잠금</Text>
+                                    <Text style={[styles.settingDescription, isDark && styles.textMutedDark]}>
+                                        앱 실행 시 인증 요구
+                                    </Text>
+                                </View>
                             </View>
+                            <Switch
+                                value={isBiometricEnabled}
+                                onValueChange={(val) => { toggleBiometric(val); }}
+                                trackColor={{ false: Palette.neutral[300], true: Palette.primary[400] }}
+                                thumbColor="#fff"
+                            />
                         </View>
-                        <Switch
-                            value={isBiometricEnabled}
-                            onValueChange={(val) => { toggleBiometric(val); }}
-                            trackColor={{ false: Palette.neutral[300], true: Palette.primary[400] }}
-                            thumbColor="#fff"
-                        />
                     </View>
-                </View>
-            )}
+                )
+            }
 
             {/* 알림 설정 */}
             <View style={[styles.section, isDark && styles.sectionDark]}>
@@ -228,7 +297,7 @@ export default function SettingsScreen() {
                         <View style={styles.settingTextContainer}>
                             <Text style={[styles.settingLabel, isDark && styles.textDark]}>일기 리마인더</Text>
                             <Text style={[styles.settingDescription, isDark && styles.textMutedDark]}>
-                                매일 저녕 8시에 알림
+                                매일 저녁 8시에 알림
                             </Text>
                         </View>
                     </View>
@@ -337,26 +406,28 @@ export default function SettingsScreen() {
             </View>
 
             {/* 개발자 옵션 (로컬 환경 전용) */}
-            {__DEV__ && (
-                <View style={[styles.section, isDark && styles.sectionDark]}>
-                    <Text style={[styles.sectionTitle, isDark && styles.textDark]}>개발자 옵션</Text>
-                    <TouchableOpacity
-                        style={styles.settingRow}
-                        onPress={() => Linking.openURL('http://localhost:8000/admin')}
-                    >
-                        <View style={styles.settingInfo}>
-                            <IconSymbol name="wrench.and.screwdriver.fill" size={20} color={Palette.status.warning} />
-                            <Text style={[styles.settingLabel, isDark && styles.textDark]}>
-                                관리자 페이지
-                            </Text>
-                        </View>
-                        <IconSymbol name="chevron.right" size={16} color={Palette.neutral[400]} />
-                    </TouchableOpacity>
-                </View>
-            )}
+            {
+                __DEV__ && (
+                    <View style={[styles.section, isDark && styles.sectionDark]}>
+                        <Text style={[styles.sectionTitle, isDark && styles.textDark]}>개발자 옵션</Text>
+                        <TouchableOpacity
+                            style={styles.settingRow}
+                            onPress={() => Linking.openURL('http://localhost:8000/admin')}
+                        >
+                            <View style={styles.settingInfo}>
+                                <IconSymbol name="wrench.and.screwdriver.fill" size={20} color={Palette.status.warning} />
+                                <Text style={[styles.settingLabel, isDark && styles.textDark]}>
+                                    관리자 페이지
+                                </Text>
+                            </View>
+                            <IconSymbol name="chevron.right" size={16} color={Palette.neutral[400]} />
+                        </TouchableOpacity>
+                    </View>
+                )
+            }
 
             <View style={{ height: 100 }} />
-        </ScrollView>
+        </ScrollView >
     );
 }
 
@@ -454,5 +525,80 @@ const styles = StyleSheet.create({
     },
     textMutedDark: {
         color: Palette.neutral[400],
+    },
+    // 프로필 스타일
+    profileContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: Spacing.md,
+    },
+    profileAvatar: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: Palette.primary[100],
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: Spacing.md,
+    },
+    profileAvatarText: {
+        fontSize: 24,
+    },
+    profileInfo: {
+        flex: 1,
+    },
+    profileName: {
+        fontSize: FontSize.lg,
+        fontWeight: FontWeight.semibold,
+        color: Palette.neutral[800],
+    },
+    profileEmail: {
+        fontSize: FontSize.sm,
+        color: Palette.neutral[500],
+        marginTop: 2,
+    },
+    profileStats: {
+        flexDirection: 'row',
+        borderTopWidth: 1,
+        borderTopColor: Palette.neutral[100],
+        paddingTop: Spacing.md,
+    },
+    profileStatItem: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    profileStatNumber: {
+        fontSize: FontSize.xxl,
+        fontWeight: FontWeight.bold,
+        color: Palette.primary[500],
+    },
+    profileStatLabel: {
+        fontSize: FontSize.sm,
+        color: Palette.neutral[500],
+        marginTop: 2,
+    },
+    // 글꼴 크기 스타일
+    fontSizeOptions: {
+        flexDirection: 'row',
+        gap: Spacing.sm,
+        marginTop: Spacing.sm,
+    },
+    fontSizeOption: {
+        flex: 1,
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.sm,
+        borderRadius: BorderRadius.md,
+        backgroundColor: Palette.neutral[100],
+        alignItems: 'center',
+    },
+    fontSizeOptionActive: {
+        backgroundColor: Palette.primary[500],
+    },
+    fontSizeOptionText: {
+        color: Palette.neutral[600],
+    },
+    fontSizeOptionTextActive: {
+        color: '#fff',
+        fontWeight: FontWeight.semibold,
     },
 });

@@ -181,11 +181,13 @@ const styles = StyleSheet.create({
         fontSize: FontSize.xxl,
         fontWeight: FontWeight.bold,
         color: Palette.neutral[900],
+        flexShrink: 1,
     },
     headerSubtitle: {
         fontSize: FontSize.sm,
         color: Palette.neutral[500],
         marginTop: Spacing.xs,
+        flexShrink: 1,
     },
     gridContent: {
         paddingHorizontal: Spacing.lg,

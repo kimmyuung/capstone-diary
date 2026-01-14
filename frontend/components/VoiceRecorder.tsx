@@ -19,6 +19,23 @@ export default function VoiceRecorder({ diaryId, existingVoiceUrl, transcription
     const [isPlaying, setIsPlaying] = useState(false);
     const [voiceUrl, setVoiceUrl] = useState<string | null>(existingVoiceUrl || null);
     const [isUploading, setIsUploading] = useState(false);
+    const [recordingDuration, setRecordingDuration] = useState(0);
+    const [pendingUri, setPendingUri] = useState<string | null>(null);
+    const [previewSound, setPreviewSound] = useState<Audio.Sound | undefined>();
+    const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+
+    // 녹음 시간 업데이트 타이머
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (recording) {
+            interval = setInterval(() => {
+                setRecordingDuration(prev => prev + 1);
+            }, 1000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [recording]);
 
     useEffect(() => {
         return () => {
@@ -28,8 +45,18 @@ export default function VoiceRecorder({ diaryId, existingVoiceUrl, transcription
             if (sound) {
                 sound.unloadAsync();
             }
+            if (previewSound) {
+                previewSound.unloadAsync();
+            }
         };
-    }, [recording, sound]);
+    }, [recording, sound, previewSound]);
+
+    // 시간 포맷 함수
+    const formatDuration = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
 
     async function startRecording() {
         try {
@@ -43,6 +70,10 @@ export default function VoiceRecorder({ diaryId, existingVoiceUrl, transcription
                 allowsRecordingIOS: true,
                 playsInSilentModeIOS: true,
             });
+
+            // 기존 녹음 초기화
+            setPendingUri(null);
+            setRecordingDuration(0);
 
             console.log('Starting recording..');
             const { recording } = await Audio.Recording.createAsync(
@@ -69,14 +100,48 @@ export default function VoiceRecorder({ diaryId, existingVoiceUrl, transcription
         console.log('Recording stopped and stored at', uri);
 
         if (uri) {
-            // confirm upload
-            Alert.alert('녹음 완료', '녹음된 음성을 저장하시겠습니까?', [
-                { text: '취소', style: 'cancel' },
-                {
-                    text: '저장',
-                    onPress: () => uploadRecording(uri),
-                },
-            ]);
+            // 녹음 완료 후 미리듣기 상태로 전환
+            setPendingUri(uri);
+        }
+    }
+
+    // 미리듣기 재생
+    async function playPreview() {
+        if (!pendingUri) return;
+        try {
+            const { sound } = await Audio.Sound.createAsync({ uri: pendingUri });
+            setPreviewSound(sound);
+            setIsPreviewPlaying(true);
+            await sound.playAsync();
+            sound.setOnPlaybackStatusUpdate((status) => {
+                if (status.isLoaded && status.didJustFinish) {
+                    setIsPreviewPlaying(false);
+                }
+            });
+        } catch (error) {
+            console.error('Preview play failed', error);
+        }
+    }
+
+    // 미리듣기 정지
+    async function stopPreview() {
+        if (previewSound) {
+            await previewSound.stopAsync();
+            setIsPreviewPlaying(false);
+        }
+    }
+
+    // 재녹음
+    function handleReRecord() {
+        setPendingUri(null);
+        setRecordingDuration(0);
+    }
+
+    // 저장 확인
+    function handleConfirmSave() {
+        if (pendingUri) {
+            uploadRecording(pendingUri);
+            setPendingUri(null);
         }
     }
 
@@ -145,21 +210,69 @@ export default function VoiceRecorder({ diaryId, existingVoiceUrl, transcription
                             {isPlaying ? '일시정지' : '다시 듣기'}
                         </Text>
                     </TouchableOpacity>
+                ) : pendingUri ? (
+                    // 미리듣기 상태 - 녹음 완료 후 저장 전
+                    <View style={styles.previewContainer}>
+                        <Text style={styles.previewTitle}>🎙️ 녹음 완료 ({formatDuration(recordingDuration)})</Text>
+                        <View style={styles.previewButtons}>
+                            <TouchableOpacity
+                                style={styles.previewPlayButton}
+                                onPress={isPreviewPlaying ? stopPreview : playPreview}
+                            >
+                                <Ionicons name={isPreviewPlaying ? "pause" : "play"} size={20} color="#6C5CE7" />
+                                <Text style={styles.previewPlayText}>
+                                    {isPreviewPlaying ? '정지' : '미리듣기'}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.reRecordButton}
+                                onPress={handleReRecord}
+                            >
+                                <Ionicons name="refresh" size={20} color="#999" />
+                                <Text style={styles.reRecordText}>재녹음</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.saveButton}
+                                onPress={handleConfirmSave}
+                                disabled={isUploading}
+                            >
+                                {isUploading ? (
+                                    <ActivityIndicator color="white" size="small" />
+                                ) : (
+                                    <Ionicons name="checkmark" size={20} color="white" />
+                                )}
+                                <Text style={styles.saveButtonText}>
+                                    {isUploading ? '저장중' : '저장'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 ) : (
-                    <TouchableOpacity
-                        style={[styles.recordButton, recording ? styles.recording : {}]}
-                        onPress={recording ? stopRecording : startRecording}
-                        disabled={isUploading}
-                    >
-                        {isUploading ? (
-                            <ActivityIndicator color="white" />
-                        ) : (
-                            <Ionicons name={recording ? "stop" : "mic"} size={24} color="white" />
+                    // 녹음 중 또는 시작 전
+                    <View style={styles.recordingContainer}>
+                        {recording && (
+                            <View style={styles.recordingTimer}>
+                                <View style={styles.recordingDot} />
+                                <Text style={styles.recordingTimeText}>
+                                    {formatDuration(recordingDuration)}
+                                </Text>
+                            </View>
                         )}
-                        <Text style={styles.recordText}>
-                            {isUploading ? '저장 중...' : recording ? '녹음 중지' : '녹음 시작'}
-                        </Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.recordButton, recording ? styles.recording : {}]}
+                            onPress={recording ? stopRecording : startRecording}
+                            disabled={isUploading}
+                        >
+                            {isUploading ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Ionicons name={recording ? "stop" : "mic"} size={24} color="white" />
+                            )}
+                            <Text style={styles.recordText}>
+                                {isUploading ? '저장 중...' : recording ? '녹음 중지' : '녹음 시작'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
                 )}
             </View>
 
@@ -261,5 +374,84 @@ const styles = StyleSheet.create({
     transcribingText: {
         color: '#6C5CE7',
         fontSize: 14,
-    }
+    },
+    // 녹음 시간 표시 스타일
+    recordingContainer: {
+        alignItems: 'center',
+    },
+    recordingTimer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        gap: 8,
+    },
+    recordingDot: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: '#FF4444',
+    },
+    recordingTimeText: {
+        fontSize: 24,
+        fontWeight: '600',
+        color: '#FF4444',
+        fontVariant: ['tabular-nums'],
+    },
+    // 미리듣기 상태 스타일
+    previewContainer: {
+        alignItems: 'center',
+        width: '100%',
+    },
+    previewTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 16,
+    },
+    previewButtons: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    previewPlayButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#E0E0FF',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        gap: 6,
+    },
+    previewPlayText: {
+        color: '#6C5CE7',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    reRecordButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F5F5F5',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        gap: 6,
+    },
+    reRecordText: {
+        color: '#666',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    saveButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#4CAF50',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        gap: 6,
+    },
+    saveButtonText: {
+        color: 'white',
+        fontWeight: '600',
+        fontSize: 14,
+    },
 });

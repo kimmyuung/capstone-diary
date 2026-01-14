@@ -236,10 +236,12 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: FontSize.xxl,
         fontWeight: FontWeight.bold,
+        flexShrink: 1,
     },
     headerSubtitle: {
         fontSize: FontSize.sm,
         marginTop: Spacing.xs,
+        flexShrink: 1,
     },
     calendarWrapper: {
         marginHorizontal: Spacing.lg,
