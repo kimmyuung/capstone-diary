@@ -37,6 +37,7 @@ class ImageGenerator:
         """
         
         logger.debug(f"Generating image for: {diary_content[:50]}...")
+        print(f"DEBUG: Generating image for content length {len(diary_content)}") # dbg
         
         if not settings.GEMINI_API_KEY:
             logger.error("Gemini API Key is not configured for Image Generation.")
@@ -44,9 +45,13 @@ class ImageGenerator:
 
         # 1. 프롬프트 구성 (키워드 추출 시도)
         try:
+            print("DEBUG: Importing KeywordExtractor...") # dbg
             from .analysis_service import KeywordExtractor
+            print("DEBUG: Initializing KeywordExtractor...") # dbg
             extractor = KeywordExtractor()
+            print("DEBUG: Extracting keywords...") # dbg
             keywords = extractor.extract_keywords(diary_content, top_n=5)
+            print(f"DEBUG: Keywords extracted: {keywords}") # dbg
             
             if keywords:
                 # 키워드 기반 프롬프트 (재사용성 높음)
@@ -57,6 +62,7 @@ class ImageGenerator:
                 content_desc = f"Snippet: '{diary_content[:300]}'"
                 
         except Exception as e:
+            print(f"DEBUG: Keyword extraction failed: {e}") # dbg
             logger.warning(f"Keyword extraction failed for image prompt: {e}")
             content_desc = f"Snippet: '{diary_content[:300]}'"
 

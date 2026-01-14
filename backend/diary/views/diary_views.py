@@ -561,7 +561,7 @@ class DiaryViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='generate-image')
     def generate_image(self, request, pk=None):
         """
-        특정 일기 항목에 대한 AI 이미지를 생성합니다.
+        특정 일기 항목에 대한 AI 이미지를 비동기로 생성 요청합니다.
         
         [정책]
         - 일기 본문이 50자 미만인 경우 생성을 제한합니다.
@@ -577,6 +577,31 @@ class DiaryViewSet(viewsets.ModelViewSet):
             )
             
         try:
+            # [Feature: User Tiers] 하루 생성 제한 체크
+            from django.utils import timezone
+            from ..models import UserPreference
+            
+            today = timezone.now().date()
+            generated_count = DiaryImage.objects.filter(
+                diary__user=request.user,
+                created_at__date=today
+            ).count()
+            
+            # 사용자 등급 확인
+            pref = UserPreference.get_or_create_for_user(request.user)
+            limit = 10 if pref.is_premium else 2
+            
+            if generated_count >= limit:
+                 return Response(
+                    {
+                        'error': 'Daily image generation limit exceeded.',
+                        'message': f"하루 생성 한도({limit}장)를 초과했습니다.",
+                        'limit': limit,
+                        'current': generated_count
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+
             # 본문 길이 검증 (복호화 후 확인)
             content = diary.decrypt_content()
             if not content or len(content.strip()) < 50:
@@ -585,17 +610,15 @@ class DiaryViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            generator = ImageGenerator()
-            result = generator.generate(content, emotion=diary.emotion)
+            # 비동기 태스크 실행
+            from ..tasks import generate_image_task
+            generate_image_task.delay(diary.id)
             
-            diary_image = DiaryImage.objects.create(
-                diary=diary,
-                image_url=result['url'],
-                ai_prompt=result['prompt']
+            # 즉시 응답 (Processing)
+            return Response(
+                {'message': 'Image generation started', 'status': 'processing'},
+                status=status.HTTP_202_ACCEPTED
             )
-            
-            serializer = DiaryImageSerializer(diary_image)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
             
         except Exception as e:
             return Response(

@@ -15,7 +15,6 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables first
-# Load environment variables first
 # load_dotenv(encoding='utf-8') # Explicit encoding
 # If that fails, try generic load or just rely on system envs in prod
 try:
@@ -285,7 +284,7 @@ OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 
 # Gemini Imagen Model (Optional)
-GEMINI_IMAGE_MODEL = os.environ.get('GEMINI_IMAGE_MODEL', 'gemini-3-pro-image-preview')
+GEMINI_IMAGE_MODEL = os.environ.get('GEMINI_IMAGE_MODEL', 'gemini-2.5-flash-image')
 
 # Gemini Text Model (Emotion/Summary/Template)
 GEMINI_TEXT_MODEL = os.environ.get('GEMINI_TEXT_MODEL', 'gemini-3-flash-preview')

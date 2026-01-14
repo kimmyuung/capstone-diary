@@ -61,8 +61,8 @@ export const diaryService = {
         await api.delete(`/api/diaries/${id}/`);
     },
 
-    // AI 이미지 생성
-    async generateImage(id: number): Promise<DiaryImage> {
+    // AI 이미지 생성 (Async)
+    async generateImage(id: number): Promise<any> {
         const response = await api.post(`/api/diaries/${id}/generate-image/`);
         return response.data;
     },

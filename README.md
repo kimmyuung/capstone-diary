@@ -97,7 +97,6 @@
 ### 📱 크로스 플랫폼
 - **React Native (Expo)** 기반으로 웹, iOS, Android 지원
 - 다크 모드 / 라이트 모드 / 시스템 모드 지원
-- 다크 모드 / 라이트 모드 / 시스템 모드 지원
 
 ### 📶 오프라인 우선 설계 (Offline-First)
 - **끊기지 않는 경험**: 네트워크 연결이 없어도 일기 작성, 수정, 조회가 가능합니다.
@@ -119,7 +118,6 @@
 | | SQLite (개발) / PostgreSQL (배포) | - | 데이터베이스 |
 | | pgvector | - | 벡터 유사도 검색 |
 | **AI Models** | Gemini 1.5 Flash | - | 감정 분석, 템플릿 생성, 일기 요약 |
-| | Gemini 1.5 Flash | - | 일기 요약 |
 | | Imagen 3 | - | 이미지 생성 (Primary) |
 | | DALL-E 3 | - | 이미지 생성 (Fallback) |
 | | Whisper-1 | - | 음성 인식 (100+ 언어) |

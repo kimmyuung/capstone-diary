@@ -55,8 +55,48 @@ class DiaryTemplateAdmin(admin.ModelAdmin):
     search_fields = ('name', 'content')
     list_editable = ('is_active', 'use_count')
 
+# Admin Branding
+admin.site.site_header = 'AI Emotion Diary Admin'
+admin.site.site_title = 'Emotion Diary Admin'
+admin.site.index_title = 'Dashboard'
+
+@admin.register(DiaryImage)
+class DiaryImageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'diary_info', 'image_preview', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('diary__title', 'diary__user__username', 'ai_prompt')
+    readonly_fields = ('image_preview', 'image_url')
+    
+    def diary_info(self, obj):
+        return f"[{obj.diary.user.username}] {obj.diary.title}"
+    diary_info.short_description = "일기 정보"
+
+    def image_preview(self, obj):
+        if obj.image_url:
+            return format_html('<img src="{}" style="max-height: 150px; border-radius: 8px;"/>', obj.image_url)
+        return "-"
+    image_preview.short_description = "이미지 미리보기"
+
+
 @admin.register(UserPreference)
 class UserPreferenceAdmin(admin.ModelAdmin):
-    list_display = ('user', 'theme', 'language', 'push_enabled', 'auto_emotion_analysis')
-    list_filter = ('theme', 'language', 'push_enabled')
+    list_display = ('user', 'is_premium', 'theme', 'language', 'push_enabled', 'auto_emotion_analysis')
+    list_filter = ('is_premium', 'theme', 'language', 'push_enabled')
     search_fields = ('user__username', 'user__email')
+    list_editable = ('is_premium',)  # 목록에서 바로 수정 가능
+    
+    fieldsets = (
+        ('기본 정보', {
+            'fields': ('user',)
+        }),
+        ('멤버십 관리', {
+            'fields': ('is_premium',),
+            'description': '사용자의 프리미엄 멤버십 여부를 관리합니다.'
+        }),
+        ('화면 및 언어', {
+            'fields': ('theme', 'language')
+        }),
+        ('기능 설정', {
+            'fields': ('push_enabled', 'daily_reminder_enabled', 'daily_reminder_time', 'auto_emotion_analysis', 'show_location')
+        }),
+    )

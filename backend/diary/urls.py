@@ -6,6 +6,7 @@ from .views import (
     SummarizeView, SuggestTitleView
 )
 from .views.admin_views import AdminStatsView, AdminUsersView, AdminRecentDiariesView
+from .views.test_views import test_image_gen_view
 
 router = DefaultRouter()
 router.register(r'diaries', DiaryViewSet, basename='diary')
@@ -27,4 +28,7 @@ urlpatterns = [
     path('admin/stats/', AdminStatsView.as_view(), name='admin_stats'),
     path('admin/users/', AdminUsersView.as_view(), name='admin_users'),
     path('admin/diaries/recent/', AdminRecentDiariesView.as_view(), name='admin_recent_diaries'),
+    
+    # 테스트 API (나중에 삭제)
+    path('test-image/', test_image_gen_view, name='test_image_gen'),
 ]

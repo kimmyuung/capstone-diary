@@ -4,6 +4,14 @@ Celery 설정 파일
 비동기 태스크 처리를 위한 Celery 앱 설정
 """
 import os
+# Windows compatibility for Celery (Eventlet)
+if os.name == 'nt':
+    try:
+        import eventlet
+        eventlet.monkey_patch()
+    except ImportError:
+        pass
+
 from celery import Celery
 
 # Django 설정 모듈 지정

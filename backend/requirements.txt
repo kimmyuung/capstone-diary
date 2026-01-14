@@ -9,6 +9,8 @@ djangorestframework-simplejwt==5.3.1
 # Async Processing
 celery==5.4.0
 redis==5.2.0
+eventlet==0.35.2  # Windows Celery Support
+
 
 # Database
 psycopg[binary]>=3.2.0
@@ -42,3 +44,9 @@ boto3==1.34.0
 
 # Text Processing (Search)
 kiwipiepy==0.17.0
+
+# AI & ML Libraries
+google-genai>=1.0.0
+openai==1.55.0
+sentence-transformers>=2.2.0
+scikit-learn>=1.3.0

@@ -67,6 +67,9 @@ class UserPreference(models.Model):
     # 개인정보 설정
     show_location = models.BooleanField(default=True, verbose_name='위치 정보 표시')
     
+    # 멤버십 설정 (Feature: User Tiers)
+    is_premium = models.BooleanField(default=False, verbose_name='프리미엄 멤버십 여부')
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

@@ -67,6 +67,47 @@ export default function DiaryDetailScreen() {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
+    // Polling Logic
+    useEffect(() => {
+        let intervalId: NodeJS.Timeout;
+        let timeoutId: NodeJS.Timeout;
+
+        if (generatingImage && diary) {
+            const initialImageCount = diary.images.length;
+            const POLL_INTERVAL = 3000; // 3 seconds
+            const TIMEOUT = 60000;      // 60 seconds timeout
+
+            // Polling function
+            const checkImageStatus = async () => {
+                try {
+                    const updatedDiary = await diaryService.getById(diary.id);
+                    if (updatedDiary.images.length > initialImageCount) {
+                        setDiary(updatedDiary);
+                        setGeneratingImage(false);
+                        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        showToast('AI 이미지가 생성되었습니다!');
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                }
+            };
+
+            intervalId = setInterval(checkImageStatus, POLL_INTERVAL);
+
+            // Timeout handler
+            timeoutId = setTimeout(() => {
+                setGeneratingImage(false);
+                clearInterval(intervalId);
+                showToast('이미지 생성이 지연되고 있습니다. 나중에 다시 확인해주세요.', 'info');
+            }, TIMEOUT);
+        }
+
+        return () => {
+            if (intervalId) clearInterval(intervalId);
+            if (timeoutId) clearTimeout(timeoutId);
+        };
+    }, [generatingImage]);
+
     const handleGenerateImage = async () => {
         if (!diary) return;
 
@@ -90,18 +131,26 @@ export default function DiaryDetailScreen() {
         await Haptics.selectionAsync();
 
         try {
-            const newImage = await diaryService.generateImage(diary.id);
-            setDiary({
-                ...diary,
-                images: [...diary.images, newImage],
-            });
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            showToast('AI 이미지가 생성되었습니다!');
+            const response = await diaryService.generateImage(diary.id);
+            // 202 Accepted or 201 Created (Legacy/Fast)
+            if (response.status === 'processing' || response.status === 202) {
+                showToast('이미지 생성을 시작했습니다. 잠시만 기다려주세요...', 'info');
+                // Polling effect will take over
+            } else if (response.image_url) {
+                // Synchronous fallback (rare)
+                const newImage = response;
+                setDiary({
+                    ...diary,
+                    images: [...diary.images, newImage],
+                });
+                setGeneratingImage(false);
+                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                showToast('AI 이미지가 생성되었습니다!');
+            }
         } catch (err) {
             console.error('Failed to generate image:', err);
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            showToast('이미지 생성에 실패했습니다', 'error');
-        } finally {
+            showToast('이미지 생성 요청 실패', 'error');
             setGeneratingImage(false);
         }
     };

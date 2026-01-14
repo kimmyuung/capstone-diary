@@ -1,15 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { Platform } from 'react-native';
 import axios from 'axios';
-
-// Conditional SecureStore import - only for native platforms
-let SecureStore: any = null;
-if (Platform.OS !== 'web') {
-    SecureStore = require('expo-secure-store');
-}
-
-// API 기본 URL - 개발 환경에서는 localhost
-const API_BASE_URL = 'http://localhost:8000';
+import { API_BASE_URL, saveTokens, clearTokens, tokenStorage } from '@/services/core';
 
 interface AuthState {
     token: string | null;
@@ -33,39 +24,6 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// 플랫폼별 토큰 저장소 (웹: localStorage, 네이티브: SecureStore)
-const tokenStorage = {
-    async getToken(): Promise<string | null> {
-        if (Platform.OS === 'web') {
-            return localStorage.getItem('jwt_token');
-        }
-        if (SecureStore) {
-            return await SecureStore.getItemAsync('jwt_token');
-        }
-        return null;
-    },
-
-    async setToken(token: string): Promise<void> {
-        if (Platform.OS === 'web') {
-            localStorage.setItem('jwt_token', token);
-            return;
-        }
-        if (SecureStore) {
-            await SecureStore.setItemAsync('jwt_token', token);
-        }
-    },
-
-    async removeToken(): Promise<void> {
-        if (Platform.OS === 'web') {
-            localStorage.removeItem('jwt_token');
-            return;
-        }
-        if (SecureStore) {
-            await SecureStore.deleteItemAsync('jwt_token');
-        }
-    },
-};
-
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [authState, setAuthState] = useState<AuthState>({
         token: null,
@@ -76,7 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         const loadToken = async () => {
             try {
-                const token = await tokenStorage.getToken();
+                const token = await tokenStorage.getAccessToken();
                 if (token) {
                     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
                     setAuthState({
@@ -101,6 +59,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
         };
         loadToken();
+
+        // 토큰 갱신 실패 시 로그아웃 이벤트 리스너
+        const handleLogout = () => {
+            setAuthState({
+                token: null,
+                authenticated: false,
+                loading: false,
+            });
+        };
+
+        if (typeof window !== 'undefined') {
+            window.addEventListener('auth:logout', handleLogout);
+            return () => window.removeEventListener('auth:logout', handleLogout);
+        }
     }, []);
 
     const login = async (username: string, password: string): Promise<LoginResult> => {
@@ -109,13 +81,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 username,
                 password,
             });
-            const { access: token } = response.data;
+            const { access: accessToken, refresh: refreshToken } = response.data;
 
-            await tokenStorage.setToken(token);
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            // core.ts의 saveTokens 함수 사용 (access + refresh 토큰 저장)
+            await saveTokens(accessToken, refreshToken);
 
             setAuthState({
-                token: token,
+                token: accessToken,
                 authenticated: true,
                 loading: false,
             });
@@ -152,7 +124,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const logout = async () => {
-        await tokenStorage.removeToken();
+        // core.ts의 clearTokens 함수 사용
+        await clearTokens();
         delete axios.defaults.headers.common['Authorization'];
         setAuthState({
             token: null,
@@ -178,3 +151,4 @@ export const useAuth = () => {
     }
     return context;
 };
+
