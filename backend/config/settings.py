@@ -475,9 +475,6 @@ else:
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': REDIS_URL,
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            },
             'KEY_PREFIX': 'diary',  # 캐시 키 접두사
             'TIMEOUT': 3600,  # 기본 캐시 만료 시간 (1시간)
         }

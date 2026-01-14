@@ -1,7 +1,7 @@
 import logging
 import time
 from django.conf import settings
-import google.generativeai as genai
+from google import genai
 import openai
 from django.core.files.base import File
 
@@ -32,8 +32,9 @@ class STTService:
     }
 
     def __init__(self):
+        self.client = None
         if settings.GEMINI_API_KEY:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
+            self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
             
     def transcribe(self, voice_file: File, language='ko') -> str:
         """
@@ -62,19 +63,21 @@ class STTService:
                 prompt = f"Transcribe this audio file accurately in {prompt_lang}. Output ONLY the transcription text."
 
                 # Upload
-                audio_file_ref = genai.upload_file(audio_path)
+                audio_file_ref = self.client.files.upload(file=audio_path)
                 
                 # Wait
                 while audio_file_ref.state.name == "PROCESSING":
                     time.sleep(1)
-                    audio_file_ref = genai.get_file(audio_file_ref.name)
+                    audio_file_ref = self.client.files.get(name=audio_file_ref.name)
 
                 if audio_file_ref.state.name == "FAILED":
                     raise ValueError("Gemini file processing failed")
                 
                 # Generate
-                model = genai.GenerativeModel("gemini-1.5-flash") # Use Flash for speed/cost
-                response = model.generate_content([prompt, audio_file_ref])
+                response = self.client.models.generate_content(
+                    model="gemini-1.5-flash",
+                    contents=[prompt, audio_file_ref]
+                )
                 
                 return response.text.strip()
 

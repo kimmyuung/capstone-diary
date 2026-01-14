@@ -8,7 +8,7 @@ import logging
 from typing import Dict, Optional
 from django.conf import settings
 from django.utils import timezone
-import google.generativeai as genai
+from google import genai
 
 logger = logging.getLogger('diary')
 
@@ -42,8 +42,9 @@ class EmotionAnalyzer:
     }
     
     def __init__(self):
+        self.client = None
         if settings.GEMINI_API_KEY:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
+            self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
     
     def analyze(self, content: str) -> Dict:
         """
@@ -75,8 +76,6 @@ class EmotionAnalyzer:
             return self._fallback_analysis(content)
         
         try:
-            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
-            
             prompt = f"""당신은 일기 내용을 분석하여 작성자의 감정을 파악하는 전문가입니다.
             
 일기 내용:
@@ -96,7 +95,10 @@ class EmotionAnalyzer:
 {{"emotion": "감정키", "score": 점수(0-100), "reason": "분석 근거 한 문장"}}"""
 
             # API Call
-            response = model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=settings.GEMINI_TEXT_MODEL,
+                contents=prompt
+            )
             result_text = response.text.strip()
             
             # JSON 포맷팅 정리

@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Stack } from 'expo-router';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { useLogin } from '@/hooks/useLogin';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -73,13 +74,11 @@ export default function LoginScreen() {
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>비밀번호</Text>
-                            <TextInput
-                                style={styles.input}
+                            <PasswordInput
                                 placeholder="비밀번호를 입력하세요"
                                 placeholderTextColor={Palette.neutral[400]}
                                 value={password}
                                 onChangeText={setPassword}
-                                secureTextEntry
                                 editable={!isLoading}
                             />
                         </View>

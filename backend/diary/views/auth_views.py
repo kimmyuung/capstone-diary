@@ -265,14 +265,26 @@ class EmailVerifyView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 토큰 검증
+        # 가장 최근 토큰 검증 (보안 강화: 최신 토큰만 유효)
         try:
-            token = EmailVerificationToken.objects.get(
+            token = EmailVerificationToken.objects.filter(
                 user=user,
-                token=code,
                 is_verified=False
-            )
-        except EmailVerificationToken.DoesNotExist:
+            ).order_by('-created_at').first()
+            
+            if token is None:
+                return Response(
+                    {"error": str(ERROR_INVALID_CODE)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # 코드 일치 확인
+            if token.token != code:
+                return Response(
+                    {"error": str(ERROR_INVALID_CODE)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except Exception:
             return Response(
                 {"error": str(ERROR_INVALID_CODE)},
                 status=status.HTTP_400_BAD_REQUEST

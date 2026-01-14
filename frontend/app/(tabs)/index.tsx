@@ -51,6 +51,10 @@ export default function DiaryListScreen() {
     // Search State
     const [searchText, setSearchText] = useState('');
     const [exactMatch, setExactMatch] = useState(false);
+    const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
+
+    // 감정 이모지 목록
+    const emotions = ['😊', '😢', '😡', '😴', '🥰', '😰'];
 
     // Debounce Search
     useEffect(() => {
@@ -63,6 +67,11 @@ export default function DiaryListScreen() {
         }, 500);
         return () => clearTimeout(timer);
     }, [searchText, exactMatch, searchDiaries]);
+
+    // 감정 필터링된 일기 목록
+    const filteredDiaries = selectedEmotion
+        ? diaries.filter(d => d.emotion === selectedEmotion)
+        : diaries;
 
     const { queueDeleteDiary } = useOfflineQueue();
 
@@ -109,41 +118,74 @@ export default function DiaryListScreen() {
         </View>
     );
 
-    // 검색 바
+    // 검색 바 + 감정 필터
     const renderSearchBar = () => (
-        <View style={styles.searchContainer}>
-            <View style={[styles.searchInputContainer, { backgroundColor: colors.card }]}>
-                <IconSymbol name="magnifyingglass" size={20} color={colors.textSecondary} />
-                <TextInput
-                    style={[styles.searchInput, { color: colors.text }]}
-                    placeholder="일기 검색..."
-                    placeholderTextColor={colors.textSecondary}
-                    value={searchText}
-                    onChangeText={setSearchText}
-                />
-                {searchText.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchText('')}>
-                        <IconSymbol name="xmark.circle.fill" size={16} color={colors.textSecondary} />
-                    </TouchableOpacity>
-                )}
+        <View>
+            <View style={styles.searchContainer}>
+                <View style={[styles.searchInputContainer, { backgroundColor: colors.card }]}>
+                    <IconSymbol name="magnifyingglass" size={20} color={colors.textSecondary} />
+                    <TextInput
+                        style={[styles.searchInput, { color: colors.text }]}
+                        placeholder="일기 검색..."
+                        placeholderTextColor={colors.textSecondary}
+                        value={searchText}
+                        onChangeText={setSearchText}
+                    />
+                    {searchText.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchText('')}>
+                            <IconSymbol name="xmark.circle.fill" size={16} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                    )}
+                </View>
+                <TouchableOpacity
+                    style={[
+                        styles.filterButton,
+                        exactMatch && { backgroundColor: Palette.primary[100], borderColor: Palette.primary[500] }
+                    ]}
+                    onPress={() => {
+                        Haptics.selectionAsync();
+                        setExactMatch(!exactMatch);
+                    }}
+                >
+                    <Text style={[
+                        styles.filterText,
+                        exactMatch && { color: Palette.primary[600], fontWeight: 'bold' }
+                    ]}>
+                        " "
+                    </Text>
+                </TouchableOpacity>
             </View>
-            <TouchableOpacity
-                style={[
-                    styles.filterButton,
-                    exactMatch && { backgroundColor: Palette.primary[100], borderColor: Palette.primary[500] }
-                ]}
-                onPress={() => {
-                    Haptics.selectionAsync();
-                    setExactMatch(!exactMatch);
-                }}
-            >
-                <Text style={[
-                    styles.filterText,
-                    exactMatch && { color: Palette.primary[600], fontWeight: 'bold' }
-                ]}>
-                    " "
-                </Text>
-            </TouchableOpacity>
+
+            {/* 감정 필터 */}
+            <View style={styles.emotionFilterContainer}>
+                <TouchableOpacity
+                    style={[
+                        styles.emotionFilterButton,
+                        !selectedEmotion && styles.emotionFilterButtonActive
+                    ]}
+                    onPress={() => {
+                        Haptics.selectionAsync();
+                        setSelectedEmotion(null);
+                    }}
+                >
+                    <Text style={styles.emotionFilterText}>전체</Text>
+                </TouchableOpacity>
+                {emotions.map((emoji) => (
+                    <TouchableOpacity
+                        key={emoji}
+                        style={[
+                            styles.emotionFilterButton,
+                            selectedEmotion === emoji && styles.emotionFilterButtonActive
+                        ]}
+                        onPress={() => {
+                            Haptics.selectionAsync();
+                            setSelectedEmotion(selectedEmotion === emoji ? null : emoji);
+                        }}
+                    >
+                        <Text style={styles.emotionEmoji}>{emoji}</Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
         </View>
     );
 
@@ -187,7 +229,7 @@ export default function DiaryListScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <FlatList
-                data={diaries}
+                data={filteredDiaries}
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => (
                     <DiaryCard diary={item} onDelete={() => handleDelete(item.id)} />
@@ -499,5 +541,32 @@ const styles = StyleSheet.create({
     filterText: {
         fontSize: FontSize.lg,
         color: Palette.neutral[600],
+    },
+
+    // 감정 필터
+    emotionFilterContainer: {
+        flexDirection: 'row',
+        gap: Spacing.sm,
+        marginBottom: Spacing.lg,
+        paddingHorizontal: Spacing.xs,
+    },
+    emotionFilterButton: {
+        paddingVertical: Spacing.sm,
+        paddingHorizontal: Spacing.md,
+        borderRadius: BorderRadius.full,
+        backgroundColor: Palette.neutral[100],
+    },
+    emotionFilterButtonActive: {
+        backgroundColor: Palette.primary[100],
+        borderWidth: 1,
+        borderColor: Palette.primary[400],
+    },
+    emotionFilterText: {
+        fontSize: FontSize.sm,
+        color: Palette.neutral[600],
+        fontWeight: FontWeight.medium,
+    },
+    emotionEmoji: {
+        fontSize: 18,
     },
 });

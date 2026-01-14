@@ -1,4 +1,4 @@
-import google.generativeai as genai
+from google import genai
 from sentence_transformers import SentenceTransformer
 from django.conf import settings
 from diary.models import DiaryEmbedding, Diary
@@ -223,16 +223,13 @@ class ChatService:
             yield "Gemini API Key is not configured."
             return
 
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
         
         try:
             # stream=True 활성화
-            response = model.generate_content(
-                [
-                    {'role': 'user', 'parts': [system_prompt.strip() + f"\n\nCurrent Question: {message}"]}
-                ],
-                stream=True 
+            response = client.models.generate_content_stream(
+                model=settings.GEMINI_TEXT_MODEL,
+                contents=system_prompt.strip() + f"\n\nCurrent Question: {message}"
             )
             
             for chunk in response:
@@ -263,9 +260,11 @@ Emotion: {diary.emotion}
 Question:
 """
         try:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
-            response = model.generate_content(prompt)
+            client = genai.Client(api_key=settings.GEMINI_API_KEY)
+            response = client.models.generate_content(
+                model=settings.GEMINI_TEXT_MODEL,
+                contents=prompt
+            )
             return response.text.strip()
         except Exception as e:
             logger.error(f"Reflection generation failed: {e}")

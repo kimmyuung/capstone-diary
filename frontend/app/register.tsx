@@ -18,6 +18,7 @@ export default function RegisterScreen() {
     const router = useRouter();
     const {
         step,
+        emailVerificationStatus,
         username, setUsername,
         email, setEmail,
         password, setPassword,
@@ -77,6 +78,8 @@ export default function RegisterScreen() {
                                     errors={errors}
                                     isLoading={isLoading}
                                     onSubmit={handleRegister}
+                                    emailVerificationStatus={emailVerificationStatus}
+                                    onResendEmail={handleResend}
                                 />
                             ) : (
                                 <VerificationForm

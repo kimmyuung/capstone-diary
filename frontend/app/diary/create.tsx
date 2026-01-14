@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -9,13 +9,14 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
-    Image, // Added Image
+    Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Stack } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker'; // Added ImagePicker
+import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { diaryService } from '@/services/api';
-import { saveImageToOfflineStorage, cleanupUploadedImages } from '@/utils/imageStorage'; // Added Utils
+import { saveImageToOfflineStorage, cleanupUploadedImages } from '@/utils/imageStorage';
 import { VoiceRecorder } from '@/components/diary/VoiceRecorder';
 import { PreviewModal } from '@/components/diary/PreviewModal';
 import { LocationPicker, LocationPickerValue } from '@/components/diary/LocationPicker';
@@ -26,16 +27,25 @@ import { FormFieldError } from '@/components/FormFieldError';
 import { useOfflineQueue } from '@/contexts/OfflineQueueContext';
 import { isNetworkError } from '@/utils/errorHandler';
 
+const DRAFT_KEY = 'diary_draft';
 
 export default function CreateDiaryScreen() {
     const router = useRouter();
     const { isOffline, queueCreateDiary } = useOfflineQueue();
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-    const [images, setImages] = useState<string[]>([]); // Added images state
+    const [images, setImages] = useState<string[]>([]);
     const [isRecording, setIsRecording] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [hasDraft, setHasDraft] = useState(false);
+
+    // 날짜 선택 상태
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
+
+    // 임시저장 타이머
+    const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // 새로운 폼 에러 훅 사용
     const {
@@ -46,12 +56,93 @@ export default function CreateDiaryScreen() {
         setErrorsFromResponse,
     } = useFormErrors();
 
-    // 위치 관련 상태 (LocationPicker에서 관리)
+    // 위치 관련 상태
     const [locationData, setLocationData] = useState<LocationPickerValue>({
         locationName: null,
         latitude: null,
         longitude: null,
     });
+
+    // 임시저장 불러오기
+    useEffect(() => {
+        const loadDraft = async () => {
+            try {
+                const draft = await AsyncStorage.getItem(DRAFT_KEY);
+                if (draft) {
+                    const parsed = JSON.parse(draft);
+                    if (parsed.title || parsed.content) {
+                        setHasDraft(true);
+                        Alert.alert(
+                            '임시저장 발견',
+                            '작성 중이던 일기가 있습니다. 불러올까요?',
+                            [
+                                { text: '새로 작성', style: 'destructive', onPress: () => clearDraft() },
+                                {
+                                    text: '불러오기', onPress: () => {
+                                        setTitle(parsed.title || '');
+                                        setContent(parsed.content || '');
+                                        if (parsed.date) setSelectedDate(new Date(parsed.date));
+                                    }
+                                },
+                            ]
+                        );
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load draft:', e);
+            }
+        };
+        loadDraft();
+    }, []);
+
+    // 자동 임시저장 (3초 디바운스)
+    useEffect(() => {
+        if (draftTimerRef.current) {
+            clearTimeout(draftTimerRef.current);
+        }
+
+        if (title || content) {
+            draftTimerRef.current = setTimeout(async () => {
+                try {
+                    await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({
+                        title,
+                        content,
+                        date: selectedDate.toISOString(),
+                        savedAt: new Date().toISOString()
+                    }));
+                    setHasDraft(true);
+                } catch (e) {
+                    console.error('Failed to save draft:', e);
+                }
+            }, 3000);
+        }
+
+        return () => {
+            if (draftTimerRef.current) {
+                clearTimeout(draftTimerRef.current);
+            }
+        };
+    }, [title, content, selectedDate]);
+
+    // 임시저장 삭제
+    const clearDraft = async () => {
+        try {
+            await AsyncStorage.removeItem(DRAFT_KEY);
+            setHasDraft(false);
+        } catch (e) {
+            console.error('Failed to clear draft:', e);
+        }
+    };
+
+    // 날짜 변경 핸들러
+    const handleDateChange = (days: number) => {
+        const newDate = new Date(selectedDate);
+        newDate.setDate(newDate.getDate() + days);
+        // 미래 날짜는 선택 불가
+        if (newDate <= new Date()) {
+            setSelectedDate(newDate);
+        }
+    };
 
     // Image Picker Logic
     const pickImage = async () => {
@@ -130,38 +221,35 @@ export default function CreateDiaryScreen() {
             location_name: locationData.locationName || null,
             latitude: locationData.latitude || null,
             longitude: locationData.longitude || null,
-            images: images, // Pass persistent URIs
+            images: images,
+            created_at: selectedDate.toISOString(), // 선택한 날짜 전송
         };
 
         try {
-            // 오프라인이면 큐에 저장
             if (isOffline) {
                 await queueCreateDiary(diaryData);
+                await clearDraft(); // 임시저장 삭제
                 setShowPreview(false);
                 router.back();
                 return;
             }
 
             await diaryService.create(diaryData);
-
-            // Cleanup: If uploaded successfully, we could clean up local files.
-            // But we might want to keep them just in case or for cache.
-            // For now, let's just leave them or handle cleanup later.
+            await clearDraft(); // 저장 성공 시 임시저장 삭제
 
             setShowPreview(false);
             Alert.alert('저장 완료 ✨', '일기가 안전하게 저장되었습니다', [
                 { text: '확인', onPress: () => router.back() },
             ]);
         } catch (err: any) {
-            // 네트워크 에러인 경우 오프라인 큐로
             if (isNetworkError(err)) {
                 await queueCreateDiary(diaryData);
+                await clearDraft();
                 setShowPreview(false);
                 router.back();
                 return;
             }
 
-            // API 유효성 검증 에러 처리
             setErrorsFromResponse(err);
             setShowPreview(false);
         } finally {
@@ -209,10 +297,42 @@ export default function CreateDiaryScreen() {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* 날짜 헤더 */}
+                    {/* 날짜 선택기 */}
                     <View style={styles.dateHeader}>
-                        <Text style={styles.dateText}>{dateString}</Text>
+                        <TouchableOpacity
+                            style={styles.dateNavButton}
+                            onPress={() => handleDateChange(-1)}
+                        >
+                            <Text style={styles.dateNavText}>◀</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setShowDatePicker(!showDatePicker)}>
+                            <Text style={styles.dateText}>
+                                {selectedDate.toLocaleDateString('ko-KR', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    weekday: 'long',
+                                })}
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.dateNavButton}
+                            onPress={() => handleDateChange(1)}
+                            disabled={selectedDate.toDateString() === new Date().toDateString()}
+                        >
+                            <Text style={[
+                                styles.dateNavText,
+                                selectedDate.toDateString() === new Date().toDateString() && styles.dateNavDisabled
+                            ]}>▶</Text>
+                        </TouchableOpacity>
                     </View>
+
+                    {/* 임시저장 표시 */}
+                    {hasDraft && (
+                        <View style={styles.draftBadge}>
+                            <Text style={styles.draftBadgeText}>💾 임시저장됨</Text>
+                        </View>
+                    )}
 
                     {/* 기분 선택 */}
                     <View style={styles.moodSection}>
@@ -287,6 +407,12 @@ export default function CreateDiaryScreen() {
                             textAlignVertical="top"
                             editable={!isRecording}
                         />
+                        {/* 글자 수 표시 */}
+                        <View style={styles.charCountContainer}>
+                            <Text style={styles.charCountText}>
+                                {content.length}글자
+                            </Text>
+                        </View>
                         <FormFieldError error={errors.content} />
                     </View>
 
@@ -360,6 +486,10 @@ const styles = StyleSheet.create({
 
     // 날짜 헤더
     dateHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: Spacing.md,
         marginBottom: Spacing.xl,
     },
     dateText: {
@@ -511,5 +641,42 @@ const styles = StyleSheet.create({
     securityText: {
         fontSize: FontSize.sm,
         color: Palette.secondary[500],
+    },
+
+    // 날짜 네비게이션
+    dateNavButton: {
+        padding: Spacing.sm,
+    },
+    dateNavText: {
+        fontSize: FontSize.lg,
+        color: Palette.primary[500],
+    },
+    dateNavDisabled: {
+        color: Palette.neutral[300],
+    },
+
+    // 임시저장 뱃지
+    draftBadge: {
+        backgroundColor: Palette.status.success + '20',
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.xs,
+        borderRadius: BorderRadius.full,
+        alignSelf: 'flex-start',
+        marginBottom: Spacing.md,
+    },
+    draftBadgeText: {
+        fontSize: FontSize.sm,
+        color: Palette.status.success,
+        fontWeight: FontWeight.medium,
+    },
+
+    // 글자 수 표시
+    charCountContainer: {
+        alignItems: 'flex-end',
+        marginTop: Spacing.xs,
+    },
+    charCountText: {
+        fontSize: FontSize.sm,
+        color: Palette.neutral[400],
     },
 });

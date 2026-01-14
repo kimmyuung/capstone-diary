@@ -6,7 +6,7 @@ import requests
 from datetime import datetime
 from django.conf import settings
 from django.core.files.base import ContentFile
-import google.generativeai as genai
+from google import genai
 
 # 순환 참조 방지를 위해 모델은 메서드 내부에서 import 하거나 필요시 import
 
@@ -87,13 +87,12 @@ class ImageGenerator:
             
             # Gemini 모델 (예: gemini-3-pro-image-preview) 사용 시
             if settings.GEMINI_IMAGE_MODEL.lower().startswith('gemini'):
-                genai.configure(api_key=settings.GEMINI_API_KEY)
-                
-                gen_model = genai.GenerativeModel(settings.GEMINI_IMAGE_MODEL)
+                client = genai.Client(api_key=settings.GEMINI_API_KEY)
                 
                 # Gemini 3 Image Generation Prompt
-                response = gen_model.generate_content(
-                    f"Draw the following: {prompt}",
+                response = client.models.generate_content(
+                    model=settings.GEMINI_IMAGE_MODEL,
+                    contents=f"Draw the following: {prompt}"
                 )
                 
                 # 응답에서 이미지 추출

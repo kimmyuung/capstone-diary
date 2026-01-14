@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Stack } from 'expo-router';
 import axios from 'axios';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -185,26 +186,22 @@ export default function ForgotPasswordScreen() {
 
                                 <View style={styles.inputGroup}>
                                     <Text style={styles.label}>새 비밀번호</Text>
-                                    <TextInput
-                                        style={styles.input}
+                                    <PasswordInput
                                         placeholder="8자 이상"
                                         placeholderTextColor={Palette.neutral[400]}
                                         value={newPassword}
                                         onChangeText={setNewPassword}
-                                        secureTextEntry
                                         editable={!isLoading}
                                     />
                                 </View>
 
                                 <View style={styles.inputGroup}>
                                     <Text style={styles.label}>비밀번호 확인</Text>
-                                    <TextInput
-                                        style={styles.input}
+                                    <PasswordInput
                                         placeholder="비밀번호를 다시 입력하세요"
                                         placeholderTextColor={Palette.neutral[400]}
                                         value={confirmPassword}
                                         onChangeText={setConfirmPassword}
-                                        secureTextEntry
                                         editable={!isLoading}
                                     />
                                 </View>

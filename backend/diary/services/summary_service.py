@@ -1,7 +1,7 @@
 import logging
 from datetime import timedelta
 from django.conf import settings
-import google.generativeai as genai
+from google import genai
 
 from ..models import Diary, DiarySummary
 from .chat_service import ChatService
@@ -13,6 +13,11 @@ class SummaryService:
     일기 요약 서비스 (Hierarchical Memory)
     주간/월간 일기를 모아서 요약하고 저장합니다.
     """
+    
+    @staticmethod
+    def _get_client():
+        """Gemini Client 인스턴스 반환"""
+        return genai.Client(api_key=settings.GEMINI_API_KEY)
     
     @staticmethod
     def generate_summary(user, period_type, start_date, end_date):
@@ -95,9 +100,11 @@ class SummaryService:
         """
         
         try:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
-            response = model.generate_content(prompt)
+            client = SummaryService._get_client()
+            response = client.models.generate_content(
+                model=settings.GEMINI_TEXT_MODEL,
+                contents=prompt
+            )
             return response.text.strip()
             
         except Exception as e:
@@ -143,13 +150,11 @@ class SummaryService:
             return {'error': 'Configuration Error'}
 
         try:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
-            
-            response = model.generate_content([
-                {'role': 'user', 'parts': [f"{prompt_instruction}\n\n일기 내용:\n{content}"]}
-            ])
-            
+            client = SummaryService._get_client()
+            response = client.models.generate_content(
+                model=settings.GEMINI_TEXT_MODEL,
+                contents=f"{prompt_instruction}\n\n일기 내용:\n{content}"
+            )
             summary = response.text.strip()
             return {
                 'summary': summary,
@@ -171,14 +176,15 @@ class SummaryService:
             return "오늘의 일기"
         
         try:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
-            
+            client = SummaryService._get_client()
             prompt = f"""일기 내용을 보고 적절한 제목을 제안해주세요. 
 내용: {content[:500]}
 규칙: 제목만 반환하세요. 15자 이내로 작성하세요. 다른 말은 하지 마세요."""
             
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model=settings.GEMINI_TEXT_MODEL,
+                contents=prompt
+            )
             title = response.text.strip()
             return title.strip('"\'')
             
@@ -222,9 +228,11 @@ User's Diaries:
 """
         
         try:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
-            response = model.generate_content(system_prompt)
+            client = SummaryService._get_client()
+            response = client.models.generate_content(
+                model=settings.GEMINI_TEXT_MODEL,
+                contents=system_prompt
+            )
             return response.text.strip()
             
         except Exception as e:

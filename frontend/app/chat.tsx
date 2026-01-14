@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { api } from '@/services/api'; // Direct API usage or add to service
+import { api } from '@/services/api';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { TypingAnimation } from '@/components/animations/TypingAnimation';
 import { Palette, Spacing, BorderRadius, FontSize } from '@/constants/theme';
 
 interface Message {
@@ -98,6 +99,9 @@ export default function ChatScreen() {
                 keyExtractor={item => item.id}
                 contentContainerStyle={styles.listContent}
                 style={styles.list}
+                ListFooterComponent={
+                    isLoading ? <TypingAnimation text="AI가 응답 중입니다" /> : null
+                }
             />
 
             <View style={[styles.inputContainer, isDark && styles.inputContainerDark]}>

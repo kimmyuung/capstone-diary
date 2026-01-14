@@ -108,6 +108,7 @@ class Diary(models.Model):
 
     def encrypt_content(self, plain_content: str) -> None:
         """내용을 암호화하여 저장 (최신 키 버전 사용)"""
+        from django.conf import settings
         from ..encryption import get_encryption_service
         service = get_encryption_service()
         if service.is_enabled:

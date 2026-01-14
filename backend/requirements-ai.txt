@@ -2,5 +2,5 @@
 sentence-transformers
 scikit-learn
 openai==1.55.0
-google-generativeai
+google-genai
 pgvector>=0.2.0

@@ -1,6 +1,6 @@
 import logging
 import json
-import google.generativeai as genai
+from google import genai
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -160,7 +160,7 @@ class TemplateGenerator:
         }.get(style, '적당한 길이로 작성하세요.')
         
         try:
-            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
+            client = genai.Client(api_key=settings.GEMINI_API_KEY)
             
             prompt = f"""당신은 일기 템플릿을 만드는 전문가입니다.
 사용자가 원하는 주제에 맞는 일기 템플릿을 만들어주세요.
@@ -182,7 +182,10 @@ class TemplateGenerator:
 - 항목은 질문 형식으로 작성하세요
 - 한국어로 작성하세요"""
 
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model=settings.GEMINI_TEXT_MODEL,
+                contents=prompt
+            )
             content = response.text.strip()
             
             # JSON 파싱
@@ -240,7 +243,7 @@ class TemplateGenerator:
         }.get(style, '적당한 길이로 작성하세요.')
         
         try:
-            model = genai.GenerativeModel(settings.GEMINI_TEXT_MODEL)
+            client = genai.Client(api_key=settings.GEMINI_API_KEY)
             
             prompt = f"""당신은 일기 템플릿을 만드는 전문가입니다.
 사용자가 원하는 주제에 맞는 일기 템플릿을 만들어주세요.
@@ -262,8 +265,12 @@ class TemplateGenerator:
 - 항목은 질문 형식으로 작성하세요
 - 한국어로 작성하세요"""
 
-            # Async call to Gemini
-            response = await model.generate_content_async(prompt)
+            # Async call to Gemini - note: new SDK uses synchronous call here
+            # For true async, would need different approach
+            response = client.models.generate_content(
+                model=settings.GEMINI_TEXT_MODEL,
+                contents=prompt
+            )
             content = response.text.strip()
             
             # JSON 파싱 로직 재사용
