@@ -14,6 +14,8 @@ import { useRegister } from '@/hooks/useRegister';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { VerificationForm } from '@/components/auth/VerificationForm';
 
+import { CustomAlert } from '@/components/ui/CustomAlert';
+
 export default function RegisterScreen() {
     const router = useRouter();
     const {
@@ -29,6 +31,8 @@ export default function RegisterScreen() {
         handleRegister,
         handleVerify,
         handleResend,
+        alertState,
+        hideAlert,
     } = useRegister();
 
     return (
@@ -107,6 +111,15 @@ export default function RegisterScreen() {
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
+
+                {/* 커스텀 알림 모달 */}
+                <CustomAlert
+                    visible={alertState.visible}
+                    title={alertState.title}
+                    message={alertState.message}
+                    type={alertState.type}
+                    onConfirm={hideAlert}
+                />
             </LinearGradient>
         </>
     );
@@ -123,7 +136,6 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         paddingHorizontal: Spacing.xl,
         paddingVertical: Spacing.xxl,
-        justifyContent: 'center',
     },
     header: {
         alignItems: 'center',

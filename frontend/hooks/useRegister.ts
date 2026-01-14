@@ -4,6 +4,15 @@ import axios from 'axios';
 import { useRouter } from 'expo-router';
 import { useFormErrors } from '@/hooks/useFormErrors';
 import { useOfflineQueue } from '@/contexts/OfflineQueueContext';
+import { AlertType } from '@/components/ui/CustomAlert';
+
+interface AlertState {
+    visible: boolean;
+    title: string;
+    message: string;
+    type: AlertType;
+    onConfirm?: () => void;
+}
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -63,6 +72,31 @@ export const useRegister = () => {
     const { isOffline } = useOfflineQueue();
     const [step, setStep] = useState<Step>('form');
     const [emailVerificationStatus, setEmailVerificationStatus] = useState<EmailVerificationStatus>('required');
+
+    // Alert State
+    const [alertState, setAlertState] = useState<AlertState>({
+        visible: false,
+        title: '',
+        message: '',
+        type: 'info',
+    });
+
+    const showAlert = (title: string, message: string, type: AlertType = 'info', onConfirm?: () => void) => {
+        setAlertState({
+            visible: true,
+            title,
+            message,
+            type,
+            onConfirm,
+        });
+    };
+
+    const hideAlert = () => {
+        setAlertState(prev => ({ ...prev, visible: false }));
+        if (alertState.onConfirm) {
+            alertState.onConfirm();
+        }
+    };
 
     // Form States
     const [username, setUsername] = useState('');
@@ -125,7 +159,7 @@ export const useRegister = () => {
         if (!validateForm()) return;
 
         if (isOffline) {
-            Alert.alert('오프라인', '회원가입은 네트워크 연결이 필요합니다');
+            showAlert('오프라인', '회원가입은 네트워크 연결이 필요합니다', 'error');
             return;
         }
 
@@ -146,17 +180,19 @@ export const useRegister = () => {
                 // 이메일 인증이 필요한 경우 (운영 환경)
                 setEmailVerificationStatus('pending');
                 setStep('verify');
-                Alert.alert(
+                showAlert(
                     '인증 코드 전송',
-                    `${email}로 6자리 인증 코드가 전송되었습니다.\n이메일을 확인해주세요.`
+                    `${email}로 6자리 인증 코드가 전송되었습니다.\n이메일을 확인해주세요.`,
+                    'info'
                 );
             } else {
                 // 이메일 인증이 불필요한 경우 (개발 환경)
                 setEmailVerificationStatus('verified');
-                Alert.alert(
+                showAlert(
                     '🎉 회원가입 성공',
                     '회원가입에 성공하셨습니다.\n로그인 페이지로 이동합니다.',
-                    [{ text: '확인', onPress: () => router.replace('/login' as any) }]
+                    'success',
+                    () => router.replace('/login' as any)
                 );
             }
         } catch (err: any) {
@@ -164,9 +200,9 @@ export const useRegister = () => {
             setErrorsFromResponse(err);
 
             if (isNetworkErr) {
-                Alert.alert('네트워크 오류', '네트워크 연결을 확인해주세요');
+                showAlert('네트워크 오류', '네트워크 연결을 확인해주세요', 'error');
             } else {
-                Alert.alert('회원가입 실패', errorMessage);
+                showAlert('회원가입 실패', errorMessage, 'error');
             }
         } finally {
             setIsLoading(false);
@@ -194,10 +230,11 @@ export const useRegister = () => {
             });
 
             setEmailVerificationStatus('verified');
-            Alert.alert(
+            showAlert(
                 '🎉 회원가입 성공',
                 '회원가입에 성공하셨습니다.\n로그인 페이지로 이동합니다.',
-                [{ text: '확인', onPress: () => router.replace('/login' as any) }]
+                'success',
+                () => router.replace('/login' as any)
             );
         } catch (err: any) {
             const errorData = err?.response?.data;
@@ -214,7 +251,7 @@ export const useRegister = () => {
             }
 
             setFieldError('code', errorMessage);
-            Alert.alert('인증 실패', errorMessage);
+            showAlert('인증 실패', errorMessage, 'error');
         } finally {
             setIsLoading(false);
         }
@@ -223,7 +260,7 @@ export const useRegister = () => {
     // 인증 코드 재전송
     const handleResend = async () => {
         if (!email.trim()) {
-            Alert.alert('오류', '이메일 주소가 필요합니다');
+            showAlert('오류', '이메일 주소가 필요합니다', 'error');
             return;
         }
 
@@ -233,9 +270,10 @@ export const useRegister = () => {
                 email: email.trim(),
             });
             setEmailVerificationStatus('pending');
-            Alert.alert(
+            showAlert(
                 '재전송 완료',
-                `${email}로 새 인증 코드가 전송되었습니다.\n이전 코드는 더 이상 사용할 수 없습니다.`
+                `${email}로 새 인증 코드가 전송되었습니다.\n이전 코드는 더 이상 사용할 수 없습니다.`,
+                'info'
             );
         } catch (err: any) {
             const errorData = err?.response?.data;
@@ -249,7 +287,7 @@ export const useRegister = () => {
                 }
             }
 
-            Alert.alert('재전송 실패', errorMessage);
+            showAlert('재전송 실패', errorMessage, 'error');
         } finally {
             setIsLoading(false);
         }
@@ -268,5 +306,7 @@ export const useRegister = () => {
         handleRegister,
         handleVerify,
         handleResend,
+        alertState,
+        hideAlert,
     };
 };

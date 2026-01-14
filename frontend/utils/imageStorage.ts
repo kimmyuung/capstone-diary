@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 
+// @ts-ignore: documentDirectory exists in Expo FileSystem but types might be outdated/confused
 const PENDING_UPLOADS_DIR = FileSystem.documentDirectory + 'pending_uploads/';
 
 /**

@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Palette, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { FormFieldError } from '@/components/FormFieldError';
 import { PasswordInput } from '@/components/ui/PasswordInput';
+
+const DOMAINS = ['naver.com', 'gmail.com', 'daum.net', 'kakao.com', 'icloud.com', 'outlook.com', '직접 입력'];
 
 // 이메일 인증 상태 타입
 type EmailVerificationStatus = 'required' | 'pending' | 'verified';
@@ -58,6 +60,40 @@ export const RegisterForm = ({
     const statusBadge = getStatusBadge(emailVerificationStatus);
     const showResendButton = emailVerificationStatus !== 'verified' && onResendEmail;
 
+    // 이메일 분리 상태 관리
+    const [localPart, setLocalPart] = useState('');
+    const [domainPart, setDomainPart] = useState('naver.com'); // 기본값 설정
+    const [isCustomDomain, setIsCustomDomain] = useState(false);
+    const [showDomainModal, setShowDomainModal] = useState(false);
+
+    // 초기 이메일 값 파싱 (컴포넌트 마운트 시 한 번만 실행하거나 email prop이 외부에서 변경되었을 때)
+    useEffect(() => {
+        if (email) {
+            const parts = email.split('@');
+            if (parts.length === 2) {
+                setLocalPart(parts[0]);
+                const domain = parts[1];
+                if (DOMAINS.includes(domain)) {
+                    setDomainPart(domain);
+                    setIsCustomDomain(false);
+                } else {
+                    setDomainPart(domain);
+                    setIsCustomDomain(true);
+                }
+            } else if (!email.includes('@')) {
+                setLocalPart(email);
+            }
+        }
+    }, []); // 의존성 배열 비움 (초기 로드 시만 적용, 입력 중 재-렌더링 방지)
+
+    // 로컬/도메인 파트 변경 시 부모 email state 업데이트
+    useEffect(() => {
+        if (localPart || domainPart) {
+            const newEmail = domainPart ? `${localPart}@${domainPart}` : localPart;
+            setEmail(newEmail);
+        }
+    }, [localPart, domainPart, isCustomDomain]);
+
     return (
         <>
             <View style={styles.inputGroup}>
@@ -86,17 +122,72 @@ export const RegisterForm = ({
                         </Text>
                     </View>
                 </View>
-                <TextInput
-                    style={[styles.input, errors.email && styles.inputError]}
-                    placeholder="example@email.com"
-                    placeholderTextColor={Palette.neutral[400]}
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!isLoading}
-                />
+
+                <View style={styles.emailContainer}>
+                    <TextInput
+                        style={[styles.input, styles.emailLocalInput, errors.email && styles.inputError]}
+                        placeholder="이메일 ID"
+                        placeholderTextColor={Palette.neutral[400]}
+                        value={localPart}
+                        onChangeText={setLocalPart}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        editable={!isLoading && emailVerificationStatus !== 'verified'}
+                    />
+                    <Text style={styles.atSign}>@</Text>
+                    {isCustomDomain ? (
+                        <TextInput
+                            style={[styles.input, styles.emailDomainInput, errors.email && styles.inputError]}
+                            placeholder="직접 입력"
+                            placeholderTextColor={Palette.neutral[400]}
+                            value={domainPart}
+                            onChangeText={setDomainPart}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            editable={!isLoading && emailVerificationStatus !== 'verified'}
+                        />
+                    ) : (
+                        <TouchableOpacity
+                            style={[styles.input, styles.emailDomainSelector, errors.email && styles.inputError]}
+                            onPress={() => setShowDomainModal(true)}
+                            disabled={isLoading || emailVerificationStatus === 'verified'}
+                        >
+                            <Text style={[
+                                styles.emailDomainText,
+                                !domainPart && { color: Palette.neutral[400] }
+                            ]}>
+                                {domainPart || '도메인 선택'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {/* 도메인 선택 드롭다운 (모달 대신) */}
+                {showDomainModal && (
+                    <View style={styles.dropdownContainer}>
+                        <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
+                            {DOMAINS.map((item) => (
+                                <TouchableOpacity
+                                    key={item}
+                                    style={styles.dropdownItem}
+                                    onPress={() => {
+                                        if (item === '직접 입력') {
+                                            setIsCustomDomain(true);
+                                            setDomainPart('');
+                                        } else {
+                                            setIsCustomDomain(false);
+                                            setDomainPart(item);
+                                        }
+                                        setShowDomainModal(false);
+                                    }}
+                                >
+                                    <Text style={styles.dropdownItemText}>{item}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
+
                 <FormFieldError error={errors.email} />
 
                 {/* 이메일 재전송 버튼 */}
@@ -125,24 +216,33 @@ export const RegisterForm = ({
                     onChangeText={setPassword}
                     editable={!isLoading}
                 />
-                {/* 비밀번호 강도 표시기 */}
+                {/* 비밀번호 강도 표시기 (개선된 UI) */}
                 {password.length > 0 && (
                     <View style={styles.strengthContainer}>
-                        <View style={styles.strengthBar}>
-                            <View style={[
-                                styles.strengthFill,
-                                {
-                                    width: password.length < 8 ? '33%' : password.length < 12 ? '66%' : '100%',
-                                    backgroundColor: password.length < 8 ? Palette.status.error : password.length < 12 ? Palette.status.warning : Palette.status.success
-                                }
-                            ]} />
-                        </View>
                         <Text style={[
                             styles.strengthText,
                             { color: password.length < 8 ? Palette.status.error : password.length < 12 ? Palette.status.warning : Palette.status.success }
                         ]}>
                             {password.length < 8 ? '약함' : password.length < 12 ? '보통' : '강함'}
                         </Text>
+                        <View style={styles.strengthBars}>
+                            {[1, 2, 3, 4, 5].map((idx) => {
+                                // 강도 레벨 계산 (1: 약함, 3: 보통, 5: 강함)
+                                const strengthLevel = password.length < 8 ? 1 : password.length < 12 ? 3 : 5;
+                                const isFilled = idx <= strengthLevel;
+                                const color = password.length < 8 ? Palette.status.error : password.length < 12 ? Palette.status.warning : Palette.status.success;
+
+                                return (
+                                    <View
+                                        key={idx}
+                                        style={[
+                                            styles.strengthBarSegment,
+                                            { backgroundColor: isFilled ? color : Palette.neutral[200] }
+                                        ]}
+                                    />
+                                );
+                            })}
+                        </View>
                     </View>
                 )}
                 <FormFieldError error={errors.password} />
@@ -252,22 +352,77 @@ const styles = StyleSheet.create({
     strengthContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: Spacing.sm,
-    },
-    strengthBar: {
-        flex: 1,
-        height: 4,
-        backgroundColor: Palette.neutral[200],
-        borderRadius: 2,
-        marginRight: Spacing.sm,
-    },
-    strengthFill: {
-        height: '100%',
-        borderRadius: 2,
+        marginTop: Spacing.xs,
+        paddingLeft: Spacing.xs, // 약간의 들여쓰기
     },
     strengthText: {
-        fontSize: FontSize.xs,
+        fontSize: FontSize.xs, // 약 11px
         fontWeight: FontWeight.medium,
-        width: 35,
+        marginRight: Spacing.md,
+        minWidth: 24, // 텍스트 줄바꿈 방지
+    },
+    strengthBars: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4, // 막대 사이 간격
+        maxWidth: 120, // 전체 막대 바 최대 너비 제한
+    },
+    strengthBarSegment: {
+        flex: 1,
+        height: 4,
+        borderRadius: 2,
+    },
+    // 이메일 분리 입력 스타일
+    emailContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.xs,
+    },
+    emailLocalInput: {
+        flex: 1,
+    },
+    emailDomainSelector: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'flex-start', // 텍스트만 보이게
+        paddingVertical: Spacing.lg, // 높이 맞춤
+    },
+    emailDomainInput: {
+        flex: 1,
+    },
+    emailDomainText: {
+        fontSize: FontSize.md,
+        color: Palette.neutral[900],
+    },
+    atSign: {
+        fontSize: FontSize.lg,
+        fontWeight: FontWeight.bold,
+        color: Palette.neutral[500],
+        paddingHorizontal: 2,
+    },
+    // 드롭다운 스타일
+    dropdownContainer: {
+        marginTop: Spacing.xs,
+        backgroundColor: '#fff',
+        borderRadius: BorderRadius.md,
+        borderWidth: 1,
+        borderColor: Palette.neutral[200],
+        ...Shadows.md,
+        zIndex: 1000, // 다른 요소 위에 표시
+        overflow: 'hidden',
+    },
+    dropdownScroll: {
+        maxHeight: 200, // 최대 높이 제한
+    },
+    dropdownItem: {
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: Palette.neutral[100],
+    },
+    dropdownItemText: {
+        fontSize: FontSize.md,
+        color: Palette.neutral[800],
     },
 });

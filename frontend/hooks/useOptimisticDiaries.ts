@@ -64,12 +64,14 @@ export const useOptimisticDiaries = () => {
                     title: payload.title,
                     content: payload.content,
                     emotion: payload.emotion || null,
+                    emotion_emoji: null, // Default
                     images: payload.images ? payload.images.map((uri: string, index: number) => ({
                         id: Date.now() + index,
                         image_url: uri,
                         ai_prompt: '',
                         created_at: new Date().toISOString()
                     })) : [],
+                    tags: [], // Default empty tags
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
                     user: 0, // Placeholder
