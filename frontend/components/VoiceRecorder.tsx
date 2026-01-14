@@ -26,7 +26,7 @@ export default function VoiceRecorder({ diaryId, existingVoiceUrl, transcription
 
     // 녹음 시간 업데이트 타이머
     useEffect(() => {
-        let interval: NodeJS.Timeout;
+        let interval: ReturnType<typeof setInterval>;
         if (recording) {
             interval = setInterval(() => {
                 setRecordingDuration(prev => prev + 1);

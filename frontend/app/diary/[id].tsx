@@ -71,8 +71,8 @@ export default function DiaryDetailScreen() {
 
     // Polling Logic
     useEffect(() => {
-        let intervalId: NodeJS.Timeout;
-        let timeoutId: NodeJS.Timeout;
+        let intervalId: ReturnType<typeof setInterval>;
+        let timeoutId: ReturnType<typeof setTimeout>;
 
         if (generatingImage && diary) {
             const initialImageCount = diary.images.length;

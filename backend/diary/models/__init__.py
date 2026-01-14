@@ -28,6 +28,9 @@ from .chat_models import DiaryEmbedding
 # 요약 관련
 from .summary import DiarySummary
 
+# 모더레이션 관련
+from .moderation import FlaggedContent, ContentReport
+
 
 __all__ = [
     # Diary
@@ -49,4 +52,7 @@ __all__ = [
     'DiaryEmbedding',
     # Summary
     'DiarySummary',
+    # Moderation
+    'FlaggedContent',
+    'ContentReport',
 ]

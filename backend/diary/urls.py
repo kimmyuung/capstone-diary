@@ -5,7 +5,10 @@ from .views import (
     UserPreferenceView, ThemeView,
     SummarizeView, SuggestTitleView
 )
-from .views.admin_views import AdminStatsView, AdminUsersView, AdminRecentDiariesView
+from .views.admin_views import (
+    AdminStatsView, AdminUsersView, AdminRecentDiariesView, AdminModerationView
+)
+from .views.monitoring_views import AIUsageStatsView, SystemHealthView, SystemMetricsView
 from .views.test_views import test_image_gen_view
 
 router = DefaultRouter()
@@ -27,7 +30,15 @@ urlpatterns = [
     # 관리자 API
     path('admin/stats/', AdminStatsView.as_view(), name='admin_stats'),
     path('admin/users/', AdminUsersView.as_view(), name='admin_users'),
+    path('admin/users/<int:user_id>/', AdminUsersView.as_view(), name='admin_user_detail'),
     path('admin/diaries/recent/', AdminRecentDiariesView.as_view(), name='admin_recent_diaries'),
+    path('admin/moderation/', AdminModerationView.as_view(), name='admin_moderation'),
+    path('admin/moderation/<int:item_id>/', AdminModerationView.as_view(), name='admin_moderation_action'),
+    
+    # 시스템 모니터링 API
+    path('admin/ai-usage/', AIUsageStatsView.as_view(), name='admin_ai_usage'),
+    path('admin/system/health/', SystemHealthView.as_view(), name='admin_system_health'),
+    path('admin/system/metrics/', SystemMetricsView.as_view(), name='admin_system_metrics'),
     
     # 테스트 API (나중에 삭제)
     path('test-image/', test_image_gen_view, name='test_image_gen'),

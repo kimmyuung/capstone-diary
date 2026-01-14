@@ -43,7 +43,7 @@ export function ShareImageModal({
                 });
             } else {
                 // 모바일에서는 이미지 파일 공유
-                const fileUri = FileSystem.cacheDirectory + 'shared_image.png';
+                const fileUri = ((FileSystem as any).cacheDirectory || '') + 'shared_image.png';
                 await FileSystem.downloadAsync(imageUrl, fileUri);
 
                 await Share.share({
@@ -70,7 +70,7 @@ export function ShareImageModal({
             }
 
             // 이미지 다운로드
-            const fileUri = FileSystem.cacheDirectory + 'ai_diary_image.png';
+            const fileUri = ((FileSystem as any).cacheDirectory || '') + 'ai_diary_image.png';
             const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri);
 
             // 갤러리에 저장

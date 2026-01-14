@@ -5,6 +5,7 @@ from google import genai
 
 from ..models import Diary, DiarySummary
 from .chat_service import ChatService
+from ..utils.retry_utils import ai_retry_policy
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,11 @@ class SummaryService:
         full_text = "\n\n".join(diary_texts)
         
         # 3. Generate Summary via Gemini
-        summary_text = SummaryService._call_gemini_summarizer(full_text, period_type)
+        try:
+            summary_text = SummaryService._call_gemini_summarizer(full_text, period_type)
+        except Exception as e:
+            logger.error(f"Failed to generate summary after retries: {e}")
+            return None
         
         if not summary_text:
             return None
@@ -80,6 +85,7 @@ class SummaryService:
         return summary
 
     @staticmethod
+    @ai_retry_policy
     def _call_gemini_summarizer(context, period_type):
         if not settings.GEMINI_API_KEY:
             logger.error("Gemini API Key missing")
@@ -99,17 +105,13 @@ class SummaryService:
         [요약]
         """
         
-        try:
-            client = SummaryService._get_client()
-            response = client.models.generate_content(
-                model=settings.GEMINI_TEXT_MODEL,
-                contents=prompt
-            )
-            return response.text.strip()
-            
-        except Exception as e:
-            logger.error(f"Gemini Summary Generation failed: {e}")
-            return None
+        # Retry 적용을 위해 try-except 제거 (상위에서 처리하거나 Retry가 잡음)
+        client = SummaryService._get_client()
+        response = client.models.generate_content(
+            model=settings.GEMINI_TEXT_MODEL,
+            contents=prompt
+        )
+        return response.text.strip()
 
     @staticmethod
     def summarize_diary(content: str, style: str = 'default') -> dict:

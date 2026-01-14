@@ -2,55 +2,59 @@ import { useState, useCallback, useEffect } from 'react';
 import { Diary, diaryService } from '@/services/api';
 import { useOfflineQueue } from '@/contexts/OfflineQueueContext';
 import { useFocusEffect } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 
 /**
- * Optimistic Diary List Hook
+ * Optimistic Diary List Hook (Refactored with TanStack Query)
  * 
- * - Fetches real data from server
+ * - Fetches real data from server using React Query
  * - Merges with pending offline requests
  * - Provides immediate feedback for Create/Update/Delete actions
  */
 export const useOptimisticDiaries = () => {
-    const [serverDiaries, setServerDiaries] = useState<Diary[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
+    // Search State for Query Key
+    const [searchParams, setSearchParams] = useState<any>(undefined);
 
-    // Offline Queue Context
+    // 1. TanStack Query Integration
+    const {
+        data: serverDiaries = [],
+        isLoading,
+        isRefetching,
+        refetch
+    } = useQuery({
+        queryKey: ['diaries', searchParams],
+        queryFn: async () => {
+            if (searchParams && Object.keys(searchParams).length > 0) {
+                return await diaryService.search(searchParams);
+            }
+            return await diaryService.getAll();
+        },
+    });
+
+    // 2. Offline Queue Context
     const { pendingRequests, isSyncing } = useOfflineQueue();
 
-    // displayedDiaries: Final list shown to user
+    // 3. Merged State (Displayed to user)
     const [displayedDiaries, setDisplayedDiaries] = useState<Diary[]>([]);
 
-    const fetchDiaries = useCallback(async (filters?: any) => {
-        try {
-            let data;
-            if (filters && Object.keys(filters).length > 0) {
-                data = await diaryService.search(filters);
-            } else {
-                data = await diaryService.getAll();
-            }
-            setServerDiaries(data);
-        } catch (error) {
-            console.error('Failed to fetch diaries:', error);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
+    // Refresh function (Pull-to-refresh)
+    const refresh = useCallback(async () => {
+        await refetch();
+    }, [refetch]);
+
+    // Search function
+    const searchDiaries = useCallback((filters?: any) => {
+        setSearchParams(filters);
     }, []);
 
-    // Initial fetch & Refresh when screen focuses
+    // Refetch on Focus (Screen active)
     useFocusEffect(
         useCallback(() => {
-            fetchDiaries();
-        }, [fetchDiaries])
+            refetch();
+        }, [refetch])
     );
 
-    const refresh = async () => {
-        setIsRefreshing(true);
-        await fetchDiaries();
-    };
-
-    // Merge Server Data + Pending Requests
+    // Merge Logic (Server + Offline)
     useEffect(() => {
         let merged = [...serverDiaries];
 
@@ -124,9 +128,9 @@ export const useOptimisticDiaries = () => {
     return {
         diaries: displayedDiaries,
         isLoading,
-        isRefreshing,
+        isRefreshing: isRefetching,
         isSyncing,
         refresh,
-        searchDiaries: fetchDiaries
+        searchDiaries
     };
 };

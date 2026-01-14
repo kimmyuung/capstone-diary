@@ -132,6 +132,17 @@ class TemplateGenerator:
     사용자가 주제를 입력하면 맞춤형 템플릿을 생성합니다.
     """
     
+    from ..utils.retry_utils import ai_retry_policy
+
+    @ai_retry_policy
+    def _call_gemini(self, client, model, prompt):
+        """Gemini API 호출 (재시도 적용)"""
+        return client.models.generate_content(
+            model=model,
+            contents=prompt
+        )
+
+    
     def generate(self, topic: str, style: str = 'default') -> dict:
         """
         주제에 맞는 일기 템플릿을 생성합니다.
@@ -182,10 +193,8 @@ class TemplateGenerator:
 - 항목은 질문 형식으로 작성하세요
 - 한국어로 작성하세요"""
 
-            response = client.models.generate_content(
-                model=settings.GEMINI_TEXT_MODEL,
-                contents=prompt
-            )
+            # API 호출 (Retry 적용)
+            response = self._call_gemini(client, settings.GEMINI_TEXT_MODEL, prompt)
             content = response.text.strip()
             
             # JSON 파싱
@@ -265,12 +274,8 @@ class TemplateGenerator:
 - 항목은 질문 형식으로 작성하세요
 - 한국어로 작성하세요"""
 
-            # Async call to Gemini - note: new SDK uses synchronous call here
-            # For true async, would need different approach
-            response = client.models.generate_content(
-                model=settings.GEMINI_TEXT_MODEL,
-                contents=prompt
-            )
+            # Async call (Retry 적용)
+            response = self._call_gemini(client, settings.GEMINI_TEXT_MODEL, prompt)
             content = response.text.strip()
             
             # JSON 파싱 로직 재사용

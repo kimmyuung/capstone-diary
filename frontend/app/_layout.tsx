@@ -57,20 +57,26 @@ function RootLayoutContent() {
   );
 }
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
+
 export default function RootLayout() {
   return (
     <ErrorBoundary>
-      <ThemeProvider>
-        <AuthProvider>
-          <OfflineQueueProvider>
-            <BiometricProvider>
-              <ToastProvider>
-                <RootLayoutContent />
-              </ToastProvider>
-            </BiometricProvider>
-          </OfflineQueueProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <OfflineQueueProvider>
+              <BiometricProvider>
+                <ToastProvider>
+                  <RootLayoutContent />
+                </ToastProvider>
+              </BiometricProvider>
+            </OfflineQueueProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

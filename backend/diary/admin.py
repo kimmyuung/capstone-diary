@@ -4,6 +4,7 @@ from .models.diary import Diary, DiaryImage
 from .models.tag import Tag, DiaryTag
 from .models.template import DiaryTemplate
 from .models.preference import UserPreference
+from .models.moderation import FlaggedContent, ContentReport
 
 class DiaryImageInline(admin.TabularInline):
     model = DiaryImage
@@ -100,3 +101,66 @@ class UserPreferenceAdmin(admin.ModelAdmin):
             'fields': ('push_enabled', 'daily_reminder_enabled', 'daily_reminder_time', 'auto_emotion_analysis', 'show_location')
         }),
     )
+
+
+@admin.register(FlaggedContent)
+class FlaggedContentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'diary_link', 'flag_type', 'confidence', 'detected_at', 'reviewed', 'action_taken')
+    list_filter = ('flag_type', 'reviewed', 'action_taken', 'detected_at')
+    search_fields = ('diary__title', 'diary__user__username')
+    readonly_fields = ('diary', 'flag_type', 'confidence', 'detected_keywords', 'detected_at')
+    list_editable = ('action_taken',)
+    
+    fieldsets = (
+        ('감지 정보', {
+            'fields': ('diary', 'flag_type', 'confidence', 'detected_keywords', 'detected_at')
+        }),
+        ('검토 정보', {
+            'fields': ('reviewed', 'reviewed_by', 'reviewed_at', 'action_taken', 'admin_notes')
+        }),
+    )
+    
+    def diary_link(self, obj):
+        from django.urls import reverse
+        from django.utils.html import format_html
+        url = reverse('admin:diary_diary_change', args=[obj.diary.id])
+        return format_html('<a href="{}">{}</a>', url, obj.diary.title)
+    diary_link.short_description = '일기'
+    
+    def save_model(self, request, obj, form, change):
+        if change and not obj.reviewed_by:
+            obj.reviewed_by = request.user
+            from django.utils import timezone
+            obj.reviewed_at = timezone.now()
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(ContentReport)
+class ContentReportAdmin(admin.ModelAdmin):
+    list_display = ('id', 'diary_link', 'reporter', 'reason', 'status', 'created_at')
+    list_filter = ('reason', 'status', 'created_at')
+    search_fields = ('diary__title', 'reporter__username', 'description')
+    readonly_fields = ('diary', 'reporter', 'reason', 'description', 'created_at')
+    
+    fieldsets = (
+        ('신고 정보', {
+            'fields': ('diary', 'reporter', 'reason', 'description', 'created_at')
+        }),
+        ('처리 정보', {
+            'fields': ('status', 'reviewed_by', 'reviewed_at', 'resolution_notes')
+        }),
+    )
+    
+    def diary_link(self, obj):
+        from django.urls import reverse
+        from django.utils.html import format_html
+        url = reverse('admin:diary_diary_change', args=[obj.diary.id])
+        return format_html('<a href="{}">{}</a>', url, obj.diary.title)
+    diary_link.short_description = '일기'
+    
+    def save_model(self, request, obj, form, change):
+        if change and not obj.reviewed_by:
+            obj.reviewed_by = request.user
+            from django.utils import timezone
+            obj.reviewed_at = timezone.now()
+        super().save_model(request, obj, form, change)

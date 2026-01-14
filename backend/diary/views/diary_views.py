@@ -284,24 +284,41 @@ class DiaryViewSet(viewsets.ModelViewSet):
         self._generate_reflection_if_needed(instance)
         invalidate_user_cache(self.request.user.id)
     
+    @extend_schema(
+        summary="일기 수정",
+        description="일기 내용을 수정합니다. 버전 충돌 시 서버의 최신 데이터를 포함하여 409 에러를 반환합니다. ?force=true로 강제 수정 가능합니다.",
+        responses={
+            200: DiarySerializer,
+            409: OpenApiResponse(description="버전 충돌 (최신 데이터 포함)"),
+        }
+    )
     def update(self, request, *args, **kwargs):
         """
         일기 수정 (Optimistic Locking 적용)
-        클라이언트가 보낸 version과 DB의 version이 일치해야만 수정 가능.
+        - version 불일치 시 409 Conflict 반환 (최신 데이터 포함)
+        - ?force=true 파라미터로 강제 덮어쓰기 가능
         """
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         
-        # 1. 버전 검증
+        # 1. Force Update 체크
+        force_update = request.query_params.get('force', 'false').lower() == 'true'
+        
+        # 2. 버전 검증
         request_version = request.data.get('version')
         
-        # version이 제공된 경우에만 검증 (하위 호환성 위해 optional로 처리할 수도 있으나, 
-        # 강력한 제어를 위해 필수값으로 간주하거나, 없으면 검증 패스 등의 정책 필요.
-        # 여기서는 request에 version이 있으면 검증하는 방식으로 구현)
-        if request_version is not None:
+        if not force_update and request_version is not None:
             if int(request_version) != instance.version:
+                # 충돌 발생: 서버의 최신 데이터를 포함하여 응답 (Frontend 병합 지원)
+                latest_serializer = self.get_serializer(instance)
                 return Response(
-                    {"detail": "Data has been modified by another process.", "code": "conflict"},
+                    {
+                        "detail": "Data has been modified by another process.",
+                        "code": "conflict",
+                        "server_version": instance.version,
+                        "client_version": int(request_version),
+                        "latest_data": latest_serializer.data
+                    },
                     status=status.HTTP_409_CONFLICT
                 )
 
