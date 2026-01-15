@@ -6,6 +6,9 @@ from .views import (
     SummarizeView, SuggestTitleView
 )
 from .views.preference_views import StreakView
+from .views.report_views import ReportViewSet
+from .views.gallery_views import GalleryViewSet
+from .views.analytics_views import AnalyticsViewSet
 from .views.admin_views import (
     AdminStatsView, AdminUsersView, AdminRecentDiariesView, AdminModerationView
 )
@@ -16,6 +19,10 @@ router = DefaultRouter()
 router.register(r'diaries', DiaryViewSet, basename='diary')
 router.register(r'tags', TagViewSet, basename='tag')
 router.register(r'templates', DiaryTemplateViewSet, basename='template')
+# 리팩토링된 ViewSets
+router.register(r'reports', ReportViewSet, basename='report')
+router.register(r'gallery', GalleryViewSet, basename='gallery')
+router.register(r'analytics', AnalyticsViewSet, basename='analytics')
 
 urlpatterns = [
     path('', include(router.urls)),

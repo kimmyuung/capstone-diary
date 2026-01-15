@@ -43,6 +43,11 @@ from .push_views import PushTokenView
 # 공통/유틸리티 뷰
 from .common_views import TestConnectionView
 
+# 리팩토링된 뷰셋 (2026-01-15 분리)
+from .report_views import ReportViewSet
+from .gallery_views import GalleryViewSet
+from .analytics_views import AnalyticsViewSet
+
 
 __all__ = [
     # Auth
@@ -73,4 +78,9 @@ __all__ = [
     'PushTokenView',
     # Common
     'TestConnectionView',
+    # Refactored ViewSets
+    'ReportViewSet',
+    'GalleryViewSet',
+    'AnalyticsViewSet',
 ]
+
