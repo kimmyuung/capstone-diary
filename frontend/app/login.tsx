@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -14,9 +14,11 @@ import { useRouter, Stack } from 'expo-router';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { useLogin } from '@/hooks/useLogin';
 import { PasswordInput } from '@/components/ui/PasswordInput';
+import { PrivacyPolicyModal } from '@/components/auth/PrivacyPolicyModal';
 
 export default function LoginScreen() {
     const router = useRouter();
+    const [showPrivacy, setShowPrivacy] = useState(false);
     const {
         username,
         setUsername,
@@ -136,7 +138,23 @@ export default function LoginScreen() {
                                 회원가입
                             </Text>
                         </Text>
+                        <Text style={styles.privacyLink}>
+                            서비스 이용 시{' '}
+                            <Text
+                                style={styles.privacyLinkText}
+                                onPress={() => setShowPrivacy(true)}
+                            >
+                                개인정보처리방침
+                            </Text>
+                            에 동의하게 됩니다
+                        </Text>
                     </View>
+
+                    {/* 개인정보처리방침 모달 */}
+                    <PrivacyPolicyModal
+                        visible={showPrivacy}
+                        onClose={() => setShowPrivacy(false)}
+                    />
                 </KeyboardAvoidingView>
             </LinearGradient >
         </>
@@ -294,5 +312,16 @@ const styles = StyleSheet.create({
         fontSize: FontSize.sm,
         color: '#DC2626',
         fontWeight: FontWeight.medium,
+    },
+    privacyLink: {
+        fontSize: FontSize.xs,
+        color: Palette.neutral[500],
+        marginTop: Spacing.sm,
+        textAlign: 'center',
+    },
+    privacyLinkText: {
+        color: Palette.primary[500],
+        fontWeight: FontWeight.medium,
+        textDecorationLine: 'underline',
     },
 });

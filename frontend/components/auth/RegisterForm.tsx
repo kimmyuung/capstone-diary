@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { FormFieldError } from '@/components/FormFieldError';
 import { PasswordInput } from '@/components/ui/PasswordInput';
+import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 
 const DOMAINS = ['naver.com', 'gmail.com', 'daum.net', 'kakao.com', 'icloud.com', 'outlook.com', '직접 입력'];
 
@@ -65,6 +66,10 @@ export const RegisterForm = ({
     const [domainPart, setDomainPart] = useState('naver.com'); // 기본값 설정
     const [isCustomDomain, setIsCustomDomain] = useState(false);
     const [showDomainModal, setShowDomainModal] = useState(false);
+
+    // 개인정보처리방침 동의 상태
+    const [privacyAgreed, setPrivacyAgreed] = useState(false);
+    const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
     // 초기 이메일 값 파싱 (컴포넌트 마운트 시 한 번만 실행하거나 email prop이 외부에서 변경되었을 때)
     useEffect(() => {
@@ -261,10 +266,29 @@ export const RegisterForm = ({
                 <FormFieldError error={errors.passwordConfirm} />
             </View>
 
+            {/* 개인정보처리방침 동의 */}
+            <View style={styles.privacyContainer}>
+                <TouchableOpacity
+                    style={styles.checkbox}
+                    onPress={() => setPrivacyAgreed(!privacyAgreed)}
+                    disabled={isLoading}
+                >
+                    <View style={[styles.checkboxBox, privacyAgreed && styles.checkboxChecked]}>
+                        {privacyAgreed && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                </TouchableOpacity>
+                <Text style={styles.privacyText}>
+                    <Text style={styles.privacyLink} onPress={() => setShowPrivacyModal(true)}>
+                        개인정보처리방침
+                    </Text>
+                    에 동의합니다 <Text style={styles.required}>*필수</Text>
+                </Text>
+            </View>
+
             <TouchableOpacity
-                style={[styles.button, isLoading && styles.buttonDisabled]}
+                style={[styles.button, (isLoading || !privacyAgreed) && styles.buttonDisabled]}
                 onPress={onSubmit}
-                disabled={isLoading}
+                disabled={isLoading || !privacyAgreed}
             >
                 <LinearGradient
                     colors={[Palette.secondary[400], Palette.secondary[500]]}
@@ -277,6 +301,12 @@ export const RegisterForm = ({
                     )}
                 </LinearGradient>
             </TouchableOpacity>
+
+            {/* 개인정보처리방침 모달 */}
+            <PrivacyPolicyModal
+                visible={showPrivacyModal}
+                onClose={() => setShowPrivacyModal(false)}
+            />
         </>
     );
 };
@@ -425,4 +455,47 @@ const styles = StyleSheet.create({
         fontSize: FontSize.md,
         color: Palette.neutral[800],
     },
+    // 개인정보처리방침 동의 스타일
+    privacyContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: Spacing.md,
+    },
+    checkbox: {
+        marginRight: Spacing.sm,
+    },
+    checkboxBox: {
+        width: 22,
+        height: 22,
+        borderRadius: BorderRadius.sm,
+        borderWidth: 2,
+        borderColor: Palette.neutral[400],
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    checkboxChecked: {
+        backgroundColor: Palette.primary[500],
+        borderColor: Palette.primary[500],
+    },
+    checkmark: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+    },
+    privacyText: {
+        flex: 1,
+        fontSize: FontSize.sm,
+        color: Palette.neutral[600],
+    },
+    privacyLink: {
+        color: Palette.primary[500],
+        fontWeight: FontWeight.semibold,
+        textDecorationLine: 'underline',
+    },
+    privacyError: {
+        fontSize: FontSize.xs,
+        color: Palette.status.error,
+        marginBottom: Spacing.sm,
+    },
 });
+
