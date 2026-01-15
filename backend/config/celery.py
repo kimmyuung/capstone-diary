@@ -4,8 +4,15 @@ Celery 설정 파일
 비동기 태스크 처리를 위한 Celery 앱 설정
 """
 import os
+import sys
+
 # Windows compatibility for Celery (Eventlet)
-if os.name == 'nt':
+# Only apply monkey_patch when running as Celery worker, not during Django runserver
+def _is_celery_worker():
+    """Check if we're running as a Celery worker process"""
+    return 'celery' in sys.argv[0].lower() or any('celery' in arg.lower() for arg in sys.argv)
+
+if os.name == 'nt' and _is_celery_worker():
     try:
         import eventlet
         eventlet.monkey_patch()

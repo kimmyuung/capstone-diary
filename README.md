@@ -116,6 +116,106 @@ graph TD
 
 ---
 
+## 📊 데이터베이스 ERD
+
+```mermaid
+erDiagram
+    User ||--o{ Diary : writes
+    User ||--o| UserPreference : has
+    User ||--o{ PushToken : registers
+    
+    Diary ||--o{ DiaryImage : contains
+    Diary ||--o{ DiaryTag : tagged_with
+    Diary ||--o| DiaryEmbedding : has_vector
+    Diary ||--o| DiarySummary : summarized_to
+    Diary ||--o{ FlaggedContent : flagged_as
+    
+    Tag ||--o{ DiaryTag : applied_to
+    
+    User {
+        int id PK
+        string username
+        string email
+        string password
+        datetime created_at
+    }
+    
+    Diary {
+        int id PK
+        int user_id FK
+        string title
+        text content_encrypted
+        string emotion
+        float emotion_score
+        string location_name
+        float latitude
+        float longitude
+        string voice_file
+        text transcription
+        datetime created_at
+        int version
+    }
+    
+    DiaryImage {
+        int id PK
+        int diary_id FK
+        string image_url
+        string prompt
+        datetime created_at
+    }
+    
+    Tag {
+        int id PK
+        string name
+        string color
+    }
+    
+    DiaryTag {
+        int id PK
+        int diary_id FK
+        int tag_id FK
+    }
+    
+    UserPreference {
+        int id PK
+        int user_id FK
+        string theme
+        string language
+        bool push_enabled
+        bool biometric_enabled
+        int current_streak
+        int max_streak
+        date last_diary_date
+    }
+    
+    DiaryEmbedding {
+        int id PK
+        int diary_id FK
+        vector embedding
+    }
+    
+    DiarySummary {
+        int id PK
+        int diary_id FK
+        text summary
+        text ai_suggested_title
+    }
+    
+    PushToken {
+        int id PK
+        int user_id FK
+        string token
+        string platform
+    }
+    
+    FlaggedContent {
+        int id PK
+        int diary_id FK
+        string reason
+        float severity_score
+    }
+```
+
 ## 🚀 시작하기
 
 ### 1. 저장소 클론

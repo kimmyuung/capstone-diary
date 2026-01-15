@@ -58,7 +58,9 @@ urlpatterns = [
     # 푸시 알림 토큰 관리
     path('api/push-token/', PushTokenView.as_view(), name='push_token'),
     
-    # 일기 API
+    # 일기 API - v1 (버전 관리)
+    path('api/v1/', include('diary.urls')),
+    # 일기 API - 하위 호환성을 위한 기존 경로 유지
     path('api/', include('diary.urls')),
     
     # Prometheus Metrics (모니터링)

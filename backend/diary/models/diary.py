@@ -60,8 +60,6 @@ class Diary(models.Model):
         verbose_name='장소명'
     )
     latitude = models.FloatField(null=True, blank=True, verbose_name='위도')
-    latitude = models.FloatField(null=True, blank=True, verbose_name='위도')
-    latitude = models.FloatField(null=True, blank=True, verbose_name='위도')
     longitude = models.FloatField(null=True, blank=True, verbose_name='경도')
 
     # 검색용 키워드 (Feature: Option A - Exact Match)

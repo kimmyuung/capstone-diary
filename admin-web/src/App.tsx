@@ -1,6 +1,5 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Box } from '@mui/material'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
@@ -9,17 +8,35 @@ import Monitoring from './pages/Monitoring'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './context/AuthContext'
 
-// 보호된 라우트 컴포넌트
-const ProtectedRoute = ({ children }) => {
-    const { isAuthenticated, loading } = useAuth()
-
-    if (loading) return <div>Loading...</div>
-    if (!isAuthenticated) return <Navigate to="/login" />
-
-    return children
+interface ProtectedRouteProps {
+    children: React.ReactNode
 }
 
-function App() {
+// 보호된 라우트 컴포넌트
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+    const { isAuthenticated, loading } = useAuth()
+
+    if (loading) {
+        return (
+            <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '100vh'
+            }}>
+                Loading...
+            </div>
+        )
+    }
+
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />
+    }
+
+    return <>{children}</>
+}
+
+const App: React.FC = () => {
     return (
         <AuthProvider>
             <Routes>
@@ -35,6 +52,9 @@ function App() {
                     <Route path="moderation" element={<Moderation />} />
                     <Route path="monitoring" element={<Monitoring />} />
                 </Route>
+
+                {/* 404 처리 */}
+                <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </AuthProvider>
     )

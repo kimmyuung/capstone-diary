@@ -143,3 +143,76 @@ class ThemeView(APIView):
             'theme_display': theme_display,
             'message': f'{theme_display}로 변경되었습니다.'
         })
+
+
+class StreakView(APIView):
+    """
+    스트릭(연속 작성) 조회 API
+    
+    GET: 현재 스트릭 정보 조회
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        현재 스트릭 정보 조회
+        
+        GET /api/preferences/streak/
+        
+        Response:
+            {
+                "current_streak": 5,
+                "max_streak": 10,
+                "last_diary_date": "2026-01-14",
+                "is_streak_active": true
+            }
+        """
+        from datetime import date, timedelta
+        
+        preference = UserPreference.get_or_create_for_user(request.user)
+        today = date.today()
+        
+        # 스트릭이 끊겼는지 확인 (오늘 또는 어제 작성했으면 활성)
+        is_streak_active = False
+        if preference.last_diary_date:
+            days_diff = (today - preference.last_diary_date).days
+            is_streak_active = days_diff <= 1
+        
+        return Response({
+            'current_streak': preference.current_streak,
+            'max_streak': preference.max_streak,
+            'last_diary_date': preference.last_diary_date.isoformat() if preference.last_diary_date else None,
+            'is_streak_active': is_streak_active
+        })
+
+
+def update_user_streak(user):
+    """
+    사용자의 스트릭을 업데이트하는 헬퍼 함수
+    일기 생성 시 호출
+    """
+    from datetime import date, timedelta
+    
+    preference = UserPreference.get_or_create_for_user(user)
+    today = date.today()
+    
+    if preference.last_diary_date is None:
+        # 첫 일기
+        preference.current_streak = 1
+        preference.max_streak = 1
+    elif preference.last_diary_date == today:
+        # 오늘 이미 작성함 - 변경 없음
+        pass
+    elif preference.last_diary_date == today - timedelta(days=1):
+        # 어제 작성 + 오늘 작성 = 연속
+        preference.current_streak += 1
+        if preference.current_streak > preference.max_streak:
+            preference.max_streak = preference.current_streak
+    else:
+        # 스트릭 끊김 - 다시 1부터
+        preference.current_streak = 1
+    
+    preference.last_diary_date = today
+    preference.save()
+    
+    return preference.current_streak, preference.max_streak

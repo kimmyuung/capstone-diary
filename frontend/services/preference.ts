@@ -24,4 +24,14 @@ export const preferenceService = {
         const response = await api.put('/api/preferences/theme/', { theme });
         return response.data;
     },
+
+    async getStreak(): Promise<{
+        current_streak: number;
+        max_streak: number;
+        last_diary_date: string | null;
+        is_streak_active: boolean;
+    }> {
+        const response = await api.get('/api/preferences/streak/');
+        return response.data;
+    },
 };

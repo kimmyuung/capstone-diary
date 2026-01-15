@@ -70,6 +70,14 @@ class UserPreference(models.Model):
     # 멤버십 설정 (Feature: User Tiers)
     is_premium = models.BooleanField(default=False, verbose_name='프리미엄 멤버십 여부')
     
+    # 스트릭 설정 (Feature: Streak Tracking)
+    current_streak = models.IntegerField(default=0, verbose_name='현재 연속 작성')
+    max_streak = models.IntegerField(default=0, verbose_name='최고 연속 작성')
+    last_diary_date = models.DateField(null=True, blank=True, verbose_name='마지막 일기 작성일')
+    
+    # 감정 트렌드 알림 설정
+    emotion_trend_alert = models.BooleanField(default=True, verbose_name='감정 트렌드 알림')
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

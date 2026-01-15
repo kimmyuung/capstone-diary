@@ -1,0 +1,16 @@
+[run]
+source = diary
+omit = 
+    */migrations/*
+    */tests/*
+    */__pycache__/*
+    */management/*
+branch = True
+
+[report]
+show_missing = True
+skip_covered = False
+fail_under = 70
+
+[html]
+directory = htmlcov

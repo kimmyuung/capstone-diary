@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { diaryService, Diary } from '@/services/api';
+import { preferenceService } from '@/services/preference';
 import { DiaryCard } from '@/components/diary/DiaryCard';
 import { DiaryListSkeleton } from '@/components/Skeleton';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -53,8 +54,30 @@ export default function DiaryListScreen() {
     const [exactMatch, setExactMatch] = useState(false);
     const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
 
+    // 스트릭 상태
+    const [streak, setStreak] = useState<{ current: number; max: number; active: boolean }>({ current: 0, max: 0, active: false });
+
     // 감정 이모지 목록
     const emotions = ['😊', '😢', '😡', '😴', '🥰', '😰'];
+
+    // 스트릭 정보 로드
+    useEffect(() => {
+        const loadStreak = async () => {
+            try {
+                const data = await preferenceService.getStreak();
+                setStreak({
+                    current: data.current_streak,
+                    max: data.max_streak,
+                    active: data.is_streak_active
+                });
+            } catch (err) {
+                console.log('Failed to load streak:', err);
+            }
+        };
+        if (isAuthenticated) {
+            loadStreak();
+        }
+    }, [isAuthenticated, diaries.length]);
 
     // Debounce Search
     useEffect(() => {
@@ -200,12 +223,20 @@ export default function DiaryListScreen() {
         </View>
     );
 
-    // 통계 카드
+    // 통계 카드 (스트릭 포함)
     const renderStats = () => (
         <View style={styles.statsContainer}>
             <View style={[styles.statCard, { backgroundColor: colors.card }]}>
                 <Text style={[styles.statNumber, { color: colors.text }]}>{diaries.length}</Text>
                 <Text style={[styles.statLabel, { color: colors.textSecondary }]}>총 일기</Text>
+            </View>
+            <View style={[styles.statCard, streak.active ? styles.statCardStreak : { backgroundColor: colors.card }]}>
+                <Text style={[styles.statNumber, streak.active ? styles.statNumberStreak : { color: colors.text }]}>
+                    🔥 {streak.current}
+                </Text>
+                <Text style={[styles.statLabel, streak.active ? styles.statLabelStreak : { color: colors.textSecondary }]}>
+                    연속 작성
+                </Text>
             </View>
             <View style={[styles.statCard, styles.statCardAccent]}>
                 <Text style={[styles.statNumber, styles.statNumberAccent]}>
@@ -216,12 +247,6 @@ export default function DiaryListScreen() {
                     }).length}
                 </Text>
                 <Text style={[styles.statLabel, styles.statLabelAccent]}>오늘</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-                <Text style={[styles.statNumber, { color: colors.text }]}>
-                    {diaries.reduce((acc, d) => acc + d.images.length, 0)}
-                </Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>AI 이미지</Text>
             </View>
         </View>
     );
@@ -389,6 +414,15 @@ const styles = StyleSheet.create({
         marginTop: Spacing.xs,
     },
     statLabelAccent: {
+        color: 'rgba(255,255,255,0.8)',
+    },
+    statCardStreak: {
+        backgroundColor: '#FF6B35',
+    },
+    statNumberStreak: {
+        color: '#fff',
+    },
+    statLabelStreak: {
         color: 'rgba(255,255,255,0.8)',
     },
 

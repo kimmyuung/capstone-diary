@@ -17,7 +17,8 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "e2e:headed": "playwright test --headed",
-    "check": "npm run lint && npm run typecheck && npm run test"
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "analyze": "npx react-native-bundle-visualizer"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -42,6 +43,7 @@
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.10",
     "expo-local-authentication": "~17.0.8",
+    "expo-localization": "^17.0.8",
     "expo-location": "~18.0.10",
     "expo-media-library": "~18.2.1",
     "expo-notifications": "~0.32.15",

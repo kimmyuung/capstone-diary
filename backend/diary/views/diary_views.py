@@ -283,6 +283,10 @@ class DiaryViewSet(viewsets.ModelViewSet):
         instance = serializer.instance
         self._generate_reflection_if_needed(instance)
         invalidate_user_cache(self.request.user.id)
+        
+        # 스트릭 업데이트
+        from .preference_views import update_user_streak
+        update_user_streak(self.request.user)
     
     @extend_schema(
         summary="일기 수정",
@@ -834,3 +838,46 @@ class DiaryViewSet(viewsets.ModelViewSet):
         cache.set(cache_key, result, cache_ttl)
         
         return Response(result)
+
+    @action(detail=False, methods=['get'], url_path='emotion-trend')
+    def emotion_trend(self, request):
+        """
+        감정 트렌드 분석 API
+        
+        Query Parameters:
+            - days: 분석 기간 (기본값: 7)
+        
+        Response:
+            {
+                "consecutive_negative": 3,
+                "needs_alert": true,
+                "dominant_negative": "sad",
+                "message": "힘든 시간을 보내고 계시네요...",
+                "positive_ratio": 0.3,
+                "total_entries": 7,
+                "weekly_summary": {
+                    "weekday_patterns": {...},
+                    "hourly_patterns": {...}
+                }
+            }
+        """
+        days = request.query_params.get('days', 7)
+        try:
+            days = int(days)
+        except ValueError:
+            days = 7
+        
+        try:
+            from ..services.analysis_service import EmotionTrendAnalyzer
+            
+            # 트렌드 분석
+            trend = EmotionTrendAnalyzer.analyze_recent_trend(request.user, days)
+            
+            # 주간 요약 추가
+            weekly = EmotionTrendAnalyzer.get_weekly_summary(request.user)
+            trend['weekly_summary'] = weekly
+            
+            return Response(trend)
+        except Exception as e:
+            logger.error(f"Emotion trend analysis failed: {e}")
+            return Response({"error": "Failed to analyze emotion trend"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

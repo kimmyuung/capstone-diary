@@ -1,0 +1,97 @@
+{
+    "app": {
+        "name": "Emotion Diary",
+        "tagline": "Record your emotions"
+    },
+    "common": {
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "save": "Save",
+        "delete": "Delete",
+        "edit": "Edit",
+        "loading": "Loading...",
+        "error": "An error occurred",
+        "retry": "Retry"
+    },
+    "auth": {
+        "login": "Login",
+        "register": "Sign Up",
+        "logout": "Logout",
+        "email": "Email",
+        "password": "Password",
+        "passwordConfirm": "Confirm Password",
+        "forgotPassword": "Forgot password?",
+        "loginSuccess": "Login successful!",
+        "registerSuccess": "Registration complete"
+    },
+    "diary": {
+        "create": "Write Diary",
+        "edit": "Edit Diary",
+        "delete": "Delete Diary",
+        "title": "Title",
+        "content": "Content",
+        "titlePlaceholder": "Enter today's title",
+        "contentPlaceholder": "How was your day?\nFeel free to write...",
+        "todayMood": "Today's Mood",
+        "photoAttach": "Attach Photo",
+        "addPhoto": "Add Photo",
+        "voiceRecord": "Voice Record",
+        "saveComplete": "Diary saved",
+        "deleteConfirm": "Are you sure you want to delete?",
+        "draftFound": "You have an unsaved draft",
+        "draftRestore": "Restore",
+        "draftNew": "Start New",
+        "draftSaved": "Draft saved",
+        "encryptedSafe": "Safely encrypted"
+    },
+    "emotion": {
+        "happy": "Happy",
+        "sad": "Sad",
+        "angry": "Angry",
+        "anxious": "Anxious",
+        "peaceful": "Peaceful",
+        "excited": "Excited",
+        "tired": "Tired",
+        "love": "Love"
+    },
+    "stats": {
+        "totalDiaries": "Total Diaries",
+        "streak": "Streak",
+        "today": "Today",
+        "aiImages": "AI Images"
+    },
+    "settings": {
+        "title": "Settings",
+        "theme": "Theme",
+        "language": "Language",
+        "notification": "Notifications",
+        "biometric": "Biometric Lock",
+        "export": "Export Data",
+        "darkMode": "Dark Mode",
+        "lightMode": "Light Mode",
+        "systemMode": "System Default"
+    },
+    "report": {
+        "title": "Emotion Report",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "annual": "Annual",
+        "emotionStats": "Emotion Stats",
+        "dominantEmotion": "Most felt emotion"
+    },
+    "calendar": {
+        "title": "Calendar",
+        "noEntry": "No diary entry for this day"
+    },
+    "chat": {
+        "title": "AI Chat",
+        "placeholder": "Ask me anything...",
+        "thinking": "Thinking..."
+    },
+    "offline": {
+        "status": "Offline",
+        "syncing": "Syncing...",
+        "pendingRequests": "requests pending",
+        "syncManual": "Sync"
+    }
+}

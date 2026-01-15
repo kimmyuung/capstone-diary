@@ -313,3 +313,170 @@ class TemplateGenerator:
         except Exception as e:
             logger.error(f"Error generating template (async): {e}")
             raise e
+
+
+class EmotionTrendAnalyzer:
+    """
+    감정 트렌드 분석기
+    - 연속 부정적 감정 감지
+    - 주간 감정 트렌드 분석
+    - 맞춤 격려 메시지 생성
+    """
+    
+    NEGATIVE_EMOTIONS = {'sad', 'angry', 'anxious', 'tired'}
+    POSITIVE_EMOTIONS = {'happy', 'peaceful', 'excited', 'love'}
+    
+    ENCOURAGEMENT_MESSAGES = {
+        'sad': [
+            "힘든 시간을 보내고 계시네요. 괜찮아요, 이 또한 지나갈 거예요. 🌈",
+            "슬픔을 느끼는 것도 자연스러운 감정이에요. 스스로를 돌보는 시간을 가져보세요. 💙",
+        ],
+        'angry': [
+            "화가 나는 감정이 계속되고 있네요. 깊게 숨을 쉬어보세요. 🌿",
+            "분노 뒤에 숨겨진 진짜 감정을 찾아보면 어떨까요? 💭",
+        ],
+        'anxious': [
+            "불안한 나날이 이어지고 있군요. 오늘 하루 작은 것에 집중해보세요. ☁️",
+            "불안함을 느끼는 건 변화를 원한다는 신호일 수도 있어요. 🌱",
+        ],
+        'tired': [
+            "피곤함이 쌓이고 있네요. 충분한 휴식을 취하셨나요? 😴",
+            "지친 마음에게 쉬어갈 시간을 주세요. 작은 산책도 도움이 될 거예요. 🚶",
+        ],
+    }
+    
+    @classmethod
+    def analyze_recent_trend(cls, user, days: int = 7) -> dict:
+        """
+        최근 N일간의 감정 트렌드 분석
+        
+        Returns:
+            {
+                'consecutive_negative': int,  # 연속 부정적 감정 일수
+                'needs_alert': bool,          # 알림 필요 여부 (3일 이상 연속)
+                'dominant_negative': str,     # 가장 많이 기록된 부정 감정
+                'message': str,               # 격려 메시지 (알림 필요시)
+                'positive_ratio': float,      # 긍정 감정 비율
+                'total_entries': int,         # 총 일기 수
+            }
+        """
+        from datetime import date, timedelta
+        from ..models import Diary
+        
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+        
+        diaries = Diary.objects.filter(
+            user=user,
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date,
+            emotion__isnull=False
+        ).order_by('-created_at')
+        
+        if not diaries.exists():
+            return {
+                'consecutive_negative': 0,
+                'needs_alert': False,
+                'dominant_negative': None,
+                'message': None,
+                'positive_ratio': 0.0,
+                'total_entries': 0,
+            }
+        
+        emotions = [d.emotion for d in diaries]
+        total_entries = len(emotions)
+        
+        # 연속 부정적 감정 계산
+        consecutive_negative = 0
+        for emotion in emotions:
+            if emotion in cls.NEGATIVE_EMOTIONS:
+                consecutive_negative += 1
+            else:
+                break  # 연속이 끊기면 중단
+        
+        # 우세 부정 감정 계산
+        negative_counts = {}
+        positive_count = 0
+        for emotion in emotions:
+            if emotion in cls.NEGATIVE_EMOTIONS:
+                negative_counts[emotion] = negative_counts.get(emotion, 0) + 1
+            elif emotion in cls.POSITIVE_EMOTIONS:
+                positive_count += 1
+        
+        dominant_negative = max(negative_counts, key=negative_counts.get) if negative_counts else None
+        positive_ratio = positive_count / total_entries if total_entries > 0 else 0.0
+        
+        # 알림 필요 여부 (3일 연속 부정 감정)
+        needs_alert = consecutive_negative >= 3
+        
+        # 격려 메시지 선택
+        message = None
+        if needs_alert and dominant_negative:
+            import random
+            messages = cls.ENCOURAGEMENT_MESSAGES.get(dominant_negative, [])
+            if messages:
+                message = random.choice(messages)
+        
+        return {
+            'consecutive_negative': consecutive_negative,
+            'needs_alert': needs_alert,
+            'dominant_negative': dominant_negative,
+            'message': message,
+            'positive_ratio': round(positive_ratio, 2),
+            'total_entries': total_entries,
+        }
+    
+    @classmethod
+    def get_weekly_summary(cls, user) -> dict:
+        """
+        주간 감정 요약 (시간대별/요일별 통계 포함)
+        """
+        from datetime import date, timedelta
+        from collections import defaultdict
+        from ..models import Diary
+        
+        end_date = date.today()
+        start_date = end_date - timedelta(days=7)
+        
+        diaries = Diary.objects.filter(
+            user=user,
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date
+        )
+        
+        # 요일별 감정 분포
+        weekday_emotions = defaultdict(list)
+        # 시간대별 감정 분포 (0-6: 새벽, 6-12: 아침, 12-18: 오후, 18-24: 저녁)
+        hour_emotions = defaultdict(list)
+        
+        WEEKDAY_NAMES = ['월', '화', '수', '목', '금', '토', '일']
+        HOUR_RANGES = {
+            (0, 6): '새벽',
+            (6, 12): '아침',
+            (12, 18): '오후',
+            (18, 24): '저녁',
+        }
+        
+        for diary in diaries:
+            if diary.emotion:
+                weekday = diary.created_at.weekday()
+                weekday_emotions[WEEKDAY_NAMES[weekday]].append(diary.emotion)
+                
+                hour = diary.created_at.hour
+                for (start, end), name in HOUR_RANGES.items():
+                    if start <= hour < end:
+                        hour_emotions[name].append(diary.emotion)
+                        break
+        
+        # 각 그룹별 우세 감정 계산
+        def get_dominant(emotions_list):
+            if not emotions_list:
+                return None
+            from collections import Counter
+            return Counter(emotions_list).most_common(1)[0][0]
+        
+        return {
+            'weekday_patterns': {day: get_dominant(emotions) for day, emotions in weekday_emotions.items()},
+            'hourly_patterns': {period: get_dominant(emotions) for period, emotions in hour_emotions.items()},
+            'total_diaries': diaries.count(),
+        }

@@ -5,6 +5,7 @@ from .views import (
     UserPreferenceView, ThemeView,
     SummarizeView, SuggestTitleView
 )
+from .views.preference_views import StreakView
 from .views.admin_views import (
     AdminStatsView, AdminUsersView, AdminRecentDiariesView, AdminModerationView
 )
@@ -22,6 +23,7 @@ urlpatterns = [
     # 사용자 설정 API
     path('preferences/', UserPreferenceView.as_view(), name='user_preferences'),
     path('preferences/theme/', ThemeView.as_view(), name='user_theme'),
+    path('preferences/streak/', StreakView.as_view(), name='user_streak'),
     
     # AI 도우미 API
     path('summarize/', SummarizeView.as_view(), name='summarize'),
