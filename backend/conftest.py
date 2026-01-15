@@ -15,9 +15,13 @@ def set_testing_flag(settings):
 def mock_gemini_api(monkeypatch):
     """
     Automatically mock Gemini API calls for all tests.
+    Uses try/except to handle cases where module may not be loaded.
     """
-    monkeypatch.setattr("diary.ai_service.genai", MagicMock())
-    monkeypatch.setattr("diary.services.chat_service.genai", MagicMock())
+    try:
+        import diary.services.chat_service
+        monkeypatch.setattr(diary.services.chat_service, "genai", MagicMock())
+    except (ImportError, AttributeError):
+        pass  # Module not loaded yet, skip patching
 
 @pytest.fixture(autouse=True)
 def mock_sentence_transformer(monkeypatch):
@@ -30,10 +34,15 @@ def mock_sentence_transformer(monkeypatch):
     mock_model.encode.return_value = np.array([0.1] * 384)
     
     mock_class = MagicMock(return_value=mock_model)
-    monkeypatch.setattr("diary.services.chat_service.SentenceTransformer", mock_class)
+    try:
+        import diary.services.chat_service
+        monkeypatch.setattr(diary.services.chat_service, "SentenceTransformer", mock_class)
+    except (ImportError, AttributeError):
+        pass  # Module not loaded yet
 
     
 @pytest.fixture
 def api_client():
     from rest_framework.test import APIClient
     return APIClient()
+

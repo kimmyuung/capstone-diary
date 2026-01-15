@@ -24,7 +24,12 @@ except Exception:
 
 # Testing Mode (Overridden in conftest.py)
 import sys
-IS_TESTING = 'test' in sys.argv
+IS_TESTING = (
+    'test' in sys.argv or  # Django test command
+    'pytest' in sys.modules or  # pytest runner
+    any('pytest' in arg for arg in sys.argv) or  # pytest in command line
+    os.environ.get('TESTING', '').lower() in ('true', '1', 'yes')  # Explicit env var
+)
 
 # =============================================================================
 # Sentry 모니터링 설정 (에러 추적)
