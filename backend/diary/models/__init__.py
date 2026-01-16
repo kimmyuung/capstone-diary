@@ -22,8 +22,8 @@ from .push import PushToken
 # 사용자 설정 관련
 from .preference import UserPreference
 
-# 채팅 임베딩 관련
-from .chat_models import DiaryEmbedding
+# 채팅 관련
+from .chat_models import DiaryEmbedding, ChatSession, ChatMessage
 
 # 요약 관련
 from .summary import DiarySummary
@@ -50,9 +50,12 @@ __all__ = [
     'UserPreference',
     # Chat
     'DiaryEmbedding',
+    'ChatSession',
+    'ChatMessage',
     # Summary
     'DiarySummary',
     # Moderation
     'FlaggedContent',
     'ContentReport',
 ]
+

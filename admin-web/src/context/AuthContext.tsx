@@ -1,15 +1,36 @@
-import React, { createContext, useState, useContext, useEffect } from 'react'
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react'
 import axios from 'axios'
 
-const AuthContext = createContext(null)
+// 사용자 타입 정의
+interface User {
+    id: number
+    username: string
+    email?: string
+}
+
+// AuthContext 타입 정의
+interface AuthContextType {
+    user: User | null
+    token: string | null
+    login: (username: string, password: string) => Promise<boolean>
+    logout: () => void
+    isAuthenticated: boolean
+    loading: boolean
+}
+
+interface AuthProviderProps {
+    children: ReactNode
+}
+
+const AuthContext = createContext<AuthContextType | null>(null)
 
 // Axios 기본 설정
 axios.defaults.baseURL = 'http://localhost:8000/api' // 로컬 개발 환경
 // 배포 시에는 상대 경로 '/api' 또는 환경 변수 사용
 
-export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null)
-    const [token, setToken] = useState(localStorage.getItem('admin_token'))
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+    const [user, setUser] = useState<User | null>(null)
+    const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'))
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -24,7 +45,7 @@ export const AuthProvider = ({ children }) => {
         }
     }, [token])
 
-    const login = async (username, password) => {
+    const login = async (username: string, password: string): Promise<boolean> => {
         try {
             const response = await axios.post('/token/', {
                 username,
@@ -51,7 +72,7 @@ export const AuthProvider = ({ children }) => {
         delete axios.defaults.headers.common['Authorization']
     }
 
-    const value = {
+    const value: AuthContextType = {
         user,
         token,
         login,
@@ -67,4 +88,11 @@ export const AuthProvider = ({ children }) => {
     )
 }
 
-export const useAuth = () => useContext(AuthContext)
+// useAuth 훅 - null 체크 포함
+export const useAuth = (): AuthContextType => {
+    const context = useContext(AuthContext)
+    if (!context) {
+        throw new Error('useAuth must be used within an AuthProvider')
+    }
+    return context
+}

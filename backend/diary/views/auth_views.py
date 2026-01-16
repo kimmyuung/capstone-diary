@@ -591,3 +591,95 @@ class FindUsernameView(APIView):
                 {"error": str(ERROR_EMAIL_SEND_FAILED)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class ChangePasswordView(APIView):
+    """
+    로그인 상태에서 비밀번호 변경 API
+    
+    POST /api/password/change/
+    
+    Request Body:
+        {
+            "current_password": "현재비밀번호",
+            "new_password": "새비밀번호",
+            "confirm_password": "새비밀번호확인"
+        }
+    
+    Response (200 OK):
+        {
+            "message": "비밀번호가 성공적으로 변경되었습니다."
+        }
+    
+    Response (400 Bad Request):
+        {
+            "error": "현재 비밀번호가 올바르지 않습니다."
+        }
+    """
+    # 로그인 필요
+    from rest_framework.permissions import IsAuthenticated
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="비밀번호 변경",
+        description="로그인 상태에서 현재 비밀번호를 확인 후 새 비밀번호로 변경합니다.",
+        responses={
+            200: OpenApiResponse(description="비밀번호 변경 성공"),
+            400: OpenApiResponse(description="유효성 검사 실패", examples=[EXAMPLE_400_BAD_REQUEST]),
+            401: OpenApiResponse(description="인증 필요", examples=[EXAMPLE_401_UNAUTHORIZED]),
+        }
+    )
+    def post(self, request):
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError
+
+        current_password = request.data.get('current_password', '')
+        new_password = request.data.get('new_password', '')
+        confirm_password = request.data.get('confirm_password', '')
+
+        # 필수 필드 검증
+        if not all([current_password, new_password, confirm_password]):
+            return Response(
+                {"error": "모든 필드를 입력해주세요."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 새 비밀번호 일치 확인
+        if new_password != confirm_password:
+            return Response(
+                {"error": "새 비밀번호가 일치하지 않습니다."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 현재 비밀번호 확인
+        user = request.user
+        if not user.check_password(current_password):
+            return Response(
+                {"error": "현재 비밀번호가 올바르지 않습니다."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 새 비밀번호가 현재와 같은지 확인
+        if current_password == new_password:
+            return Response(
+                {"error": "새 비밀번호는 현재 비밀번호와 달라야 합니다."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 비밀번호 유효성 검사
+        try:
+            validate_password(new_password, user)
+        except ValidationError as e:
+            return Response(
+                {"error": list(e.messages)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 비밀번호 변경
+        user.set_password(new_password)
+        user.save()
+
+        return Response({
+            "message": "비밀번호가 성공적으로 변경되었습니다."
+        })
+

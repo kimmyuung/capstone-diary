@@ -28,7 +28,45 @@ import {
     Warning as WarningIcon
 } from '@mui/icons-material';
 
-const StatCard = ({ title, value, subValue, icon, color }) => (
+interface StatCardProps {
+    title: string;
+    value: number;
+    subValue?: string;
+    icon: React.ReactElement;
+    color: string;
+}
+
+interface StatsData {
+    users: {
+        total: number;
+        new_this_week: number;
+    };
+    diaries: {
+        total: number;
+        this_week: number;
+    };
+    ai_images: {
+        total: number;
+        this_week: number;
+    };
+    moderation: {
+        pending_flags: number;
+        pending_reports: number;
+    };
+    emotions: {
+        distribution: Record<string, number>;
+    };
+    trends?: {
+        daily: Array<{ date: string; diaries: number; users: number }>;
+    };
+}
+
+interface EmotionDataItem {
+    name: string;
+    value: number;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ title, value, subValue, icon, color }) => (
     <Card sx={{ height: '100%' }}>
         <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -53,14 +91,14 @@ const StatCard = ({ title, value, subValue, icon, color }) => (
     </Card>
 );
 
-const Dashboard = () => {
-    const [stats, setStats] = useState(null);
+const Dashboard: React.FC = () => {
+    const [stats, setStats] = useState<StatsData | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const response = await axios.get('/admin/stats/');
+                const response = await axios.get<StatsData>('/admin/stats/');
                 setStats(response.data);
             } catch (error) {
                 console.error('Failed to fetch stats', error);
@@ -79,7 +117,7 @@ const Dashboard = () => {
     const trendData = stats.trends?.daily || [];
 
     // 감정 분포 데이터
-    const emotionData = Object.entries(stats.emotions.distribution || {}).map(([name, value]) => ({
+    const emotionData: EmotionDataItem[] = Object.entries(stats.emotions.distribution || {}).map(([name, value]) => ({
         name,
         value
     }));
@@ -163,7 +201,7 @@ const Dashboard = () => {
                                     dataKey="value"
                                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                                 >
-                                    {emotionData.map((entry, index) => (
+                                    {emotionData.map((_entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>

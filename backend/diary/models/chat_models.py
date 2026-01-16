@@ -43,3 +43,70 @@ class DiaryEmbedding(models.Model):
 
     def __str__(self):
         return f"Embedding for Diary {self.diary_id}"
+
+
+class ChatSession(models.Model):
+    """
+    AI 채팅 세션 모델
+    사용자와 AI 간의 대화 세션을 관리
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='chat_sessions'
+    )
+    title = models.CharField(max_length=100, default="새 대화")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+    
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = '채팅 세션'
+        verbose_name_plural = '채팅 세션들'
+    
+    def __str__(self):
+        return f"Chat {self.id}: {self.title[:30]} ({self.user.username})"
+    
+    def get_last_messages(self, count=10):
+        """최근 메시지 N개 조회"""
+        return self.messages.order_by('-created_at')[:count][::-1]
+
+
+class ChatMessage(models.Model):
+    """
+    AI 채팅 메시지 모델
+    세션 내 개별 메시지 저장
+    """
+    ROLE_CHOICES = [
+        ('user', '사용자'),
+        ('assistant', 'AI'),
+        ('system', '시스템'),
+    ]
+    
+    session = models.ForeignKey(
+        ChatSession, 
+        on_delete=models.CASCADE, 
+        related_name='messages'
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # 메타데이터 (선택)
+    referenced_diaries = models.ManyToManyField(
+        Diary, 
+        blank=True, 
+        related_name='chat_references'
+    )
+    token_count = models.IntegerField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = '채팅 메시지'
+        verbose_name_plural = '채팅 메시지들'
+    
+    def __str__(self):
+        preview = self.content[:50] + "..." if len(self.content) > 50 else self.content
+        return f"[{self.role}] {preview}"
+

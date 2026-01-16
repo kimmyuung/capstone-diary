@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
@@ -8,13 +8,14 @@ import {
     FlatList,
     ActivityIndicator,
     Dimensions,
-    Modal,
+    ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { diaryService } from '@/services/api';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { ImageViewer } from '@/components/ImageViewer';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_SIZE = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm * 2) / 3;
@@ -27,7 +28,20 @@ interface GalleryImage {
     diary_id: number;
     diary_title: string;
     diary_date: string;
+    emotion?: string;
 }
+
+const EMOTION_FILTERS = [
+    { key: 'all', label: '전체', emoji: '🎨' },
+    { key: 'happy', label: '행복', emoji: '😊' },
+    { key: 'sad', label: '슬픔', emoji: '😢' },
+    { key: 'angry', label: '화남', emoji: '😡' },
+    { key: 'anxious', label: '불안', emoji: '😰' },
+    { key: 'peaceful', label: '평온', emoji: '😌' },
+    { key: 'excited', label: '신남', emoji: '🥳' },
+    { key: 'tired', label: '피곤', emoji: '😴' },
+    { key: 'love', label: '사랑', emoji: '🥰' },
+];
 
 export default function GalleryScreen() {
     const router = useRouter();
@@ -35,7 +49,9 @@ export default function GalleryScreen() {
     const { colors, isDark } = useTheme();
     const [images, setImages] = useState<GalleryImage[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
+    const [selectedFilter, setSelectedFilter] = useState('all');
+    const [viewerVisible, setViewerVisible] = useState(false);
+    const [viewerIndex, setViewerIndex] = useState(0);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -54,6 +70,17 @@ export default function GalleryScreen() {
         } finally {
             setLoading(false);
         }
+    };
+
+    // 감정별 필터링
+    const filteredImages = useMemo(() => {
+        if (selectedFilter === 'all') return images;
+        return images.filter(img => img.emotion === selectedFilter);
+    }, [images, selectedFilter]);
+
+    const openViewer = (index: number) => {
+        setViewerIndex(index);
+        setViewerVisible(true);
     };
 
     if (!isAuthenticated) {
@@ -81,13 +108,44 @@ export default function GalleryScreen() {
         );
     }
 
-    const renderItem = ({ item }: { item: GalleryImage }) => (
+    const renderFilterChip = ({ key, label, emoji }: typeof EMOTION_FILTERS[0]) => {
+        const isActive = selectedFilter === key;
+        return (
+            <TouchableOpacity
+                key={key}
+                style={[
+                    styles.filterChip,
+                    isActive && styles.filterChipActive,
+                    isDark && !isActive && styles.filterChipDark,
+                ]}
+                onPress={() => setSelectedFilter(key)}
+            >
+                <Text style={styles.filterEmoji}>{emoji}</Text>
+                <Text style={[
+                    styles.filterLabel,
+                    isActive && styles.filterLabelActive,
+                    isDark && !isActive && styles.filterLabelDark,
+                ]}>
+                    {label}
+                </Text>
+            </TouchableOpacity>
+        );
+    };
+
+    const renderItem = ({ item, index }: { item: GalleryImage; index: number }) => (
         <TouchableOpacity
             style={styles.imageItem}
-            onPress={() => setSelectedImage(item)}
+            onPress={() => openViewer(index)}
             activeOpacity={0.8}
         >
             <Image source={{ uri: item.image_url }} style={styles.thumbnail} />
+            {item.emotion && (
+                <View style={styles.emotionBadge}>
+                    <Text style={styles.emotionBadgeText}>
+                        {EMOTION_FILTERS.find(e => e.key === item.emotion)?.emoji || ''}
+                    </Text>
+                </View>
+            )}
         </TouchableOpacity>
     );
 
@@ -96,18 +154,34 @@ export default function GalleryScreen() {
             {/* 헤더 */}
             <View style={styles.header}>
                 <Text style={[styles.headerTitle, { color: colors.text }]}>🖼️ 이미지 갤러리</Text>
-                <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>{images.length}개의 AI 생성 이미지</Text>
+                <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+                    {filteredImages.length}개의 AI 생성 이미지
+                </Text>
             </View>
 
-            {images.length === 0 ? (
+            {/* 감정 필터 */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.filterContainer}
+                contentContainerStyle={styles.filterContent}
+            >
+                {EMOTION_FILTERS.map(renderFilterChip)}
+            </ScrollView>
+
+            {filteredImages.length === 0 ? (
                 <View style={styles.emptyState}>
                     <Text style={styles.emptyEmoji}>🎨</Text>
-                    <Text style={[styles.emptyTitle, { color: colors.text }]}>아직 생성된 이미지가 없어요</Text>
-                    <Text style={[styles.emptyText, { color: colors.textSecondary }]}>일기를 작성하고 AI 이미지를 생성해보세요!</Text>
+                    <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                        {selectedFilter === 'all' ? '아직 생성된 이미지가 없어요' : '해당 감정의 이미지가 없어요'}
+                    </Text>
+                    <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                        {selectedFilter === 'all' ? '일기를 작성하고 AI 이미지를 생성해보세요!' : '다른 감정을 선택해보세요'}
+                    </Text>
                 </View>
             ) : (
                 <FlatList
-                    data={images}
+                    data={filteredImages}
                     renderItem={renderItem}
                     keyExtractor={(item) => item.id.toString()}
                     numColumns={3}
@@ -116,47 +190,13 @@ export default function GalleryScreen() {
                 />
             )}
 
-            {/* 이미지 상세 모달 */}
-            <Modal
-                visible={!!selectedImage}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setSelectedImage(null)}
-            >
-                <TouchableOpacity
-                    style={styles.modalBackdrop}
-                    activeOpacity={1}
-                    onPress={() => setSelectedImage(null)}
-                >
-                    <View style={styles.modalContent}>
-                        {selectedImage && (
-                            <>
-                                <Image
-                                    source={{ uri: selectedImage.image_url }}
-                                    style={styles.fullImage}
-                                    resizeMode="contain"
-                                />
-                                <View style={styles.imageInfo}>
-                                    <Text style={styles.imageTitle}>{selectedImage.diary_title}</Text>
-                                    <Text style={styles.imageDate}>{selectedImage.diary_date}</Text>
-                                    <Text style={styles.imagePrompt} numberOfLines={3}>
-                                        {selectedImage.ai_prompt}
-                                    </Text>
-                                </View>
-                                <TouchableOpacity
-                                    style={styles.viewDiaryButton}
-                                    onPress={() => {
-                                        setSelectedImage(null);
-                                        router.push(`/diary/${selectedImage.diary_id}` as any);
-                                    }}
-                                >
-                                    <Text style={styles.viewDiaryButtonText}>일기 보기</Text>
-                                </TouchableOpacity>
-                            </>
-                        )}
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+            {/* ImageViewer 모달 */}
+            <ImageViewer
+                visible={viewerVisible}
+                images={filteredImages}
+                initialIndex={viewerIndex}
+                onClose={() => setViewerVisible(false)}
+            />
         </View>
     );
 }
@@ -285,4 +325,58 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontWeight: FontWeight.semibold,
     },
+    // 감정 필터 스타일
+    filterContainer: {
+        maxHeight: 50,
+        marginBottom: Spacing.md,
+    },
+    filterContent: {
+        paddingHorizontal: Spacing.lg,
+        gap: Spacing.sm,
+    },
+    filterChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: Spacing.sm,
+        paddingHorizontal: Spacing.md,
+        backgroundColor: Palette.neutral[100],
+        borderRadius: BorderRadius.full,
+        gap: 4,
+    },
+    filterChipActive: {
+        backgroundColor: Palette.primary[500],
+    },
+    filterChipDark: {
+        backgroundColor: '#333',
+    },
+    filterEmoji: {
+        fontSize: 14,
+    },
+    filterLabel: {
+        fontSize: FontSize.sm,
+        color: Palette.neutral[600],
+    },
+    filterLabelActive: {
+        color: '#fff',
+        fontWeight: FontWeight.semibold,
+    },
+    filterLabelDark: {
+        color: '#ccc',
+    },
+    // 감정 배지 스타일
+    emotionBadge: {
+        position: 'absolute',
+        bottom: 4,
+        right: 4,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        borderRadius: 10,
+        width: 20,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    emotionBadgeText: {
+        fontSize: 12,
+    },
 });
+

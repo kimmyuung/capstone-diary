@@ -6,12 +6,18 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 from diary.views import (
     TestConnectionView, TranscribeView, TranslateAudioView, SupportedLanguagesView,
     RegisterView, PasswordResetRequestView, PasswordResetConfirmView, FindUsernameView,
-    EmailVerifyView, ResendVerificationView, PushTokenView, CustomTokenObtainPairView
+    EmailVerifyView, ResendVerificationView, PushTokenView, CustomTokenObtainPairView,
+    ChangePasswordView
 )
 from diary.views.export_views import DataExportView
-from diary.views.chat_views import ChatAIView
+from diary.views.chat_views import ChatAIView, ChatSessionViewSet, DiaryShareView, SharedDiaryView
 from diary.views.social_auth_views import GoogleLoginView, KakaoLoginView
 from config.healthcheck import HealthCheckView, SentryTestView
+from rest_framework.routers import DefaultRouter
+
+# Chat 세션 라우터
+chat_router = DefaultRouter()
+chat_router.register(r'sessions', ChatSessionViewSet, basename='chat-session')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -39,6 +45,7 @@ urlpatterns = [
     # 비밀번호/아이디 찾기
     path('api/password/reset-request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
     path('api/password/reset-confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('api/password/change/', ChangePasswordView.as_view(), name='password_change'),
     path('api/username/find/', FindUsernameView.as_view(), name='find_username'),
     
     # 테스트 엔드포인트
@@ -47,8 +54,14 @@ urlpatterns = [
     # 데이터 내보내기 (백업)
     path('api/export/data/', DataExportView.as_view(), name='data_export'),
     
-    # AI 채팅
+    # AI 채팅 (스트리밍)
     path('api/chat/', ChatAIView.as_view(), name='chat_ai'),
+    # 채팅 세션 관리
+    path('api/chat/', include(chat_router.urls)),
+    
+    # 일기 공유
+    path('api/diaries/<int:diary_id>/share/', DiaryShareView.as_view(), name='diary_share'),
+    path('api/shared/<str:token>/', SharedDiaryView.as_view(), name='shared_diary'),
     
     # 음성-텍스트 변환 API (Whisper) - 100개 이상 언어 지원
     path('api/transcribe/', TranscribeView.as_view(), name='transcribe'),

@@ -20,7 +20,7 @@ from django.core.cache import cache
 from django.conf import settings
 from datetime import timedelta, datetime
 
-from ..models import Diary, DiaryEmbedding
+from ..models import Diary, DiaryEmbedding, DiaryImage
 from ..serializers import DiarySerializer, DiaryImageSerializer
 from ..services.image_service import ImageGenerator
 from ..services.summary_service import SummaryService
@@ -153,6 +153,11 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(created_at__date__lte=end.date())
             except ValueError:
                 pass
+        
+        # 태그 필터
+        tag = self.request.query_params.get('tag', None)
+        if tag:
+            queryset = queryset.filter(diary_tags__tag__name__icontains=tag).distinct()
         
         return queryset.order_by('-created_at').select_related('user').prefetch_related('images', 'diary_tags__tag')
     
@@ -646,6 +651,74 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 {'error': str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=True, methods=['post'], url_path='upload-image')
+    def upload_image(self, request, pk=None):
+        """
+        일기에 이미지를 업로드합니다.
+        
+        Request:
+            - image: 이미지 파일 (multipart/form-data)
+            - caption: 이미지 설명 (선택)
+        
+        Response (201):
+            {
+                "id": 1,
+                "url": "/media/diary_uploads/2026/01/image.jpg",
+                "caption": "오늘의 사진",
+                "is_ai_generated": false,
+                "created_at": "2026-01-16T10:00:00Z"
+            }
+        """
+        diary = self.get_object()
+        
+        # 권한 확인
+        if diary.user != request.user:
+            return Response(
+                {'error': 'You do not have permission to access this diary.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # 이미지 파일 확인
+        image_file = request.FILES.get('image')
+        if not image_file:
+            return Response(
+                {'error': '이미지 파일이 필요합니다.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 파일 크기 제한 (10MB)
+        if image_file.size > 10 * 1024 * 1024:
+            return Response(
+                {'error': '이미지 크기는 10MB를 초과할 수 없습니다.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 파일 형식 확인
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if image_file.content_type not in allowed_types:
+            return Response(
+                {'error': '지원하지 않는 이미지 형식입니다. (JPEG, PNG, GIF, WebP만 허용)'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 이미지 저장
+        caption = request.data.get('caption', '')
+        
+        diary_image = DiaryImage.objects.create(
+            diary=diary,
+            uploaded_file=image_file,
+            is_ai_generated=False,
+            caption=caption[:200] if caption else ''
+        )
+        
+        return Response({
+            'id': diary_image.id,
+            'url': diary_image.url,
+            'caption': diary_image.caption,
+            'is_ai_generated': diary_image.is_ai_generated,
+            'created_at': diary_image.created_at.isoformat()
+        }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'], url_path='heatmap')
     def heatmap(self, request):

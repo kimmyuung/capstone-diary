@@ -262,10 +262,26 @@ export default function SettingsScreen() {
             </View>
 
             {/* 보안 설정 */}
-            {
-                isBiometricSupported && (
-                    <View style={[styles.section, isDark && styles.sectionDark]}>
-                        <Text style={[styles.sectionTitle, isDark && styles.textDark]}>보안</Text>
+            {isAuthenticated && (
+                <View style={[styles.section, isDark && styles.sectionDark]}>
+                    <Text style={[styles.sectionTitle, isDark && styles.textDark]}>보안</Text>
+
+                    {/* 비밀번호 변경 */}
+                    <TouchableOpacity
+                        style={styles.settingRow}
+                        onPress={() => router.push('/change-password' as any)}
+                    >
+                        <View style={styles.settingInfo}>
+                            <IconSymbol name="key.fill" size={20} color={isDark ? '#fff' : Palette.neutral[600]} />
+                            <Text style={[styles.settingLabel, isDark && styles.textDark]}>
+                                비밀번호 변경
+                            </Text>
+                        </View>
+                        <IconSymbol name="chevron.right" size={16} color={Palette.neutral[400]} />
+                    </TouchableOpacity>
+
+                    {/* 생체 인식 (지원되는 경우만) */}
+                    {isBiometricSupported && (
                         <View style={styles.settingRow}>
                             <View style={styles.settingInfo}>
                                 <IconSymbol name="lock.fill" size={20} color={isDark ? '#fff' : Palette.neutral[600]} />
@@ -283,9 +299,9 @@ export default function SettingsScreen() {
                                 thumbColor="#fff"
                             />
                         </View>
-                    </View>
-                )
-            }
+                    )}
+                </View>
+            )}
 
             {/* 알림 설정 */}
             <View style={[styles.section, isDark && styles.sectionDark]}>

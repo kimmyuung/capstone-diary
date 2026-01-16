@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Paper, Typography } from '@mui/material';
 
-const Monitoring = () => {
+const Monitoring: React.FC = () => {
     // Grafana URL (로컬환경 또는 환경변수)
     // iframe 보안 정책(X-Frame-Options) 해제가 필요할 수 있음 (Grafana 설정)
     // docker-compose의 GF_SECURITY_ALLOW_EMBEDDING=true 설정이 필요함!

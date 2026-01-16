@@ -81,6 +81,16 @@ class Diary(models.Model):
     
     # 동기화 충돌 방지를 위한 버전 (Optimistic Locking)
     version = models.IntegerField(default=1, verbose_name='버전')
+    
+    # 공유 관련 필드
+    share_token = models.CharField(
+        max_length=32, 
+        unique=True, 
+        null=True, 
+        blank=True, 
+        verbose_name='공유 토큰'
+    )
+    is_public = models.BooleanField(default=False, verbose_name='공개 여부')
 
     class Meta:
         ordering = ['-created_at']
@@ -129,11 +139,33 @@ class Diary(models.Model):
 
 
 class DiaryImage(models.Model):
-    """AI 생성 이미지"""
+    """AI 생성 이미지 및 사용자 업로드 이미지"""
     diary = models.ForeignKey(Diary, on_delete=models.CASCADE, related_name='images')
-    image_url = models.URLField(max_length=500)
+    image_url = models.URLField(max_length=500, null=True, blank=True)  # AI 생성 이미지 URL
+    uploaded_file = models.ImageField(
+        upload_to='diary_uploads/%Y/%m/',
+        null=True,
+        blank=True,
+        verbose_name='업로드 이미지'
+    )
+    is_ai_generated = models.BooleanField(default=True, verbose_name='AI 생성 여부')
     ai_prompt = models.TextField(blank=True)
+    caption = models.CharField(max_length=200, blank=True, verbose_name='이미지 설명')
     created_at = models.DateTimeField(auto_now_add=True)
     
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = '일기 이미지'
+        verbose_name_plural = '일기 이미지들'
+    
     def __str__(self):
-        return f"Image for {self.diary.id}"
+        img_type = "AI" if self.is_ai_generated else "Upload"
+        return f"{img_type} Image for Diary {self.diary.id}"
+    
+    @property
+    def url(self):
+        """이미지 URL 반환 (AI 생성 또는 업로드)"""
+        if self.uploaded_file:
+            return self.uploaded_file.url
+        return self.image_url
+

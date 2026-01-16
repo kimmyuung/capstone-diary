@@ -13,6 +13,7 @@ from .auth_views import (
     PasswordResetConfirmView,
     FindUsernameView,
     CustomTokenObtainPairView,
+    ChangePasswordView,
 )
 
 # 일기 관련 뷰
@@ -48,6 +49,9 @@ from .report_views import ReportViewSet
 from .gallery_views import GalleryViewSet
 from .analytics_views import AnalyticsViewSet
 
+# 채팅 및 공유 관련 뷰
+from .chat_views import ChatAIView, ChatSessionViewSet, DiaryShareView, SharedDiaryView
+
 
 __all__ = [
     # Auth
@@ -58,6 +62,7 @@ __all__ = [
     'PasswordResetConfirmView',
     'FindUsernameView',
     'CustomTokenObtainPairView',
+    'ChangePasswordView',
     # Diary
     'DiaryViewSet',
     # Tags
@@ -82,5 +87,10 @@ __all__ = [
     'ReportViewSet',
     'GalleryViewSet',
     'AnalyticsViewSet',
+    # Chat & Share
+    'ChatAIView',
+    'ChatSessionViewSet',
+    'DiaryShareView',
+    'SharedDiaryView',
 ]
 

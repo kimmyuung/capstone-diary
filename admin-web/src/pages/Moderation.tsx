@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import axios from 'axios';
 import {
     Box,
@@ -16,12 +16,37 @@ import {
     DialogContent,
     DialogActions,
     TextField,
-    Pagination,
     Grid
 } from '@mui/material';
 import { Warning as WarningIcon, Report as ReportIcon, CheckCircle as CheckCircleIcon } from '@mui/icons-material';
 
-const ModerationItem = ({ item, onAction }) => {
+interface ModerationItemData {
+    id: number;
+    type: 'flag' | 'report';
+    diary_id: number;
+    diary_title: string;
+    username: string;
+    confidence: number;
+    keywords: string[];
+    flag_type_display?: string;
+    reason_display?: string;
+    description?: string;
+    detected_at?: string;
+    created_at?: string;
+}
+
+interface ModerationItemProps {
+    item: ModerationItemData;
+    onAction: (item: ModerationItemData, action: string) => void;
+}
+
+interface ActionDialogState {
+    open: boolean;
+    item: ModerationItemData | null;
+    action: string;
+}
+
+const ModerationItem: React.FC<ModerationItemProps> = ({ item, onAction }) => {
     const isFlag = item.type === 'flag';
 
     return (
@@ -36,7 +61,7 @@ const ModerationItem = ({ item, onAction }) => {
                         size="small"
                     />
                     <Typography variant="caption" color="textSecondary">
-                        {new Date(item.detected_at || item.created_at).toLocaleString()}
+                        {new Date(item.detected_at || item.created_at || '').toLocaleString()}
                     </Typography>
                 </Box>
 
@@ -74,18 +99,18 @@ const ModerationItem = ({ item, onAction }) => {
     );
 };
 
-const Moderation = () => {
+const Moderation: React.FC = () => {
     const [tabValue, setTabValue] = useState(0);
-    const [items, setItems] = useState([]);
+    const [items, setItems] = useState<ModerationItemData[]>([]);
     const [loading, setLoading] = useState(false);
-    const [actionDialog, setActionDialog] = useState({ open: false, item: null, action: '' });
+    const [actionDialog, setActionDialog] = useState<ActionDialogState>({ open: false, item: null, action: '' });
     const [notes, setNotes] = useState('');
 
     const fetchItems = async () => {
         setLoading(true);
         try {
             const type = tabValue === 0 ? 'flags' : 'reports';
-            const response = await axios.get('/admin/moderation/', {
+            const response = await axios.get<{ items: ModerationItemData[] }>('/admin/moderation/', {
                 params: { type, status: 'pending' }
             });
             setItems(response.data.items);
@@ -100,16 +125,18 @@ const Moderation = () => {
         fetchItems();
     }, [tabValue]);
 
-    const handleTabChange = (event, newValue) => {
+    const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
     };
 
-    const handleActionClick = (item, action) => {
+    const handleActionClick = (item: ModerationItemData, action: string) => {
         setActionDialog({ open: true, item, action });
     };
 
     const handleActionConfirm = async () => {
         const { item, action } = actionDialog;
+        if (!item) return;
+
         try {
             await axios.patch(`/admin/moderation/${item.id}/`, {
                 type: item.type,
@@ -175,7 +202,7 @@ const Moderation = () => {
                         rows={3}
                         variant="outlined"
                         value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setNotes(e.target.value)}
                     />
                 </DialogContent>
                 <DialogActions>

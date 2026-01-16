@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, MouseEvent } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
     AppBar,
@@ -21,7 +21,6 @@ import {
     Dashboard as DashboardIcon,
     People as PeopleIcon,
     Security as SecurityIcon,
-    Notifications as NotificationsIcon,
     Logout as LogoutIcon,
     Assessment as AssessmentIcon
 } from '@mui/icons-material';
@@ -29,9 +28,15 @@ import { useAuth } from '../context/AuthContext';
 
 const drawerWidth = 240;
 
-const Layout = () => {
+interface MenuItemType {
+    text: string;
+    icon: React.ReactElement;
+    path: string;
+}
+
+const Layout: React.FC = () => {
     const [mobileOpen, setMobileOpen] = useState(false);
-    const [anchorEl, setAnchorEl] = useState(null);
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const { logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
@@ -40,7 +45,7 @@ const Layout = () => {
         setMobileOpen(!mobileOpen);
     };
 
-    const handleMenu = (event) => {
+    const handleMenu = (event: MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
     };
 
@@ -54,7 +59,7 @@ const Layout = () => {
         navigate('/login');
     };
 
-    const menuItems = [
+    const menuItems: MenuItemType[] = [
         { text: '대시보드', icon: <DashboardIcon />, path: '/' },
         { text: '사용자 관리', icon: <PeopleIcon />, path: '/users' },
         { text: '콘텐츠 모더레이션', icon: <SecurityIcon />, path: '/moderation' },
@@ -149,7 +154,7 @@ const Layout = () => {
                     open={mobileOpen}
                     onClose={handleDrawerToggle}
                     ModalProps={{
-                        keepMounted: true, // Better open performance on mobile.
+                        keepMounted: true,
                     }}
                     sx={{
                         display: { xs: 'block', sm: 'none' },

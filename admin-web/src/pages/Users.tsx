@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import axios from 'axios';
 import {
     Box,
@@ -13,16 +13,29 @@ import {
     TablePagination,
     TextField,
     InputAdornment,
-    Chip,
-    IconButton,
     Switch,
-    CircularProgress,
-    FormControlLabel
+    CircularProgress
 } from '@mui/material';
-import { Search as SearchIcon, Edit as EditIcon } from '@mui/icons-material';
+import { Search as SearchIcon } from '@mui/icons-material';
 
-const Users = () => {
-    const [users, setUsers] = useState([]);
+interface User {
+    id: number;
+    username: string;
+    email: string;
+    diary_count: number;
+    date_joined: string;
+    is_active: boolean;
+    is_premium: boolean;
+    is_superuser: boolean;
+}
+
+interface UsersResponse {
+    users: User[];
+    total: number;
+}
+
+const Users: React.FC = () => {
+    const [users, setUsers] = useState<User[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -32,7 +45,7 @@ const Users = () => {
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const response = await axios.get('/admin/users/', {
+            const response = await axios.get<UsersResponse>('/admin/users/', {
                 params: {
                     page: page + 1,
                     limit: rowsPerPage,
@@ -55,16 +68,16 @@ const Users = () => {
         return () => clearTimeout(timer);
     }, [page, rowsPerPage, search]);
 
-    const handleChangePage = (event, newPage) => {
+    const handleChangePage = (_event: unknown, newPage: number) => {
         setPage(newPage);
     };
 
-    const handleChangeRowsPerPage = (event) => {
+    const handleChangeRowsPerPage = (event: ChangeEvent<HTMLInputElement>) => {
         setRowsPerPage(parseInt(event.target.value, 10));
         setPage(0);
     };
 
-    const handleStatusChange = async (userId, field, value) => {
+    const handleStatusChange = async (userId: number, field: 'is_active' | 'is_premium', value: boolean) => {
         try {
             await axios.patch(`/admin/users/${userId}/`, {
                 [field]: value
@@ -91,7 +104,7 @@ const Users = () => {
                     variant="outlined"
                     placeholder="사용자 이름 또는 이메일 검색"
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
                     InputProps={{
                         startAdornment: (
                             <InputAdornment position="start">
