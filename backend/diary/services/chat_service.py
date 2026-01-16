@@ -1,22 +1,30 @@
 from google import genai
 from sentence_transformers import SentenceTransformer
 from django.conf import settings
+from django.db import connection
 from diary.models import DiaryEmbedding, Diary
 import logging
 
 logger = logging.getLogger(__name__)
 
 # Load local embedding model (lightweight)
-# This will download the model on first run (approx 90MB)
-# Load local embedding model (lightweight)
 # Lazy loading to prevent download during build
 EMBEDDING_MODEL = None
+
+# SQLite 환경 감지 - pgvector 미지원
+def is_pgvector_available():
+    """PostgreSQL + pgvector 사용 가능 여부 확인"""
+    db_engine = settings.DATABASES['default']['ENGINE']
+    return 'postgresql' in db_engine.lower()
+
+VECTOR_SEARCH_ENABLED = is_pgvector_available()
 
 def get_embedding_model():
     global EMBEDDING_MODEL
     if EMBEDDING_MODEL is None:
         EMBEDDING_MODEL = SentenceTransformer('all-MiniLM-L6-v2')
     return EMBEDDING_MODEL
+
 
 class ChatService:
     @staticmethod
@@ -43,20 +51,27 @@ class ChatService:
         [RAG 고도화] 하이브리드 가중치 검색
         1. Hybrid Retrieval: Vector Search (Top 30) + Keyword Search (Top 10)
         2. Ranking: Similarity + Recency + Seasonality + Keyword Bonus
+        
+        [SQLite Fallback]
+        pgvector 미지원 환경에서는 키워드 검색만 사용
         """
         from datetime import datetime
         import math
         from django.db.models import Q
         from ..services.analysis_service import KeywordExtractor
         
-        # 1. 임베딩 생성 및 키워드 추출
+        extractor = KeywordExtractor()
+        keywords = extractor.extract_keywords(query, top_n=3)
+        
+        # SQLite Fallback: 키워드 검색만 사용
+        if not VECTOR_SEARCH_ENABLED:
+            logger.info("Vector search disabled (SQLite). Using keyword search only.")
+            return ChatService._keyword_only_search(user, keywords, limit)
+        
+        # PostgreSQL: 벡터 + 키워드 하이브리드 검색
         query_vector = ChatService.get_embedding(query)
         
-        extractor = KeywordExtractor()
-        keywords = extractor.extract_keywords(query, top_n=3) # 검색용이므로 소수만
-        
         # 2-1. Vector Candidates (Top 30)
-        # return ONLY IDs first to merge efficiently
         vector_candidate_ids = list(DiaryEmbedding.objects.filter(diary__user=user) \
             .order_by(DiaryEmbedding.vector.l2_distance(query_vector)) \
             .values_list('id', flat=True)[:30])
@@ -147,13 +162,42 @@ class ChatService:
         return [item[1] for item in scored_results[:limit]]
 
     @staticmethod
+    def _keyword_only_search(user, keywords, limit=5):
+        """
+        [SQLite Fallback] 키워드 기반 검색
+        pgvector 미지원 환경용
+        """
+        from django.db.models import Q
+        from datetime import datetime
+        
+        if not keywords:
+            # 키워드 없으면 최신순 반환
+            return list(Diary.objects.filter(user=user).order_by('-created_at')[:limit])
+        
+        keyword_q = Q()
+        for k in keywords:
+            keyword_q |= Q(title__icontains=k) | Q(search_keywords__icontains=k)
+        
+        diaries = Diary.objects.filter(user=user).filter(keyword_q).order_by('-created_at')[:limit]
+        return list(diaries)
+    
+    @staticmethod
     def search_summaries(user, query, limit=3):
         """
         [RAG 고도화] 계층적 메모리 검색
         질문과 유사한 '요약(Summary)' 검색 (L2 Distance)
+        
+        [SQLite Fallback]
+        pgvector 미지원 환경에서는 최신 요약 반환
         """
         from ..models import DiarySummary
         
+        # SQLite Fallback
+        if not VECTOR_SEARCH_ENABLED:
+            logger.info("Vector search disabled (SQLite). Returning recent summaries.")
+            return list(DiarySummary.objects.filter(user=user).order_by('-created_at')[:limit])
+        
+        # PostgreSQL: 벡터 검색
         query_vector = ChatService.get_embedding(query)
         
         # pgvector L2 distance
