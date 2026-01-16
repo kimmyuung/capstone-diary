@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
         paddingVertical: Spacing.md,
     },
     stopButtonText: {
-        color: Palette.error[500],
+        color: Palette.status.error,
         fontSize: FontSize.sm,
     },
     createContainer: {

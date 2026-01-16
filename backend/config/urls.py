@@ -13,11 +13,6 @@ from diary.views.export_views import DataExportView
 from diary.views.chat_views import ChatAIView, ChatSessionViewSet, DiaryShareView, SharedDiaryView
 from diary.views.social_auth_views import GoogleLoginView, KakaoLoginView
 from config.healthcheck import HealthCheckView, SentryTestView
-from rest_framework.routers import DefaultRouter
-
-# Chat 세션 라우터
-chat_router = DefaultRouter()
-chat_router.register(r'sessions', ChatSessionViewSet, basename='chat-session')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -56,8 +51,11 @@ urlpatterns = [
     
     # AI 채팅 (스트리밍)
     path('api/chat/', ChatAIView.as_view(), name='chat_ai'),
-    # 채팅 세션 관리
-    path('api/chat/', include(chat_router.urls)),
+    
+    # 채팅 세션 관리 (Router 없이 path 직접 정의)
+    path('api/chat/sessions/', ChatSessionViewSet.as_view({'get': 'list', 'post': 'create'}), name='chat_session_list'),
+    path('api/chat/sessions/<int:pk>/', ChatSessionViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'}), name='chat_session_detail'),
+    path('api/chat/sessions/<int:pk>/send/', ChatSessionViewSet.as_view({'post': 'send_message'}), name='chat_session_send'),
     
     # 일기 공유
     path('api/diaries/<int:diary_id>/share/', DiaryShareView.as_view(), name='diary_share'),
@@ -71,13 +69,12 @@ urlpatterns = [
     # 푸시 알림 토큰 관리
     path('api/push-token/', PushTokenView.as_view(), name='push_token'),
     
-    # 일기 API - v1 (버전 관리)
-    path('api/v1/', include('diary.urls')),
-    # 일기 API - 하위 호환성을 위한 기존 경로 유지
+    # 일기 API (단일 경로로 통합 - DRF router 중복 방지)
     path('api/', include('diary.urls')),
+    # path('api/v1/', include('diary.urls')),  # v1 별칭 필요 시 별도 처리
     
-    # Prometheus Metrics (모니터링)
-    path('', include('django_prometheus.urls')),
+    # Prometheus Metrics (모니터링) - DRF 충돌로 일시 비활성화
+    # path('', include('django_prometheus.urls')),
 ]
 
 from django.conf import settings
