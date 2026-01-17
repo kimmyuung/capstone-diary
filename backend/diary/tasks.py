@@ -369,6 +369,114 @@ def extract_keywords_task(diary_id: int):
         return str(e)
 
 
+@shared_task(bind=True, max_retries=2, default_retry_delay=30)
+def analyze_emotion_task(self, diary_id: int):
+    """
+    비동기 감정 분석 태스크
+    
+    Args:
+        diary_id: 일기 ID
+        
+    Returns:
+        dict: 감정 분석 결과
+    """
+    from .models import Diary
+    from .emotion_service import EmotionAnalyzer
+    from django.utils import timezone
+    
+    try:
+        diary = Diary.objects.get(id=diary_id)
+        
+        # 이미 분석된 경우 스킵
+        if diary.emotion_analyzed_at:
+            return {"status": "already_analyzed", "emotion": diary.emotion}
+        
+        content = diary.decrypt_content()
+        if not content or len(content) < 10:
+            return {"status": "content_too_short"}
+        
+        analyzer = EmotionAnalyzer()
+        result = analyzer.analyze(content)
+        
+        # 결과 저장
+        diary.emotion = result['emotion']
+        diary.emotion_score = result['score']
+        diary.emotion_analyzed_at = timezone.now()
+        diary.save(update_fields=['emotion', 'emotion_score', 'emotion_analyzed_at'])
+        
+        logger.info(f"[Celery] Emotion analyzed for diary {diary_id}: {result['emotion']}")
+        return result
+        
+    except Diary.DoesNotExist:
+        logger.error(f"[Celery] Diary {diary_id} not found")
+        return {"error": "Diary not found"}
+    except Exception as exc:
+        logger.error(f"[Celery] Emotion analysis failed for diary {diary_id}: {exc}")
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=30)
+def generate_summary_task(self, diary_id: int, style: str = 'default'):
+    """
+    비동기 요약 생성 태스크
+    
+    Args:
+        diary_id: 일기 ID
+        style: 요약 스타일 ('default', 'short', 'bullet')
+        
+    Returns:
+        dict: 요약 결과
+    """
+    from .models import Diary
+    from .services.summary_service import SummaryService
+    
+    try:
+        diary = Diary.objects.get(id=diary_id)
+        content = diary.decrypt_content()
+        
+        if not content or len(content) < 50:
+            return {"status": "content_too_short"}
+        
+        result = SummaryService.summarize_diary(content, style=style)
+        
+        if 'error' not in result:
+            logger.info(f"[Celery] Summary generated for diary {diary_id}")
+        
+        return result
+        
+    except Diary.DoesNotExist:
+        logger.error(f"[Celery] Diary {diary_id} not found")
+        return {"error": "Diary not found"}
+    except Exception as exc:
+        logger.error(f"[Celery] Summary generation failed for diary {diary_id}: {exc}")
+        raise self.retry(exc=exc)
+
+
+@shared_task
+def process_diary_ai_features(diary_id: int):
+    """
+    일기 AI 기능 일괄 처리 태스크
+    
+    새 일기 저장 후 호출하면 다음 작업을 순차 실행:
+    1. 감정 분석
+    2. 키워드 추출 (Auto-tagging)
+    
+    Args:
+        diary_id: 일기 ID
+    """
+    from celery import chain
+    
+    # 체인으로 순차 실행
+    workflow = chain(
+        analyze_emotion_task.s(diary_id),
+        extract_keywords_task.s(diary_id),
+    )
+    
+    return workflow.apply_async()
+
+
+
+
 @shared_task
 def reindex_vectors():
     """
