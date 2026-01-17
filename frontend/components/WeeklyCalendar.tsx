@@ -10,10 +10,11 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 
 interface DayData {
-    date: string;
+    date?: string;
     count: number;
     emotion?: string | null;
     emoji?: string;
+    diary_ids?: number[];
 }
 
 interface WeeklyCalendarProps {

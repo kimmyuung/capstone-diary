@@ -16,7 +16,9 @@ import { useRouter } from 'expo-router';
 import { diaryService, EmotionReport } from '@/services/api';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { YearlyHeatmap } from '@/components/YearlyHeatmap';
 import { PieChart } from 'react-native-chart-kit';
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HIDE_BANNER_KEY = 'hideDataBannerUntil';
@@ -270,6 +272,25 @@ export default function ReportScreen() {
                                 </View>
                             ))}
                         </View>
+                    </View>
+
+                    {/* 연간 활동 히트맵 */}
+                    <View style={[styles.statsContainer, { marginTop: Spacing.lg }]}>
+                        <Text style={styles.sectionTitle}>🔥 연간 일기 활동</Text>
+                        <YearlyHeatmap
+                            year={selectedYear}
+                            data={annualReport.monthly_stats.reduce((acc, stat) => {
+                                // 월별 데이터를 일별 데이터 형태로 변환 (히트맵용)
+                                for (let day = 1; day <= 28; day++) {
+                                    const dateStr = `${selectedYear}-${String(stat.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                    acc[dateStr] = {
+                                        count: Math.floor(stat.count / 28), // 대략적 분포
+                                        emotion: stat.dominant_emotion || undefined,
+                                    };
+                                }
+                                return acc;
+                            }, {} as Record<string, { count: number; emotion?: string }>)}
+                        />
                     </View>
 
                     {/* 연간 감정 통계 */}

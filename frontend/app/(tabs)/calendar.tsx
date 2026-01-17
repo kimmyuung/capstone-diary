@@ -14,9 +14,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { diaryService, Diary } from '@/services/api';
 import { CalendarDiaryCard } from '@/components/diary/CalendarDiaryCard';
+import { WeeklyCalendar } from '@/components/WeeklyCalendar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Palette, FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+
 
 // 한국어 설정
 LocaleConfig.locales['ko'] = {
@@ -30,6 +32,8 @@ LocaleConfig.defaultLocale = 'ko';
 
 type CalendarData = Record<string, { count: number; emotion: string | null; emoji: string; diary_ids: number[] }>;
 
+type ViewMode = 'monthly' | 'weekly';
+
 export default function CalendarScreen() {
     const router = useRouter();
     const { isAuthenticated } = useAuth();
@@ -39,6 +43,8 @@ export default function CalendarScreen() {
     const [calendarData, setCalendarData] = useState<CalendarData>({});
     const [selectedDiaries, setSelectedDiaries] = useState<Diary[]>([]);
     const [loading, setLoading] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>('monthly');
+
 
     // 현재 년/월 (API 호출용)
     const currentYear = currentDate.getFullYear();
@@ -155,32 +161,78 @@ export default function CalendarScreen() {
                 <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>감정 흐름을 한눈에 확인하세요</Text>
             </View>
 
-            <View style={[styles.calendarWrapper, { backgroundColor: colors.card }]}>
-                <Calendar
-                    current={currentDate.toISOString().split('T')[0]}
-                    onMonthChange={onMonthChange}
-                    dayComponent={DayComponent}
-                    theme={{
-                        backgroundColor: 'transparent',
-                        calendarBackground: 'transparent',
-                        textSectionTitleColor: '#b6c1cd',
-                        selectedDayBackgroundColor: Palette.primary[500],
-                        selectedDayTextColor: '#ffffff',
-                        todayTextColor: Palette.primary[500],
-                        dayTextColor: '#2d4150',
-                        textDisabledColor: '#d9e1e8',
-                        arrowColor: Palette.primary[500],
-                        monthTextColor: colors.text,
-                        textDayFontWeight: '600',
-                        textMonthFontWeight: 'bold',
-                        textDayHeaderFontWeight: '600',
-                        textDayFontSize: 14,
-                        textMonthFontSize: 18,
-                        textDayHeaderFontSize: 13
-                    }}
-                    enableSwipeMonths={true}
-                />
+            {/* 월간/주간 토글 버튼 */}
+            <View style={styles.viewModeToggle}>
+                <TouchableOpacity
+                    style={[
+                        styles.toggleButton,
+                        viewMode === 'monthly' && styles.toggleButtonActive,
+                    ]}
+                    onPress={() => setViewMode('monthly')}
+                >
+                    <IconSymbol name="calendar" size={16} color={viewMode === 'monthly' ? '#fff' : Palette.neutral[600]} />
+                    <Text style={[styles.toggleButtonText, viewMode === 'monthly' && styles.toggleButtonTextActive]}>월간</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[
+                        styles.toggleButton,
+                        viewMode === 'weekly' && styles.toggleButtonActive,
+                    ]}
+                    onPress={() => setViewMode('weekly')}
+                >
+                    <IconSymbol name="list.bullet" size={16} color={viewMode === 'weekly' ? '#fff' : Palette.neutral[600]} />
+                    <Text style={[styles.toggleButtonText, viewMode === 'weekly' && styles.toggleButtonTextActive]}>주간</Text>
+                </TouchableOpacity>
             </View>
+
+            {/* 주간 캘린더 */}
+            {viewMode === 'weekly' && (
+                <WeeklyCalendar
+                    data={calendarData}
+                    selectedDate={selectedDate || undefined}
+                    onDateSelect={async (dateStr) => {
+                        setSelectedDate(dateStr);
+                        try {
+                            const diaries = await diaryService.getByDate(dateStr);
+                            setSelectedDiaries(diaries);
+                        } catch (err) {
+                            console.error('Failed to fetch diaries:', err);
+                        }
+                    }}
+                    currentDate={currentDate}
+                />
+            )}
+
+            {/* 월간 캘린더 */}
+            {viewMode === 'monthly' && (
+
+                <View style={[styles.calendarWrapper, { backgroundColor: colors.card }]}>
+                    <Calendar
+                        current={currentDate.toISOString().split('T')[0]}
+                        onMonthChange={onMonthChange}
+                        dayComponent={DayComponent}
+                        theme={{
+                            backgroundColor: 'transparent',
+                            calendarBackground: 'transparent',
+                            textSectionTitleColor: '#b6c1cd',
+                            selectedDayBackgroundColor: Palette.primary[500],
+                            selectedDayTextColor: '#ffffff',
+                            todayTextColor: Palette.primary[500],
+                            dayTextColor: '#2d4150',
+                            textDisabledColor: '#d9e1e8',
+                            arrowColor: Palette.primary[500],
+                            monthTextColor: colors.text,
+                            textDayFontWeight: '600',
+                            textMonthFontWeight: 'bold',
+                            textDayHeaderFontWeight: '600',
+                            textDayFontSize: 14,
+                            textMonthFontSize: 18,
+                            textDayHeaderFontSize: 13
+                        }}
+                        enableSwipeMonths={true}
+                    />
+                </View>
+            )}
 
             {loading && (
                 <ActivityIndicator style={{ marginTop: 20 }} color={Palette.primary[500]} />
@@ -327,5 +379,32 @@ const styles = StyleSheet.create({
     createButtonText: {
         color: '#fff',
         fontWeight: '600',
+    },
+    viewModeToggle: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: Spacing.sm,
+        marginBottom: Spacing.md,
+        paddingHorizontal: Spacing.lg,
+    },
+    toggleButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.xs,
+        paddingVertical: Spacing.sm,
+        paddingHorizontal: Spacing.lg,
+        borderRadius: BorderRadius.full,
+        backgroundColor: Palette.neutral[100],
+    },
+    toggleButtonActive: {
+        backgroundColor: Palette.primary[500],
+    },
+    toggleButtonText: {
+        fontSize: FontSize.sm,
+        color: Palette.neutral[600],
+    },
+    toggleButtonTextActive: {
+        color: '#fff',
+        fontWeight: FontWeight.semibold,
     },
 });

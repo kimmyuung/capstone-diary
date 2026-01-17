@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { api } from '@/services/api';
@@ -16,12 +17,40 @@ interface Message {
 
 export default function ChatScreen() {
     const { isDark } = useTheme();
+    const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
     const [messages, setMessages] = useState<Message[]>([
         { id: '1', role: 'assistant', content: '안녕하세요! 과거 일기에 대해 궁금한 점이 있으신가요? 무엇이든 물어보세요.' }
     ]);
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(sessionId || null);
     const flatListRef = useRef<FlatList>(null);
+
+    // 세션이 있으면 기존 대화 로드
+    useEffect(() => {
+        if (sessionId) {
+            loadSessionMessages(sessionId);
+        }
+    }, [sessionId]);
+
+    const loadSessionMessages = async (sessId: string) => {
+        try {
+            setIsLoading(true);
+            const response = await api.get(`/api/chat/sessions/${sessId}/messages/`);
+            if (response.data && response.data.length > 0) {
+                const loadedMessages: Message[] = response.data.map((msg: any, index: number) => ({
+                    id: msg.id?.toString() || index.toString(),
+                    role: msg.role,
+                    content: msg.content,
+                }));
+                setMessages(loadedMessages);
+            }
+        } catch (error) {
+            console.error('Failed to load session messages:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSend = async () => {
         if (!inputText.trim() || isLoading) return;
@@ -37,11 +66,18 @@ export default function ChatScreen() {
         setIsLoading(true);
 
         try {
-            // API 호출
+            // API 호출 (세션 ID 포함)
             const response = await api.post('/api/chat/', {
                 message: userMessage.content,
+                session_id: currentSessionId,
                 history: messages.map(m => ({ role: m.role, content: m.content }))
             });
+
+            // 새 세션 ID가 반환되면 저장
+            if (response.data.session_id && !currentSessionId) {
+                setCurrentSessionId(response.data.session_id);
+            }
+
             const aiMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
@@ -64,6 +100,7 @@ export default function ChatScreen() {
     useEffect(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
     }, [messages]);
+
 
     const renderItem = ({ item }: { item: Message }) => {
         const isUser = item.role === 'user';
