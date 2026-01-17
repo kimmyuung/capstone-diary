@@ -11,13 +11,15 @@ import {
     Share,
     Platform,
     Linking,
+    Modal,
 } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useBiometric } from '@/contexts/BiometricContext';
-import { diaryService } from '@/services/api';
+import { diaryService, api } from '@/services/api';
 import { Palette, Spacing, FontSize, FontWeight, BorderRadius, Shadows } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 export default function SettingsScreen() {
@@ -38,7 +40,10 @@ export default function SettingsScreen() {
     } = usePushNotifications();
     const [exporting, setExporting] = useState(false);
     const [exportingPdf, setExportingPdf] = useState(false);
+    const [restoring, setRestoring] = useState(false);
+    const [showRestoreModal, setShowRestoreModal] = useState(false);
     const [diaryCount, setDiaryCount] = useState(0);
+
 
     // 일기 개수 불러오기
     useEffect(() => {
@@ -157,6 +162,75 @@ export default function SettingsScreen() {
         } finally {
             setExportingPdf(false);
         }
+    };
+
+    // 데이터 복원
+    const handleRestore = async (overwrite: boolean = false) => {
+        if (!isAuthenticated) {
+            Alert.alert('알림', '로그인이 필요합니다.');
+            return;
+        }
+
+        try {
+            // 파일 선택
+            const result = await DocumentPicker.getDocumentAsync({
+                type: 'application/json',
+                copyToCacheDirectory: true,
+            });
+
+            if (result.canceled || !result.assets || result.assets.length === 0) {
+                return;
+            }
+
+            const file = result.assets[0];
+
+            setRestoring(true);
+
+            // 파일 읽기
+            const response = await fetch(file.uri);
+            const jsonData = await response.json();
+
+            // 백엔드로 복원 요청
+            const formData = new FormData();
+            formData.append('file', {
+                uri: file.uri,
+                type: 'application/json',
+                name: file.name || 'backup.json',
+            } as any);
+            formData.append('overwrite', overwrite.toString());
+
+            const restoreResponse = await api.post('/api/restore/', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            if (restoreResponse.data.success) {
+                Alert.alert(
+                    '복원 완료',
+                    `일기 ${restoreResponse.data.restored_count || 0}개가 복원되었습니다.`,
+                    [{
+                        text: '확인', onPress: () => {
+                            // 일기 개수 다시 로드
+                            diaryService.getAll().then(diaries => setDiaryCount(diaries.length));
+                        }
+                    }]
+                );
+            } else {
+                Alert.alert('오류', restoreResponse.data.error || '복원에 실패했습니다.');
+            }
+        } catch (err: any) {
+            console.error('Restore error:', err);
+            Alert.alert('오류', err.response?.data?.error || '복원에 실패했습니다.');
+        } finally {
+            setRestoring(false);
+            setShowRestoreModal(false);
+        }
+    };
+
+    // 복원 확인 모달 표시
+    const showRestoreConfirm = () => {
+        setShowRestoreModal(true);
     };
 
     const handleLogout = () => {
@@ -380,7 +454,71 @@ export default function SettingsScreen() {
                         <IconSymbol name="chevron.right" size={16} color={Palette.neutral[400]} />
                     )}
                 </TouchableOpacity>
+
+                {/* 복원 버튼 */}
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    onPress={showRestoreConfirm}
+                    disabled={restoring}
+                >
+                    <View style={styles.settingInfo}>
+                        <IconSymbol name="arrow.down.doc.fill" size={20} color={isDark ? '#fff' : Palette.neutral[600]} />
+                        <View style={styles.settingTextContainer}>
+                            <Text style={[styles.settingLabel, isDark && styles.textDark]}>
+                                일기 복원
+                            </Text>
+                            <Text style={[styles.settingDescription, isDark && styles.textMutedDark]}>
+                                백업 파일에서 복원
+                            </Text>
+                        </View>
+                    </View>
+                    {restoring ? (
+                        <ActivityIndicator size="small" color={Palette.primary[500]} />
+                    ) : (
+                        <IconSymbol name="chevron.right" size={16} color={Palette.neutral[400]} />
+                    )}
+                </TouchableOpacity>
             </View>
+
+            {/* 복원 확인 모달 */}
+            <Modal
+                visible={showRestoreModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowRestoreModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
+                        <Text style={[styles.modalTitle, isDark && styles.textDark]}>
+                            📦 일기 복원
+                        </Text>
+                        <Text style={[styles.modalText, isDark && styles.textMutedDark]}>
+                            복원 방식을 선택해주세요.{'\n'}
+                            기존 데이터와 병합하거나, 새로 덮어쓸 수 있습니다.
+                        </Text>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.modalButtonSecondary]}
+                                onPress={() => handleRestore(false)}
+                            >
+                                <Text style={styles.modalButtonSecondaryText}>병합</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.modalButtonDanger]}
+                                onPress={() => handleRestore(true)}
+                            >
+                                <Text style={styles.modalButtonDangerText}>덮어쓰기</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.modalCancelButton}
+                            onPress={() => setShowRestoreModal(false)}
+                        >
+                            <Text style={styles.modalCancelText}>취소</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {/* 계정 설정 */}
             <View style={[styles.section, isDark && styles.sectionDark]}>
@@ -616,5 +754,70 @@ const styles = StyleSheet.create({
     fontSizeOptionTextActive: {
         color: '#fff',
         fontWeight: FontWeight.semibold,
+    },
+    // 모달 스타일
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: Spacing.xl,
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderRadius: BorderRadius.xl,
+        padding: Spacing.xl,
+        width: '100%',
+        maxWidth: 400,
+    },
+    modalContentDark: {
+        backgroundColor: '#1a1a1a',
+    },
+    modalTitle: {
+        fontSize: FontSize.xl,
+        fontWeight: FontWeight.bold,
+        color: Palette.neutral[900],
+        textAlign: 'center',
+        marginBottom: Spacing.md,
+    },
+    modalText: {
+        fontSize: FontSize.md,
+        color: Palette.neutral[600],
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: Spacing.xl,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        gap: Spacing.md,
+    },
+    modalButton: {
+        flex: 1,
+        paddingVertical: Spacing.md,
+        borderRadius: BorderRadius.lg,
+        alignItems: 'center',
+    },
+    modalButtonSecondary: {
+        backgroundColor: Palette.neutral[100],
+    },
+    modalButtonSecondaryText: {
+        color: Palette.neutral[700],
+        fontWeight: FontWeight.semibold,
+    },
+    modalButtonDanger: {
+        backgroundColor: Palette.status.error,
+    },
+    modalButtonDangerText: {
+        color: '#fff',
+        fontWeight: FontWeight.semibold,
+    },
+    modalCancelButton: {
+        marginTop: Spacing.lg,
+        paddingVertical: Spacing.md,
+        alignItems: 'center',
+    },
+    modalCancelText: {
+        color: Palette.neutral[500],
+        fontSize: FontSize.md,
     },
 });
