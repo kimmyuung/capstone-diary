@@ -5,6 +5,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { api } from '@/services/api';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { TypingAnimation } from '@/components/animations/TypingAnimation';
+import { VoiceInputButton } from '@/components/VoiceInputButton';
 import { Palette, Spacing, BorderRadius, FontSize } from '@/constants/theme';
 
 interface Message {
@@ -134,6 +135,13 @@ export default function ChatScreen() {
             />
 
             <View style={[styles.inputContainer, isDark && styles.inputContainerDark]}>
+                <VoiceInputButton
+                    size="small"
+                    onTranscription={(text) => {
+                        setInputText(prev => prev + text);
+                    }}
+                    disabled={isLoading}
+                />
                 <TextInput
                     style={[styles.input, isDark && styles.inputDark]}
                     value={inputText}
