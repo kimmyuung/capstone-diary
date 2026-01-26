@@ -80,7 +80,7 @@ export const diaryService = {
 
     // 일기 통계 (리포트) 조회
     async getReport(period: 'week' | 'month' = 'week'): Promise<EmotionReport> {
-        const response = await api.get(`/api/diaries/report/?period=${period}`);
+        const response = await api.get(`/api/reports/weekly/?period=${period}`);
         return response.data;
     },
 
@@ -90,7 +90,7 @@ export const diaryService = {
         month: number;
         days: Record<string, { count: number; emotion: string | null; emoji: string; diary_ids: number[] }>;
     }> {
-        const response = await api.get(`/api/diaries/calendar/?year=${year}&month=${month}`);
+        const response = await api.get(`/api/reports/calendar/?year=${year}&month=${month}`);
         return response.data;
     },
 
@@ -107,13 +107,13 @@ export const diaryService = {
         monthly_stats: { month: number; count: number; dominant_emotion: string | null }[];
         emotion_stats: { emotion: string; label: string; count: number; percentage: number }[];
     }> {
-        const response = await api.get(`/api/diaries/annual-report/?year=${year}`);
+        const response = await api.get(`/api/reports/annual/?year=${year}`);
         return response.data;
     },
 
     // 감정 히트맵
     async getHeatmap(year: number): Promise<HeatmapData> {
-        const response = await api.get(`/api/diaries/heatmap/?year=${year}`);
+        const response = await api.get(`/api/reports/heatmap/?year=${year}`);
         return response.data;
     },
 
@@ -122,7 +122,7 @@ export const diaryService = {
         total_images: number;
         images: { id: number; image_url: string; ai_prompt: string; created_at: string; diary_id: number; diary_title: string; diary_date: string }[];
     }> {
-        const response = await api.get('/api/diaries/gallery/');
+        const response = await api.get('/api/gallery/images/');
         return response.data;
     },
 
@@ -136,13 +136,13 @@ export const diaryService = {
         preferences: any;
         templates: any;
     }> {
-        const response = await api.get('/api/export/data/');
+        const response = await api.get('/api/export/json/');
         return response.data;
     },
 
     // 일기 내보내기 (PDF)
     async exportPdf(): Promise<Blob> {
-        const response = await api.get('/api/diaries/export-pdf/', {
+        const response = await api.get('/api/export/pdf/', {
             responseType: 'blob',
         });
         return response.data;

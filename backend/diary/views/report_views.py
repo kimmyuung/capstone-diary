@@ -113,3 +113,83 @@ class ReportViewSet(GenericViewSet):
         except Exception as e:
             logger.error(f"Annual report generation failed: {e}")
             return Response({"error": "Failed to generate annual report"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], url_path='heatmap')
+    def heatmap(self, request):
+        """
+        GitHub 잔디 스타일의 감정 히트맵 데이터를 반환합니다.
+        """
+        from ..models import Diary
+        from collections import defaultdict
+        
+        now = timezone.now()
+        year = request.query_params.get('year', now.year)
+        
+        try:
+            year = int(year)
+        except ValueError:
+            return Response(
+                {"error": str(ERROR_INVALID_YEAR)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 캐시 키 생성 및 조회
+        cache_key = f"heatmap:{request.user.id}:{year}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+        
+        # 감정별 색상 매핑
+        emotion_colors = {
+            'happy': '#FFD93D',      # 노란색
+            'sad': '#6B7FD7',        # 파란색
+            'angry': '#FF6B6B',      # 빨간색
+            'anxious': '#9B59B6',    # 보라색
+            'peaceful': '#4ECDC4',   # 초록색
+            'excited': '#FF9F43',    # 주황색
+            'tired': '#95A5A6',      # 회색
+            'love': '#FF6B9D',       # 핑크색
+            None: '#E8E8E8',         # 기본 (감정 없음)
+        }
+        
+        # 해당 연도의 일기 조회
+        diaries = Diary.objects.filter(
+            user=request.user,
+            created_at__year=year
+        ).order_by('created_at')
+        
+        # 날짜별 데이터 집계
+        date_data = defaultdict(lambda: {'count': 0, 'emotions': []})
+        
+        for diary in diaries:
+            date_str = diary.created_at.strftime('%Y-%m-%d')
+            date_data[date_str]['count'] += 1
+            if diary.emotion:
+                date_data[date_str]['emotions'].append(diary.emotion)
+        
+        # 시각화 데이터 생성
+        result_data = {}
+        for date_str, info in date_data.items():
+            # 가장 많이 등장한 감정 찾기
+            emotions = info['emotions']
+            dominant_emotion = None
+            if emotions:
+                dominant_emotion = max(set(emotions), key=emotions.count)
+            
+            result_data[date_str] = {
+                'count': info['count'],
+                'emotion': dominant_emotion,
+                'color': emotion_colors.get(dominant_emotion, emotion_colors[None])
+            }
+
+        response_data = {
+            "year": year,
+            "total_entries": diaries.count(),
+            "data": result_data
+        }
+        
+        # 캐시 저장 (1시간)
+        cache.set(cache_key, response_data, 3600)
+        
+        return Response(response_data)
+

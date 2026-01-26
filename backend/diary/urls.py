@@ -8,6 +8,7 @@ from .views import (
 from .views.preference_views import StreakView
 from .views.report_views import ReportViewSet
 from .views.gallery_views import GalleryViewSet
+from .views.export_views import ExportViewSet
 from .views.analytics_views import AnalyticsViewSet
 from .views.admin_views import (
     AdminStatsView, AdminUsersView, AdminRecentDiariesView, AdminModerationView
@@ -22,6 +23,7 @@ router.register(r'templates', DiaryTemplateViewSet, basename='template')
 # 리팩토링된 ViewSets
 router.register(r'reports', ReportViewSet, basename='report')
 router.register(r'gallery', GalleryViewSet, basename='gallery')
+router.register(r'export', ExportViewSet, basename='export')
 router.register(r'analytics', AnalyticsViewSet, basename='analytics')
 
 urlpatterns = [

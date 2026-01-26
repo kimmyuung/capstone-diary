@@ -1,4 +1,5 @@
-from rest_framework.views import APIView
+from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
@@ -7,74 +8,72 @@ from django.http import HttpResponse
 from diary.models import Diary, DiaryTag, UserPreference, DiaryTemplate
 from diary.serializers import DiarySerializer, TagSerializer, UserPreferenceSerializer, DiaryTemplateSerializer
 import json
+import logging
 
-class DataExportView(APIView):
+logger = logging.getLogger(__name__)
+
+class ExportViewSet(viewsets.ViewSet):
+    """
+    데이터 내보내기 및 가져오기 ViewSet
+    """
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        user = request.user
-        
-        # 1. 일기 데이터
-        diaries = Diary.objects.filter(user=user).order_by('created_at')
-        diary_data = DiarySerializer(diaries, many=True).data
-        
-        # 2. 태그 데이터
-        tags = DiaryTag.objects.filter(user=user)
-        tag_data = TagSerializer(tags, many=True).data
-        
-        # 3. 사용자 설정
+    @action(detail=False, methods=['get'], url_path='json')
+    def export_json(self, request):
+        """
+        사용자의 모든 데이터를 JSON 형식으로 내보냅니다.
+        """
+        from ..services.export_service import ExportService
         try:
-            pref = UserPreference.objects.get(user=user)
-            pref_data = UserPreferenceSerializer(pref).data
-        except UserPreference.DoesNotExist:
-            pref_data = {}
+            data = ExportService.export_json(request.user)
             
-        # 4. 사용자 템플릿
-        templates = DiaryTemplate.objects.filter(user=user)
-        template_data = DiaryTemplateSerializer(templates, many=True).data
-        
-        # 전체 데이터 구상
-        export_data = {
-            'metadata': {
-                'username': user.username,
-                'email': user.email,
-                'export_date': timezone.now().isoformat(),
-                'version': '1.0'
-            },
-            'diaries': diary_data,
-            'tags': tag_data,
-            'preferences': pref_data,
-            'templates': template_data
-        }
-        
-        # JSON 응답 생성 (파일 다운로드)
-        response = HttpResponse(
-            json.dumps(export_data, ensure_ascii=False, indent=2),
-            content_type='application/json'
-        )
-        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"diary_backup_{timestamp}.json"
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
-        return response
+            response = HttpResponse(
+                json.dumps(data, ensure_ascii=False, indent=2),
+                content_type='application/json'
+            )
+            timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"diary_backup_{timestamp}.json"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+        except Exception as e:
+            logger.error(f"JSON export failed: {e}")
+            return Response({"error": "Failed to export JSON"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=False, methods=['get'], url_path='csv')
+    def export_csv(self, request):
+        """
+        사용자의 모든 일기를 CSV 형식으로 내보냅니다.
+        """
+        from ..services.export_service import ExportService
+        try:
+            return ExportService.export_csv(request.user)
+        except Exception as e:
+            logger.error(f"CSV export failed: {e}")
+            return Response({"error": "Failed to export CSV"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class DataRestoreView(APIView):
-    """
-    백업 파일에서 데이터 복원
-    POST /api/restore/
-    - 업로드된 JSON 백업 파일을 파싱하여 데이터 복원
-    - 기존 데이터 덮어쓰기 옵션 지원
-    """
-    permission_classes = [IsAuthenticated]
+    @action(detail=False, methods=['get'], url_path='pdf')
+    def export_pdf(self, request):
+        """
+        사용자의 모든 일기를 PDF 파일로 내보냅니다.
+        """
+        from ..services.export_service import ExportService
+        try:
+            return ExportService.export_pdf(request.user)
+        except Exception as e:
+            logger.error(f"PDF export failed: {e}")
+            return Response({"error": "Failed to export PDF"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def post(self, request):
+    @action(detail=False, methods=['post'], url_path='restore')
+    def restore(self, request):
+        """
+        백업 파일에서 데이터 복원
+        """
         user = request.user
         
         # 파일 또는 JSON 데이터 받기
         backup_file = request.FILES.get('file')
         backup_data = request.data.get('data')
-        overwrite = request.data.get('overwrite', False)
+        overwrite = str(request.data.get('overwrite', 'false')).lower() == 'true'
         
         if backup_file:
             try:
@@ -161,4 +160,5 @@ class DataRestoreView(APIView):
             
         except Exception as e:
             return Response({'error': f'복원 중 오류 발생: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 

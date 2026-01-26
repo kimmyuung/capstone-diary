@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query';
  */
 export const useOptimisticDiaries = () => {
     // Search State for Query Key
-    const [searchParams, setSearchParams] = useState<any>(undefined);
+    const [searchParams, setSearchParams] = useState<Record<string, any> | undefined>(undefined);
 
     // 1. TanStack Query Integration
     const {
@@ -43,7 +43,7 @@ export const useOptimisticDiaries = () => {
     }, [refetch]);
 
     // Search function
-    const searchDiaries = useCallback((filters?: any) => {
+    const searchDiaries = useCallback((filters?: Record<string, any>) => {
         setSearchParams(filters);
     }, []);
 

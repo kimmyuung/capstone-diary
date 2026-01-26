@@ -310,7 +310,7 @@ export default function DiaryListScreen() {
                                         try {
                                             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                                             await handleDelete(existingDiary.id);
-                                            router.push('/diary/create' as any);
+                                            router.push('/diary/create');
                                         } catch (err) {
                                             showToast('삭제에 실패했습니다', 'error');
                                         }
@@ -319,14 +319,14 @@ export default function DiaryListScreen() {
                                 {
                                     text: '수정하기',
                                     onPress: () => {
-                                        router.push(`/diary/edit/${existingDiary.id}` as any);
+                                        router.push(`/diary/edit/${existingDiary.id}`);
                                     }
                                 }
                             ]
                         );
                     } else {
                         // 오늘 일기가 없으면 바로 작성 화면으로
-                        router.push('/diary/create' as any);
+                        router.push('/diary/create');
                     }
                 }}
                 activeOpacity={0.85}
