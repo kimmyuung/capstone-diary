@@ -31,6 +31,9 @@ from .summary import DiarySummary
 # 모더레이션 관련
 from .moderation import FlaggedContent, ContentReport
 
+# 감사 로그 관련
+from .audit_log import AuditLog
+
 
 __all__ = [
     # Diary
@@ -57,5 +60,7 @@ __all__ = [
     # Moderation
     'FlaggedContent',
     'ContentReport',
+    # Audit Log
+    'AuditLog',
 ]
 

@@ -97,7 +97,31 @@ SECRET_KEY = get_env_variable('SECRET_KEY')
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 # 허용 호스트 (프로덕션에서는 환경 변수로 설정)
+# 허용 호스트 (프로덕션에서는 환경 변수로 설정)
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+# =============================================================================
+# 보안 설정 (Phase 3: Security Enhancement)
+# =============================================================================
+if not DEBUG:
+    # 1. SSL/HTTPS 강제화
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    
+    # 2. HSTS (HTTP Strict Transport Security) 설정
+    # 브라우저가 지정된 시간 동안 항상 HTTPS로만 접속하도록 강제
+    SECURE_HSTS_SECONDS = 31536000  # 1년
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # 3. 쿠키 보안 설정
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    
+    # 4. 브라우저 보안 헤더
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
 
 
 # Application definition
@@ -147,6 +171,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'diary.middleware.AuditLogMiddleware', # 감사 로그 (사용자 활동 추적)
     'django_prometheus.middleware.PrometheusAfterMiddleware', # 모니터링 종료
 ]
 
