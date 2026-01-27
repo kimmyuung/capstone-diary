@@ -9,7 +9,7 @@ from diary.views import (
     EmailVerifyView, ResendVerificationView, PushTokenView, CustomTokenObtainPairView,
     ChangePasswordView
 )
-from diary.views.export_views import DataExportView, DataRestoreView
+# from diary.views.export_views import DataExportView, DataRestoreView (Refactored to ExportViewSet)
 from diary.views.chat_views import ChatAIView, ChatSessionViewSet, DiaryShareView, SharedDiaryView
 from diary.views.social_auth_views import GoogleLoginView, KakaoLoginView
 from config.healthcheck import HealthCheckView, SentryTestView
@@ -46,11 +46,7 @@ urlpatterns = [
     # 테스트 엔드포인트
     path('api/test/connection/', TestConnectionView.as_view(), name='test_connection'),
     
-    # 데이터 내보내기 (백업)
-    path('api/export/data/', DataExportView.as_view(), name='data_export'),
-    
-    # 데이터 복원
-    path('api/restore/', DataRestoreView.as_view(), name='data_restore'),
+
     
     # AI 채팅 (스트리밍)
     path('api/chat/', ChatAIView.as_view(), name='chat_ai'),

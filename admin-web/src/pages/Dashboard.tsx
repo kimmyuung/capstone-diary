@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React from 'react';
 import {
     Grid,
     Paper,
@@ -7,7 +6,8 @@ import {
     Box,
     Card,
     CardContent,
-    CircularProgress
+    CircularProgress,
+    Alert
 } from '@mui/material';
 import {
     LineChart,
@@ -27,6 +27,7 @@ import {
     Image as ImageIcon,
     Warning as WarningIcon
 } from '@mui/icons-material';
+import { useStats } from '../hooks/useStats';
 
 interface StatCardProps {
     title: string;
@@ -34,36 +35,6 @@ interface StatCardProps {
     subValue?: string;
     icon: React.ReactElement;
     color: string;
-}
-
-interface StatsData {
-    users: {
-        total: number;
-        new_this_week: number;
-    };
-    diaries: {
-        total: number;
-        this_week: number;
-    };
-    ai_images: {
-        total: number;
-        this_week: number;
-    };
-    moderation: {
-        pending_flags: number;
-        pending_reports: number;
-    };
-    emotions: {
-        distribution: Record<string, number>;
-    };
-    trends?: {
-        daily: Array<{ date: string; diaries: number; users: number }>;
-    };
-}
-
-interface EmotionDataItem {
-    name: string;
-    value: number;
 }
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, subValue, icon, color }) => (
@@ -92,32 +63,17 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, subValue, icon, color
 );
 
 const Dashboard: React.FC = () => {
-    const [stats, setStats] = useState<StatsData | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { data: stats, isLoading, error } = useStats();
 
-    useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const response = await axios.get<StatsData>('/admin/stats/');
-                setStats(response.data);
-            } catch (error) {
-                console.error('Failed to fetch stats', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchStats();
-    }, []);
-
-    if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>;
-    if (!stats) return <Typography>데이터를 불러올 수 없습니다.</Typography>;
+    if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>;
+    if (error) return <Box sx={{ p: 3 }}><Alert severity="error">데이터를 불러오는 중 오류가 발생했습니다.</Alert></Box>;
+    if (!stats) return <Box sx={{ p: 3 }}><Alert severity="info">데이터가 없습니다.</Alert></Box>;
 
     // 차트 데이터 변환
     const trendData = stats.trends?.daily || [];
 
     // 감정 분포 데이터
-    const emotionData: EmotionDataItem[] = Object.entries(stats.emotions.distribution || {}).map(([name, value]) => ({
+    const emotionData = Object.entries(stats.emotions.distribution || {}).map(([name, value]) => ({
         name,
         value
     }));

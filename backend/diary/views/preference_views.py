@@ -186,33 +186,4 @@ class StreakView(APIView):
         })
 
 
-def update_user_streak(user):
-    """
-    사용자의 스트릭을 업데이트하는 헬퍼 함수
-    일기 생성 시 호출
-    """
-    from datetime import date, timedelta
-    
-    preference = UserPreference.get_or_create_for_user(user)
-    today = date.today()
-    
-    if preference.last_diary_date is None:
-        # 첫 일기
-        preference.current_streak = 1
-        preference.max_streak = 1
-    elif preference.last_diary_date == today:
-        # 오늘 이미 작성함 - 변경 없음
-        pass
-    elif preference.last_diary_date == today - timedelta(days=1):
-        # 어제 작성 + 오늘 작성 = 연속
-        preference.current_streak += 1
-        if preference.current_streak > preference.max_streak:
-            preference.max_streak = preference.current_streak
-    else:
-        # 스트릭 끊김 - 다시 1부터
-        preference.current_streak = 1
-    
-    preference.last_diary_date = today
-    preference.save()
-    
-    return preference.current_streak, preference.max_streak
+

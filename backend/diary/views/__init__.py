@@ -47,6 +47,7 @@ from .common_views import TestConnectionView
 # 리팩토링된 뷰셋 (2026-01-15 분리)
 from .report_views import ReportViewSet
 from .gallery_views import GalleryViewSet
+from .export_views import ExportViewSet
 from .analytics_views import AnalyticsViewSet
 
 # 채팅 및 공유 관련 뷰
@@ -86,6 +87,7 @@ __all__ = [
     # Refactored ViewSets
     'ReportViewSet',
     'GalleryViewSet',
+    'ExportViewSet',
     'AnalyticsViewSet',
     # Chat & Share
     'ChatAIView',

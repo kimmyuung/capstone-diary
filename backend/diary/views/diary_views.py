@@ -10,24 +10,31 @@
 - AI 이미지 생성
 """
 import logging
+from datetime import timedelta, datetime, date
+from django.db.models import Count, Q, Avg, F
+from django.utils import timezone
+from django.core.cache import cache
+from django.conf import settings
+
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count, Q, Avg
-from django.utils import timezone
-from django.core.cache import cache
-from django.conf import settings
-from datetime import timedelta, datetime
+from rest_framework.exceptions import ValidationError
 
-from ..models import Diary, DiaryEmbedding, DiaryImage
+from ..models import Diary, DiaryEmbedding, DiaryImage, UserPreference
 from ..serializers import DiarySerializer, DiaryImageSerializer
 from ..services.image_service import ImageGenerator
 from ..services.summary_service import SummaryService
-from ..services.analysis_service import KeywordExtractor
-
+from ..services.analysis_service import KeywordExtractor, EmotionTrendAnalyzer
+from ..services.chat_service import ChatService
+from ..services.user_tier_service import UserTierService
+from ..services.streak_service import StreakService
 from ..paginations import StandardResultsSetPagination
 from ..messages import ERROR_INVALID_YEAR, ERROR_INVALID_YEAR_MONTH
+from ..cache_utils import invalidate_user_cache
+from ..tasks import generate_image_task
+
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiResponse
 from ..schema_examples import (
     EXAMPLE_400_BAD_REQUEST, EXAMPLE_401_UNAUTHORIZED,
@@ -265,19 +272,10 @@ class DiaryViewSet(viewsets.ModelViewSet):
         
         [하루 1개 제한] 오늘 날짜에 이미 일기가 있으면 생성을 차단합니다.
         """
-        from ..cache_utils import invalidate_user_cache
-        from datetime import date
+        # [Service] 일기 작성 하루 1개 제한 확인
+        is_allowed, existing_diary = UserTierService.check_daily_diary_limit(self.request.user)
         
-        # 오늘 날짜에 이미 일기가 있는지 확인
-        today = date.today()
-        existing_diary = Diary.objects.filter(
-            user=self.request.user,
-            created_at__date=today
-        ).first()
-        
-        if existing_diary:
-            # 기존 일기가 있으면 409 Conflict 응답
-            from rest_framework.exceptions import ValidationError
+        if not is_allowed:
             raise ValidationError({
                 'error': 'DIARY_EXISTS_TODAY',
                 'message': '오늘 일기가 이미 작성되었습니다.',
@@ -289,9 +287,8 @@ class DiaryViewSet(viewsets.ModelViewSet):
         self._generate_reflection_if_needed(instance)
         invalidate_user_cache(self.request.user.id)
         
-        # 스트릭 업데이트
-        from .preference_views import update_user_streak
-        update_user_streak(self.request.user)
+        # [Service] 스트릭 업데이트
+        StreakService.update_user_streak(self.request.user)
     
     @extend_schema(
         summary="일기 수정",
@@ -344,9 +341,6 @@ class DiaryViewSet(viewsets.ModelViewSet):
         """
         일기 수정 시 관련 캐시를 무효화하고 버전을 증가시킵니다.
         """
-        from ..cache_utils import invalidate_user_cache
-        from django.db.models import F
-        
         # Atomic Version Increment
         instance = serializer.instance
         instance.version = F('version') + 1
@@ -365,7 +359,6 @@ class DiaryViewSet(viewsets.ModelViewSet):
             return
             
         try:
-            from ..services.chat_service import ChatService
             question = ChatService.generate_reflection_question(instance)
             if question:
                 instance.reflection_question = question
@@ -377,18 +370,9 @@ class DiaryViewSet(viewsets.ModelViewSet):
         """
         일기 삭제 시 관련 캐시를 무효화합니다.
         """
-        from ..cache_utils import invalidate_user_cache
-        
         user_id = instance.user.id
         instance.delete()
         invalidate_user_cache(user_id)
-
-
-
-
-
-
-
 
 
 
@@ -443,28 +427,12 @@ class DiaryViewSet(viewsets.ModelViewSet):
             )
             
         try:
-            # [Feature: User Tiers] 하루 생성 제한 체크
-            from django.utils import timezone
-            from ..models import UserPreference
+            # [Service] 사용자 등급 및 일일 제한 확인
+            is_allowed, details = UserTierService.check_image_generation_limit(request.user)
             
-            today = timezone.now().date()
-            generated_count = DiaryImage.objects.filter(
-                diary__user=request.user,
-                created_at__date=today
-            ).count()
-            
-            # 사용자 등급 확인
-            pref = UserPreference.get_or_create_for_user(request.user)
-            limit = 10 if pref.is_premium else 2
-            
-            if generated_count >= limit:
+            if not is_allowed:
                  return Response(
-                    {
-                        'error': 'Daily image generation limit exceeded.',
-                        'message': f"하루 생성 한도({limit}장)를 초과했습니다.",
-                        'limit': limit,
-                        'current': generated_count
-                    },
+                    {'error': 'Daily image generation limit exceeded.', **details},
                     status=status.HTTP_429_TOO_MANY_REQUESTS
                 )
 
@@ -477,7 +445,6 @@ class DiaryViewSet(viewsets.ModelViewSet):
                 )
 
             # 비동기 태스크 실행
-            from ..tasks import generate_image_task
             generate_image_task.delay(diary.id)
             
             # 즉시 응답 (Processing)
@@ -589,9 +556,7 @@ class DiaryViewSet(viewsets.ModelViewSet):
             days = 7
         
         try:
-            from ..services.analysis_service import EmotionTrendAnalyzer
-            
-            # 트렌드 분석
+            # 트렌드 분석 (Service 사용)
             trend = EmotionTrendAnalyzer.analyze_recent_trend(request.user, days)
             
             # 주간 요약 추가

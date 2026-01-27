@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-from diary.ai_service import KeywordExtractor
+from diary.services.analysis_service import KeywordExtractor
 from diary.models import Diary
 from django.contrib.auth.models import User
 
